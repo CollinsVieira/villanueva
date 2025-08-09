@@ -7,6 +7,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
+from .filters import UserFilter
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserUpdateSerializer,
     LoginSerializer, ChangePasswordSerializer, PasswordResetSerializer
@@ -59,7 +60,7 @@ class UserListView(generics.ListCreateAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['role', 'is_active']
+    filterset_class = UserFilter
     search_fields = ['email', 'first_name', 'last_name', 'username']
     ordering_fields = ['created_at', 'email', 'first_name']
     ordering = ['-created_at']
