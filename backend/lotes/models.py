@@ -13,6 +13,8 @@ class Lote(models.Model):
         ('vendido', _('Vendido')),
         ('reservado', _('Reservado')),
         ('desarrollo', _('En Desarrollo')),
+
+        
     ]
 
     block = models.CharField(_("Manzana"), max_length=50)
