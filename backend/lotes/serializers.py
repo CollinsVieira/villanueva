@@ -12,6 +12,7 @@ class LoteHistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'action', 'details', 'timestamp']
 
 
+
 class LoteSerializer(serializers.ModelSerializer):
     """
     Serializador para el modelo Lote.
