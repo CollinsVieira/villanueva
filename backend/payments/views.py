@@ -3,6 +3,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Payment
 from .serializers import PaymentSerializer
 from users.permissions import IsWorkerOrAdmin
+from rest_framework.parsers import MultiPartParser, FormParser 
 
 class PaymentViewSet(viewsets.ModelViewSet):
     """
@@ -12,8 +13,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated, IsWorkerOrAdmin]
     
+
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
+    parser_classes = [MultiPartParser, FormParser] # Para manejar la subida de archivos/imágenes
     # Filtros por lote_id y método de pago
     filterset_fields = ['lote__id', 'method']
     

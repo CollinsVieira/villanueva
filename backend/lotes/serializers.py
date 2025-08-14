@@ -1,16 +1,26 @@
 from rest_framework import serializers
-from .models import Lote
+from .models import Lote, LoteHistory
 from customers.serializers import CustomerSerializer
+from users.serializers import UserSerializer
+
+class LoteHistorySerializer(serializers.ModelSerializer):
+    """Serializador para el historial de un lote."""
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = LoteHistory
+        fields = ['id', 'user', 'action', 'details', 'timestamp']
+
 
 class LoteSerializer(serializers.ModelSerializer):
     """
     Serializador para el modelo Lote.
     """
-    # Usamos un serializador anidado de solo lectura para mostrar los detalles del propietario
     owner = CustomerSerializer(read_only=True)
-    
-    # Campo para aceptar el ID del propietario al crear o actualizar
     owner_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    history = LoteHistorySerializer(many=True, read_only=True) 
+    remaining_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
 
     class Meta:
         model = Lote
@@ -19,22 +29,24 @@ class LoteSerializer(serializers.ModelSerializer):
             'block', 
             'lot_number', 
             'area', 
-            'price', 
+            'price',
+            'initial_payment',      # <-- Añadir
+            'financing_months',     # <-- Añadir
+            'remaining_balance', 
             'status',
             'owner',
-            'owner_id', # Incluimos el campo de escritura
+            'owner_id',
+            'history',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'owner']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'owner', 'history', 'remaining_balance']
 
     def create(self, validated_data):
-        # Asignar el usuario actual como creador del lote
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             validated_data['created_by'] = request.user
         
-        # Asignar el propietario usando el owner_id
         owner_id = validated_data.pop('owner_id', None)
         if owner_id:
             validated_data['owner_id'] = owner_id
@@ -42,9 +54,9 @@ class LoteSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Asignar el propietario usando el owner_id
         owner_id = validated_data.pop('owner_id', None)
-        if owner_id:
+        # Se usa `None` como un valor válido para desasignar un propietario
+        if owner_id is not None:
             instance.owner_id = owner_id
         
         return super().update(instance, validated_data)

@@ -15,12 +15,18 @@ class Payment(models.Model):
         ('otro', _('Otro')),
     ]
 
+    receipt_image = models.ImageField(_("Imagen del Comprobante"), upload_to='payment_receipts/', blank=True, null=True)
+    installment_number = models.PositiveIntegerField(_("Número de Cuota"), blank=True, null=True)
+
+
     # Relación con el lote al que corresponde el pago
     lote = models.ForeignKey(
         Lote,
         on_delete=models.CASCADE,
         related_name='payments',
         verbose_name=_("Lote")
+        
+        
     )
     
     amount = models.DecimalField(
