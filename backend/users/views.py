@@ -6,6 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import UserFilter
+from drf_spectacular.utils import extend_schema
+
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserUpdateSerializer,
     LoginSerializer, ChangePasswordSerializer, PasswordResetSerializer
@@ -14,6 +16,11 @@ from .permissions import IsAdminUser, IsOwnerOrAdmin
 
 User = get_user_model()
 
+
+@extend_schema(
+    request=LoginSerializer,
+    responses={200: UserSerializer} # Define la respuesta esperada
+)
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
