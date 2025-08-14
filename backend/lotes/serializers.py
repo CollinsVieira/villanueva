@@ -11,7 +11,7 @@ class LoteHistorySerializer(serializers.ModelSerializer):
         model = LoteHistory
         fields = ['id', 'user', 'action', 'details', 'timestamp']
 
-
+ 
 
 class LoteSerializer(serializers.ModelSerializer):
     """
