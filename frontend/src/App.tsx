@@ -5,11 +5,13 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LoginForm from "./components/Auth/LoginForm";
 import Sidebar from "./components/Layout/Sidebar";
 import UserManagement from "./components/Users/UserManagement";
 import Dashboard from "./components/Dashboard/Dashboard";
+import DynamicReports from "./pages/DynamicReports";
 
 // Componente para rutas protegidas
 const ProtectedRoute: React.FC<{
@@ -126,6 +128,17 @@ const MainApp: React.FC = () => {
           }
         />
 
+        <Route
+          path="/admin/reportes"
+          element={
+            <ProtectedRoute adminOnly>
+              <AppLayout>
+                <DynamicReports />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
 
         {/* Ruta catch-all para rutas no encontradas */}
         <Route
@@ -145,6 +158,23 @@ function App() {
   return (
     <AuthProvider>
       <MainApp />
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            theme: {
+              primary: 'green',
+              secondary: 'black',
+            },
+          },
+        }}
+      />
     </AuthProvider>
   );
 }
