@@ -5,6 +5,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Customer
 from .serializers import CustomerSerializer
 from users.permissions import IsWorkerOrAdmin
+from rest_framework.decorators import action # <-- Añadir import
+from rest_framework.response import Response
+from lotes.models import LoteHistory 
 
 class CustomerViewSet(viewsets.ModelViewSet):
     """
@@ -22,7 +25,34 @@ class CustomerViewSet(viewsets.ModelViewSet):
         DjangoFilterBackend, 
         filters.SearchFilter, 
         filters.OrderingFilter
+
+        
     ]
+
+    @action(detail=True, methods=['get'])
+    def history(self, request, pk=None):
+        """
+        Devuelve un historial consolidado de eventos para un cliente,
+        principalmente basado en los cambios en sus lotes.
+        """
+        customer = self.get_object()
+        # Buscamos en el historial de lotes, todos los registros de los lotes que pertenecen al cliente
+        history_records = LoteHistory.objects.filter(lote__owner=customer).order_by('-timestamp')
+        
+        # (En el futuro, aquí podrías unir historiales de otros modelos también)
+        
+        # Usamos un truco simple para serializar: creamos una lista de diccionarios
+        data = [
+            {
+                "timestamp": record.timestamp,
+                "action": record.action,
+                "details": record.details,
+                "user": record.user.get_full_name() if record.user else "Sistema"
+            }
+            for record in history_records
+        ]
+        
+        return Response(data)
     
     # Campos por los que se puede filtrar (ej: /api/v1/customers/?phone=12345)
     filterset_fields = ['phone', 'document_type']

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import logo from "/logo3.webp";
+//import logo from "../../assets/logo3.webp";
 
 interface MenuItem {
   id: string;
@@ -51,9 +51,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     <div className="bg-[#eff3fa] shadow-lg h-full w-64 fixed left-0 top-0 z-10">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
+
+          {/*
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
             <img src={logo} alt="VillanuevaLogo" className="w-10 h-10" />
           </div>
+          */}
           <div>
             <p className="text-sm text-blue-800 font-bold">
               Sistema de Control

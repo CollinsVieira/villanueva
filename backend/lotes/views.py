@@ -35,8 +35,12 @@ class LoteViewSet(viewsets.ModelViewSet):
         MONITORED_FIELDS = {
             'owner_id': 'Propietario',
             'status': 'Estado',
-            'price': 'Precio'
+            'price': 'Precio',
+            'initial_payment': 'Pago Inicial',
+            'financing_months': 'Meses de Financiamiento'
         }
+
+    
 
         # Obtenemos la instancia del lote ANTES de que se guarde el cambio
         old_instance = self.get_object()

@@ -10,6 +10,9 @@ import LoginForm from "./components/Auth/LoginForm";
 import Sidebar from "./components/Layout/Sidebar";
 import UserManagement from "./components/Users/UserManagement";
 import Dashboard from "./components/Dashboard/Dashboard";
+import CustomerManagement from "./components/Customers/CustomerManagement"; // <-- Import añadido
+import LoteManagement from "./components/Lotes/LoteManagement"; 
+import PaymentManagement from "./components/Payments/PaymentManagement";
 
 // Componente para rutas protegidas
 const ProtectedRoute: React.FC<{
@@ -49,7 +52,6 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     </div>
   );
 };
-
 
 // Componente para redireccionar según el rol del usuario
 const DashboardRedirect: React.FC = () => {
@@ -103,13 +105,13 @@ const MainApp: React.FC = () => {
           }
         />
 
-        {/* Rutas para administradores */}
+        {/* --- Rutas para administradores --- */}
         <Route
           path="/admin/dashboard"
           element={
             <ProtectedRoute adminOnly>
               <AppLayout>
-                <Dashboard  />
+                <Dashboard />
               </AppLayout>
             </ProtectedRoute>
           }
@@ -126,6 +128,31 @@ const MainApp: React.FC = () => {
           }
         />
 
+        {/* --- NUEVA RUTA PARA CLIENTES --- */}
+        <Route
+          path="/admin/clientes"
+          element={
+            <ProtectedRoute >
+              <AppLayout>
+                <CustomerManagement />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+           {/* --- NUEVA RUTA PARA PAGOS --- */}
+        <Route
+          path="/admin/pagos"
+          element={
+            <ProtectedRoute adminOnly>
+              <AppLayout>
+                <PaymentManagement />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+          />
+
+
 
         {/* Ruta catch-all para rutas no encontradas */}
         <Route
@@ -136,6 +163,19 @@ const MainApp: React.FC = () => {
             </ProtectedRoute>
           }
         />
+
+ {/* --- RUTA DE LOTES AÑADIDA --- */}
+        <Route
+          path="/admin/lotes"
+          element={
+            <ProtectedRoute adminOnly>
+              <AppLayout>
+                <LoteManagement />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
       </Routes>
     </Router>
   );

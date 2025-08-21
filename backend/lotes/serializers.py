@@ -1,8 +1,19 @@
 from rest_framework import serializers
 from .models import Lote, LoteHistory
-from customers.serializers import CustomerSerializer
 from users.serializers import UserSerializer
+from customers.models import Customer # <-- Importamos el MODELO, no el serializador
 
+# --- 1. PRIMERO, definimos el serializador anidado ---
+class NestedCustomerSerializer(serializers.ModelSerializer):
+    """
+    Un serializador simple para mostrar información básica del propietario
+    dentro de la vista de un lote.
+    """
+    class Meta:
+        model = Customer
+        fields = ['id', 'full_name', 'document_number','document_number']
+
+# --- 2. AHORA, definimos el resto de los serializadores ---
 class LoteHistorySerializer(serializers.ModelSerializer):
     """Serializador para el historial de un lote."""
     user = UserSerializer(read_only=True)
@@ -16,11 +27,11 @@ class LoteSerializer(serializers.ModelSerializer):
     """
     Serializador para el modelo Lote.
     """
-    owner = CustomerSerializer(read_only=True)
+    # Ahora 'NestedCustomerSerializer' ya está definido y se puede usar
+    owner = NestedCustomerSerializer(read_only=True)
     owner_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     history = LoteHistorySerializer(many=True, read_only=True) 
     remaining_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-
 
     class Meta:
         model = Lote
@@ -30,17 +41,26 @@ class LoteSerializer(serializers.ModelSerializer):
             'lot_number', 
             'area', 
             'price',
-            'initial_payment',      # <-- Añadir
-            'financing_months',     # <-- Añadir
+            'initial_payment',
+            'financing_months',
             'remaining_balance', 
             'status',
+            'installments_paid',
+            'monthly_installment',
             'owner',
             'owner_id',
             'history',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'owner', 'history', 'remaining_balance']
+        read_only_fields = ['id', 
+                            'created_at', 
+                            'updated_at', 
+                            'owner', 
+                            'history', 
+                            'remaining_balance', 
+                            'installments_paid', 
+                            'monthly_installment' ]
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -54,9 +74,10 @@ class LoteSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        # Extraemos owner_id de los datos validados.
+        # validated_data.pop() nos permite manejarlo por separado.
         owner_id = validated_data.pop('owner_id', None)
-        # Se usa `None` como un valor válido para desasignar un propietario
-        if owner_id is not None:
-            instance.owner_id = owner_id
         
+        # Asignamos el nuevo propietario. Si owner_id es null, se desasigna.
+        instance.owner_id = owner_id
         return super().update(instance, validated_data)

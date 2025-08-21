@@ -21,7 +21,15 @@ class PaymentViewSet(viewsets.ModelViewSet):
     filterset_fields = ['lote__id', 'method']
     
     # Búsqueda por número de recibo o notas
-    search_fields = ['receipt_number', 'notes', 'lote__owner__first_name', 'lote__owner__last_name']
+    search_fields = [
+        'receipt_number', 
+        'notes', 
+        'lote__owner__first_name', 
+        'lote__owner__last_name',
+        'lote__owner__document_number',
+        'lote__block',
+        'lote__lot_number'
+    ]
     
     # Ordenación
     ordering_fields = ['payment_date', 'amount', 'created_at']

@@ -106,3 +106,5 @@ class PasswordResetSerializer(serializers.Serializer):
         if not User.objects.filter(email=value, is_active=True).exists():
             raise serializers.ValidationError('No existe un usuario con este email.')
         return value 
+    
+    
