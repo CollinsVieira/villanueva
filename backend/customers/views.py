@@ -27,7 +27,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter
 
         
+
+        
     ]
+
+    search_fields = ['first_name', 'last_name', 'document_number']
 
     @action(detail=True, methods=['get'])
     def history(self, request, pk=None):

@@ -3,8 +3,9 @@ import api from './api';
 import { Customer, HistoryEvent } from '../types';
 
 class CustomerService {
-  async getCustomers(): Promise<Customer[]> {
-    const response = await api.get('/customers/');
+  async getCustomers(searchTerm: string = ''): Promise<Customer[]> {
+    const params = searchTerm ? { search: searchTerm } : {};
+    const response = await api.get('/customers/', { params });
     return response.data;
   }
 

@@ -23,7 +23,7 @@ class LoteViewSet(viewsets.ModelViewSet):
     
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'block']
-    search_fields = ['block', 'lot_number', 'owner__first_name', 'owner__last_name']
+    search_fields = ['block', 'lot_number']
     ordering_fields = ['price', 'area', 'created_at']
     ordering = ['block', 'lot_number']
 

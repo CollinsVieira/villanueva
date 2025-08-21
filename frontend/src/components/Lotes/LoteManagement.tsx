@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Edit, Eye, PlusCircle, Trash2 } from 'lucide-react'; // 'Eye' se mantiene para el modal
+import { CheckSquare, Edit, Eye, PlusCircle, Trash2, Search } from 'lucide-react';
 import { Lote } from '../../types';
 import loteService from '../../services/loteService';
 import LoadingSpinner from '../UI/LoadingSpinner';
@@ -11,22 +11,27 @@ const LoteManagement: React.FC = () => {
   const [lotes, setLotes] = useState<Lote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [filterStatus, setFilterStatus] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [showForm, setShowForm] = useState(false);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
-  
   const [viewingLoteId, setViewingLoteId] = useState<number | null>(null);
 
+  // Carga inicial y cuando cambia el filtro de estado
   useEffect(() => {
-    loadLotes();
+    loadLotes(searchTerm);
   }, [filterStatus]);
 
-  const loadLotes = async () => {
+  const loadLotes = async (currentSearchTerm: string) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       setError(null);
-      const params = filterStatus ? { status: filterStatus } : {};
+      const params: { status?: string; search?: string } = {};
+      if (filterStatus) params.status = filterStatus;
+      if (currentSearchTerm) params.search = currentSearchTerm;
+      
       const data = await loteService.getLotes(params);
       setLotes(data);
     } catch (err: any) {
@@ -35,50 +40,37 @@ const LoteManagement: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-  const handleNew = () => {
-    setSelectedLote(null);
-    setShowForm(true);
+  
+  // --- NUEVA FUNCIÓN PARA BÚSQUEDA MANUAL ---
+  const handleSearch = () => {
+    loadLotes(searchTerm);
   };
-
+  
+  // ... (resto de funciones handleNew, handleEdit, etc. sin cambios)
+  const handleNew = () => { setSelectedLote(null); setShowForm(true); };
+  const handleEdit = (lote: Lote) => { setSelectedLote(lote); setShowForm(true); };
+  const handleSave = () => { setShowForm(false); setSelectedLote(null); loadLotes(''); };
   const handleDelete = async (id: number) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este lote? Esta acción no se puede deshacer.')) {
+    if (window.confirm('¿Está seguro de que desea eliminar este lote?')) {
       try {
         await loteService.deleteLote(id);
-        loadLotes();
+        loadLotes(searchTerm);
       } catch (err: any) {
         setError(err.response?.data?.detail || 'Error al eliminar el lote.');
       }
     }
   };
-
-  const handleEdit = (lote: Lote) => {
-    setSelectedLote(lote);
-    setShowForm(true);
-  };
-
-  const handleSave = () => {
-    setShowForm(false);
-    setSelectedLote(null);
-    loadLotes();
-  };
-  
-  // La función handleViewDetails que mostraba la alerta ha sido eliminada.
-
   const getStatusChipClass = (status: string) => {
     switch (status) {
-      case 'vendido':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'reservado':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'disponible':
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'vendido': return 'bg-red-100 text-red-800 border-red-200';
+      case 'reservado': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'disponible': return 'bg-green-100 text-green-800 border-green-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  if (isLoading) return <LoadingSpinner />;
+
+  if (isLoading && lotes.length === 0) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">
@@ -87,10 +79,7 @@ const LoteManagement: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Lotes</h1>
           <p className="text-gray-600 mt-1">Visualice y administre todos los lotes.</p>
         </div>
-        <button
-          onClick={handleNew}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-        >
+        <button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
           <PlusCircle size={20} />
           <span>Nuevo Lote</span>
         </button>
@@ -98,7 +87,23 @@ const LoteManagement: React.FC = () => {
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
+      <div className="bg-white p-4 rounded-lg shadow-sm border flex items-center space-x-4">
+        {/* --- BUSCADOR MANUAL --- */}
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Buscar por Manzana o N° de Lote..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()} // Opcional: buscar con Enter
+            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+          />
+        </div>
+        <button onClick={handleSearch} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800">
+          Buscar
+        </button>
+        {/* --- FILTRO EXISTENTE --- */}
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -138,7 +143,6 @@ const LoteManagement: React.FC = () => {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center justify-end space-x-2">
-                      {/* --- BOTÓN REDUNDANTE ELIMINADO --- */}
                       <button onClick={() => setViewingLoteId(lote.id)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title="Ver Detalles">
                         <Eye size={16} />
                       </button>
@@ -163,14 +167,8 @@ const LoteManagement: React.FC = () => {
           </div>
         )}
       </div>
-      
-      {showForm && (
-        <LoteForm 
-          lote={selectedLote}
-          onClose={() => setShowForm(false)}
-          onSave={handleSave}
-        />
-      )}
+
+      {showForm && <LoteForm lote={selectedLote} onClose={() => setShowForm(false)} onSave={handleSave} />}
       
       {viewingLoteId && (
         <LoteDetailModal

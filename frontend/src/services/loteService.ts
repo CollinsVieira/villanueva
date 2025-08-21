@@ -3,10 +3,12 @@ import api from './api';
 import { Lote } from '../types';
 
 class LoteService {
-  async getLotes(params?: { status?: string }): Promise<Lote[]> {
+  
+  async getLotes(params?: { status?: string; search?: string }): Promise<Lote[]> {
     const response = await api.get('/lotes/', { params });
     return response.data;
   }
+
   
   async updateLote(id: number, loteData: Partial<Lote> & { owner_id?: number | null }): Promise<Lote> {
     const response = await api.patch(`/lotes/${id}/`, loteData);
