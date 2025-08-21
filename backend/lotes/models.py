@@ -1,8 +1,8 @@
 from django.db import models
 from django.conf import settings
+from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
 from customers.models import Customer
-from django.db.models import Sum # <-- Añadir import
 
 class Lote(models.Model):
     """
@@ -49,16 +49,6 @@ class Lote(models.Model):
         related_name='lotes_creados'
     )
 
-
-    @property
-    def remaining_balance(self):
-        """Calcula el saldo restante del lote."""
-        # Suma todos los objetos Payment relacionados a este lote
-        total_paid_installments = self.payments.aggregate(total=Sum('amount'))['total'] or 0
-        
-        # El saldo restante es el precio MENOS el pago inicial MENOS la suma de las cuotas
-        return self.price - self.initial_payment - total_paid_installments
-    
     class Meta:
         verbose_name = _("Lote")
         verbose_name_plural = _("Lotes")
@@ -69,6 +59,35 @@ class Lote(models.Model):
 
     def __str__(self):
         return f"Manzana {self.block}, Lote {self.lot_number}"
+
+    @property
+    def remaining_balance(self):
+        """Calcula el saldo restante del lote."""
+        total_paid_installments = self.payments.aggregate(total=Sum('amount'))['total'] or 0
+        return self.price - self.initial_payment - total_paid_installments
+        
+    @property
+    def installments_paid(self):
+        """Calcula el número de pagos de cuotas registrados."""
+        return self.payments.filter(installment_number__isnull=False).count()
+
+    @property
+    def monthly_installment(self):
+        """Calcula el monto de la cuota mensual."""
+        if self.financing_months and self.financing_months > 0:
+            amount_to_finance = self.price - self.initial_payment
+            return round(amount_to_finance / self.financing_months, 2)
+        return 0 
+
+    def save(self, *args, **kwargs):
+        """
+        Sobrescribe el método save para actualizar el estado automáticamente.
+        """
+        if self.owner:
+            self.status = 'vendido'
+        else:
+            self.status = 'disponible'
+        super().save(*args, **kwargs)
 
 
 class LoteHistory(models.Model):
