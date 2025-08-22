@@ -11,7 +11,7 @@ class NestedCustomerSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Customer
-        fields = ['id', 'full_name', 'document_number','document_number']
+        fields = ['id', 'full_name', 'document_number', 'phone', 'email']
 
 # --- 2. AHORA, definimos el resto de los serializadores ---
 class LoteHistorySerializer(serializers.ModelSerializer):
@@ -43,6 +43,7 @@ class LoteSerializer(serializers.ModelSerializer):
             'price',
             'initial_payment',
             'financing_months',
+            'payment_day',
             'remaining_balance', 
             'status',
             'installments_paid',

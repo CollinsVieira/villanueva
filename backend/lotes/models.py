@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
+from datetime import date
 from customers.models import Customer
 
 class Lote(models.Model):
@@ -21,6 +22,11 @@ class Lote(models.Model):
     price = models.DecimalField(_("Precio de Venta (Saldo Inicial)"), max_digits=12, decimal_places=2)
     initial_payment = models.DecimalField(_("Pago Inicial (Enganche)"), max_digits=12, decimal_places=2, default=0.00)
     financing_months = models.PositiveIntegerField(_("Meses de Financiamiento"), default=0)
+    payment_day = models.PositiveIntegerField(
+        _("Día de Vencimiento Mensual"), 
+        default=15, 
+        help_text=_("Día del mes en que vencen las cuotas (1-31)")
+    )
     
     status = models.CharField(
         _("Estado"),
@@ -83,11 +89,54 @@ class Lote(models.Model):
         """
         Sobrescribe el método save para actualizar el estado automáticamente.
         """
+        # Verificar si es la primera vez que se asigna un propietario
+        is_new_owner = False
+        if self.pk:  # Si el lote ya existe
+            old_lote = Lote.objects.get(pk=self.pk)
+            is_new_owner = (not old_lote.owner and self.owner)
+        else:
+            is_new_owner = bool(self.owner)
+        
         if self.owner:
-            self.status = 'vendido'
+            # Si tiene propietario, verificar si ha pagado completamente
+            if self.remaining_balance <= 0:
+                self.status = 'vendido'
+            else:
+                self.status = 'reservado'
         else:
             self.status = 'disponible'
+        
         super().save(*args, **kwargs)
+        
+        # Generar plan de pagos si se asignó un nuevo propietario
+        if is_new_owner and self.financing_months > 0:
+            self.create_payment_plan()
+
+    def create_payment_plan(self, payment_day=None):
+        """
+        Crea un plan de pagos para este lote.
+        """
+        from payments.models import PaymentPlan  # Import aquí para evitar circular imports
+        
+        # Eliminar plan existente si existe
+        if hasattr(self, 'payment_plan'):
+            self.payment_plan.delete()
+        
+        # Usar el payment_day del lote o el parámetro pasado
+        if payment_day is None:
+            payment_day = self.payment_day
+        
+        # Crear nuevo plan de pagos
+        payment_plan = PaymentPlan.objects.create(
+            lote=self,
+            start_date=date.today(),
+            payment_day=payment_day
+        )
+        
+        # Generar cronograma de pagos
+        payment_plan.generate_payment_schedule()
+        
+        return payment_plan
 
 
 class LoteHistory(models.Model):

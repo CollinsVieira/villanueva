@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Payment
+from .models import Payment, PaymentPlan
 from lotes.serializers import LoteSerializer
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -17,17 +17,21 @@ class PaymentSerializer(serializers.ModelSerializer):
             'lote_id',
             'amount',
             'payment_date',
+            'due_date',
             'method',
             'receipt_number',
+            'receipt_date',
             'installment_number',
             'receipt_image',
             'notes',
+            'payment_plan',
             'recorded_by',
             'created_at',
-            'updated_at'
+            'updated_at',
+            'is_overdue',
+            'days_overdue'
         ]
-        # 'installment_number' ha sido eliminado de esta lista
-        read_only_fields = ['id', 'created_at', 'updated_at', 'recorded_by', 'lote']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'recorded_by', 'lote', 'is_overdue', 'days_overdue']
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -39,3 +43,29 @@ class PaymentSerializer(serializers.ModelSerializer):
             validated_data['lote_id'] = lote_id
 
         return super().create(validated_data)
+
+
+class PaymentPlanSerializer(serializers.ModelSerializer):
+    """
+    Serializador para el modelo PaymentPlan.
+    """
+    payment_status = serializers.SerializerMethodField()
+    payments = PaymentSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = PaymentPlan
+        fields = [
+            'id',
+            'lote',
+            'start_date',
+            'payment_day',
+            'payment_status',
+            'payments',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_payment_status(self, obj):
+        """Retorna el estado del plan de pagos."""
+        return obj.get_payment_status()

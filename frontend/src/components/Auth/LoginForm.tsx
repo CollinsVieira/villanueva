@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-//import loginImage from '../../assets/login-image.webp';
+import loginImage from '../../assets/login-image.webp';
 
 const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -103,13 +103,13 @@ const LoginForm: React.FC = () => {
       </div>
 
       {/* Columna derecha: Imagen decorativa */}
-      {/*
+      
       <div className="hidden lg:block bg-[#232e85]">
         <div className="h-full w-full bg-cover bg-center" style={{
           backgroundImage: `url(${loginImage})`
         }} />
       </div>
-      */}
+     
        {/* --------------------------- */}
     </div>
     

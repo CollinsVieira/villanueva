@@ -18,6 +18,10 @@ const CustomerManagement: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomerId, setViewingCustomerId] = useState<number | null>(null);
 
+  // Estados de paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
   useEffect(() => {
     loadCustomers(searchTerm);
   }, []);
@@ -37,6 +41,17 @@ const CustomerManagement: React.FC = () => {
 
   const handleSearch = () => {
     loadCustomers(searchTerm);
+    setCurrentPage(1); // Reiniciar a la primera página cuando se busque
+  };
+
+  // Cálculos de paginación
+  const totalPages = Math.ceil(customers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentCustomers = customers.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
   
   const handleNewCustomer = () => {
@@ -75,7 +90,7 @@ const CustomerManagement: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
           <p className="text-gray-600 mt-1">Haga clic en un cliente para ver sus detalles y historial.</p>
         </div>
-        <button onClick={handleNewCustomer} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+        <button onClick={handleNewCustomer} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
           <PlusCircle size={20} />
           <span>Nuevo Cliente</span>
         </button>
@@ -102,6 +117,22 @@ const CustomerManagement: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 bg-gray-50 border-b flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Users className="mr-2 text-green-600" size={20} />
+            Lista de Clientes
+            {!isLoading && (
+              <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                {customers.length} registros
+              </span>
+            )}
+            {totalPages > 1 && (
+              <span className="ml-2 text-sm text-gray-600">
+                Página {currentPage} de {totalPages}
+              </span>
+            )}
+          </h2>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
               <thead className="bg-gray-50 border-b">
@@ -113,7 +144,7 @@ const CustomerManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {customers.map((customer) => (
+                {currentCustomers.map((customer) => (
                   <tr key={customer.id} onClick={() => setViewingCustomerId(customer.id)} className="hover:bg-gray-100 cursor-pointer">
                     <td className="p-3 font-medium text-gray-900">{customer.full_name}</td>
                     <td className="p-3 text-sm text-gray-600">
@@ -138,6 +169,72 @@ const CustomerManagement: React.FC = () => {
               </tbody>
             </table>
         </div>
+        
+        {/* Paginación */}
+        {!isLoading && totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, customers.length)} de {customers.length} registros
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                    currentPage === page
+                      ? 'bg-green-600 text-white'
+                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isLoading && customers.length === 0 && (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Users size={40} className="text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {searchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              {searchTerm 
+                ? 'Intenta con otros términos de búsqueda o verifica los filtros aplicados.' 
+                : 'Comience registrando el primer cliente para ver la lista aquí.'
+              }
+            </p>
+            {!searchTerm && (
+              <button
+                onClick={handleNewCustomer}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl flex items-center space-x-2 mx-auto shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                <PlusCircle size={20} />
+                <span>Registrar Primer Cliente</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
       
       {showForm && (

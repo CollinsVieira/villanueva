@@ -39,6 +39,7 @@ export interface Lote {
   price: string;
   initial_payment: string;
   financing_months: number;
+  payment_day: number;
   remaining_balance: string;
   status: 'disponible' | 'vendido' | 'reservado' | 'desarrollo';
   owner?: Customer;
@@ -54,12 +55,34 @@ export interface Payment {
   lote: Lote;
   amount: string;
   payment_date: string;
+  due_date?: string;
   method: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
   receipt_number?: string;
+  receipt_date?: string;
   installment_number?: number;
   receipt_image?: string;
   notes?: string;
+  payment_plan?: number;
   recorded_by: User;
+  is_overdue?: boolean;
+  days_overdue?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentPlan {
+  id: number;
+  lote: number;
+  start_date: string;
+  payment_day: number;
+  payment_status: {
+    total: number;
+    paid: number;
+    pending: number;
+    overdue: number;
+    completion_percentage: number;
+  };
+  payments: Payment[];
   created_at: string;
   updated_at: string;
 }
@@ -87,8 +110,6 @@ export interface HistoryEvent {
   user: string;
 }
 
-
-=======
   // Types for Reports
   export interface Report {
     id: number;
@@ -164,6 +185,7 @@ export interface HistoryEvent {
     remaining_balance: number;
     total_payments_made: number;
     financing_months: number;
+    payment_day: number;
     days_until_next_payment?: number;
   }
 

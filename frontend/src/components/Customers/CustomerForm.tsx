@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Home, FileText } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Customer } from '../../types';
 import customerService from '../../services/customerService';
 
@@ -21,23 +21,43 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customDocumentType, setCustomDocumentType] = useState('');
 
   useEffect(() => {
     if (customer) {
+      const docType = customer.document_type || '';
+      const isCustomDocType = docType && !['DNI', 'RUC'].includes(docType);
+      
       setFormData({
         first_name: customer.first_name || '',
         last_name: customer.last_name || '',
         email: customer.email || '',
         phone: customer.phone || '',
         address: customer.address || '',
-        document_type: customer.document_type || '',
+        document_type: isCustomDocType ? 'otro' : docType,
         document_number: customer.document_number || '',
       });
+      
+      if (isCustomDocType) {
+        setCustomDocumentType(docType);
+      }
     }
   }, [customer]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleDocumentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, document_type: value });
+    if (value !== 'otro') {
+      setCustomDocumentType('');
+    }
+  };
+
+  const handleCustomDocumentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomDocumentType(e.target.value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,10 +65,15 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
     setIsSubmitting(true);
     setError(null);
     try {
+      const dataToSend = {
+        ...formData,
+        document_type: formData.document_type === 'otro' ? customDocumentType : formData.document_type
+      };
+      
       if (customer) {
-        await customerService.updateCustomer(customer.id, formData);
+        await customerService.updateCustomer(customer.id, dataToSend);
       } else {
-        await customerService.createCustomer(formData);
+        await customerService.createCustomer(dataToSend);
       }
       onSave();
     } catch (err: any) {
@@ -59,7 +84,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
         <form onSubmit={handleSubmit}>
           <div className="flex items-center justify-between p-6 border-b">
@@ -77,35 +102,109 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
               {/* Nombres y Apellidos */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombres</label>
-                <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
+                <input 
+                  type="text" 
+                  name="first_name" 
+                  value={formData.first_name} 
+                  onChange={handleChange} 
+                  placeholder="Ej: Juan Carlos"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
-                <input type="text" name="last_name" value={formData.last_name} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
+                <input 
+                  type="text" 
+                  name="last_name" 
+                  value={formData.last_name} 
+                  onChange={handleChange} 
+                  placeholder="Ej: García López"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  required 
+                />
               </div>
               {/* Email y Teléfono */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" />
+                <input 
+                  type="email" 
+                  name="email" 
+                  value={formData.email} 
+                  onChange={handleChange} 
+                  placeholder="ejemplo@correo.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" />
+                <input 
+                  type="tel" 
+                  name="phone" 
+                  value={formData.phone} 
+                  onChange={handleChange} 
+                  placeholder="999 123 456"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                />
               </div>
               {/* Tipo y Número de Documento */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Documento</label>
-                <input type="text" name="document_type" value={formData.document_type} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
+                <select 
+                  name="document_type" 
+                  value={formData.document_type} 
+                  onChange={handleDocumentTypeChange} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar tipo</option>
+                  <option value="DNI">DNI</option>
+                  <option value="RUC">RUC</option>
+                  <option value="otro">Otro</option>
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">N° Documento</label>
-                <input type="text" name="document_number" value={formData.document_number} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">N° de Documento</label>
+                <input 
+                  type="text" 
+                  name="document_number" 
+                  value={formData.document_number} 
+                  onChange={handleChange} 
+                  placeholder={
+                    formData.document_type === 'DNI' ? '12345678' :
+                    formData.document_type === 'RUC' ? '20123456789' :
+                    'Número de documento'
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                />
               </div>
             </div>
+            
+            {/* Campo personalizado para tipo de documento */}
+            {formData.document_type === 'otro' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Especificar Tipo de Documento</label>
+                <input 
+                  type="text" 
+                  value={customDocumentType} 
+                  onChange={handleCustomDocumentTypeChange} 
+                  placeholder="Ej: Pasaporte, Carné de Extranjería, etc."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  required
+                />
+              </div>
+            )}
+            
             {/* Dirección */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-              <textarea name="address" value={formData.address} onChange={handleChange} rows={3} className="w-full px-3 py-2 border rounded-lg"></textarea>
+              <textarea 
+                name="address" 
+                value={formData.address} 
+                onChange={handleChange} 
+                rows={3} 
+                placeholder="Av. Los Álamos 123, Lima, Perú"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              ></textarea>
             </div>
           </div>
 

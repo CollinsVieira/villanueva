@@ -135,13 +135,13 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customerId, o
                 </ul>
               ) : <p className="text-sm text-gray-500">Sin lotes asignados.</p>}
             </div>
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            {/* <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <h3 className="font-semibold mb-2 text-blue-800">Asignar y Programar Lote</h3>
               <div className="space-y-3">
                 <select name="loteId" value={assignment.loteId} onChange={handleAssignmentChange} className="w-full p-2 border rounded-lg">
                   <option value="">Seleccionar lote disponible</option>
                   {availableLotes.map(lote => <option key={lote.id} value={lote.id}>
-                    Mz. {lote.block} - Lt. {lote.lot_number} (${parseFloat(lote.price).toFixed(2)})
+                    Mz. {lote.block} - Lt. {lote.lot_number} (S/. {parseFloat(lote.price).toFixed(2)})
                   </option>)}
                 </select>
                 <div className="flex items-center space-x-2">
@@ -152,7 +152,7 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customerId, o
                 {calculatedInstallment > 0 && (
                   <div className="text-center bg-white p-2 rounded-lg">
                     <p className="text-sm text-gray-600">Monto de cuota aprox:</p>
-                    <p className="font-bold text-lg text-green-600">${calculatedInstallment.toFixed(2)}</p>
+                    <p className="font-bold text-lg text-green-600">S/. {calculatedInstallment.toFixed(2)}</p>
                   </div>
                 )}
 
@@ -160,7 +160,7 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customerId, o
                   Asignar y Guardar Plan
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
           <div className="md:col-span-2">
             <h3 className="font-semibold mb-4 text-lg">Historial de Cambios</h3>

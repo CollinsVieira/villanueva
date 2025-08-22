@@ -63,6 +63,7 @@ def customers_debt_live(request):
                         'total_payments_made': lote.payments.count(),
                         'financing_months': lote.financing_months,
                         'pending_installments': pending,
+                        'payment_day': lote.payment_day,
                         'days_until_next_payment': days_until_due
                     })
             

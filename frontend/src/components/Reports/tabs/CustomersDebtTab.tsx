@@ -45,6 +45,7 @@ interface LoteDebtItem {
   total_payments_made: number;
   financing_months: number;
   pending_installments: number;
+  payment_day: number;
   days_until_next_payment?: number;
 }
 
@@ -385,6 +386,12 @@ const CustomersDebtTab: React.FC = () => {
                                 <p className="text-gray-600">Cuotas Restantes</p>
                                 <p className="font-semibold text-orange-600">
                                   {lote.pending_installments}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Vencimiento de Pago</p>
+                                <p className="font-semibold text-orange-600">
+                                  Día {lote.payment_day} de cada mes
                                 </p>
                               </div>
                             </div>

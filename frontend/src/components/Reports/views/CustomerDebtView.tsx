@@ -5,12 +5,11 @@ import {
   Phone, 
   Mail, 
   MapPin, 
-  Calendar,
   Search,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { CustomerDebtData, CustomerDebtItem } from '../../../types';
+import { CustomerDebtData } from '../../../types';
 import { reportsService } from '../../../services';
 
 interface CustomerDebtViewProps {
@@ -235,6 +234,12 @@ const CustomerDebtView: React.FC<CustomerDebtViewProps> = ({ data }) => {
                                 <p className="text-gray-600">Cuotas Restantes</p>
                                 <p className="font-semibold text-orange-600">
                                   {Math.max(0, lote.financing_months - lote.total_payments_made)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Vencimiento de Pago</p>
+                                <p className="font-semibold text-orange-600">
+                                  asdasd
                                 </p>
                               </div>
                             </div>
