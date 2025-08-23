@@ -111,6 +111,7 @@ export interface HistoryEvent {
   action: string;
   details: string;
   user: string;
+  lote_name: string;
 }
 
   // Types for Reports

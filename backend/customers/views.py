@@ -41,7 +41,8 @@ class CustomerViewSet(viewsets.ModelViewSet):
         """
         customer = self.get_object()
         # Buscamos en el historial de lotes, todos los registros de los lotes que pertenecen al cliente
-        history_records = LoteHistory.objects.filter(lote__owner=customer).order_by('-timestamp')
+        # Usamos select_related para evitar consultas N+1
+        history_records = LoteHistory.objects.filter(lote__owner=customer).select_related('lote', 'user').order_by('-timestamp')
         
         # (En el futuro, aquí podrías unir historiales de otros modelos también)
         
@@ -51,7 +52,8 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 "timestamp": record.timestamp,
                 "action": record.action,
                 "details": record.details,
-                "user": record.user.get_full_name() if record.user else "Sistema"
+                "user": record.user.get_full_name() if record.user else "Sistema",
+                "lote_name": f"Mz. {record.lote.block} - Lt. {record.lote.lot_number}"
             }
             for record in history_records
         ]
