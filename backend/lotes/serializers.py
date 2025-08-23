@@ -48,6 +48,8 @@ class LoteSerializer(serializers.ModelSerializer):
             'status',
             'installments_paid',
             'monthly_installment',
+            'has_initial_payment',
+            'initial_payment_amount',
             'owner',
             'owner_id',
             'history',

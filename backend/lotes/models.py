@@ -69,21 +69,34 @@ class Lote(models.Model):
     @property
     def remaining_balance(self):
         """Calcula el saldo restante del lote."""
-        total_paid_installments = self.payments.aggregate(total=Sum('amount'))['total'] or 0
-        return self.price - self.initial_payment - total_paid_installments
+        total_paid_amount = self.payments.aggregate(total=Sum('amount'))['total'] or 0
+        return self.price - total_paid_amount
         
     @property
     def installments_paid(self):
-        """Calcula el número de pagos de cuotas registrados."""
-        return self.payments.filter(installment_number__isnull=False).count()
+        """Calcula el número de pagos de cuotas registrados (solo tipo 'installment')."""
+        return self.payments.filter(payment_type='installment').count()
 
     @property
     def monthly_installment(self):
         """Calcula el monto de la cuota mensual."""
         if self.financing_months and self.financing_months > 0:
+            # El monto a financiar es el precio total menos el enganche configurado
+            # No usamos remaining_balance porque puede incluir pagos adicionales
             amount_to_finance = self.price - self.initial_payment
             return round(amount_to_finance / self.financing_months, 2)
-        return 0 
+        return 0
+    
+    @property
+    def has_initial_payment(self):
+        """Verifica si ya se realizó el pago inicial."""
+        return self.payments.filter(payment_type='initial').exists()
+    
+    @property
+    def initial_payment_amount(self):
+        """Obtiene el monto del pago inicial ya realizado."""
+        initial_payment = self.payments.filter(payment_type='initial').first()
+        return initial_payment.amount if initial_payment else 0 
 
     def save(self, *args, **kwargs):
         """
@@ -108,9 +121,12 @@ class Lote(models.Model):
         
         super().save(*args, **kwargs)
         
-        # Generar plan de pagos si se asignó un nuevo propietario
+        # Generar plan de pagos y registrar pago inicial si se asignó un nuevo propietario
         if is_new_owner and self.financing_months > 0:
             self.create_payment_plan()
+            # Registrar pago inicial solo si no hay uno ya registrado
+            if self.initial_payment > 0 and not self.has_initial_payment:
+                self.register_initial_payment()
 
     def create_payment_plan(self, payment_day=None):
         """
@@ -137,6 +153,25 @@ class Lote(models.Model):
         payment_plan.generate_payment_schedule()
         
         return payment_plan
+    
+    def register_initial_payment(self):
+        """
+        Registra automáticamente el pago inicial como un pago de tipo 'initial'.
+        """
+        from payments.models import Payment  # Import aquí para evitar circular imports
+        from django.utils import timezone
+        
+        # Verificar si ya existe un pago inicial para este lote
+        if not self.has_initial_payment and self.initial_payment > 0:
+            # Crear el pago inicial
+            Payment.objects.create(
+                lote=self,
+                amount=self.initial_payment,
+                payment_date=timezone.now().date(),
+                method='transferencia',  # Default method
+                payment_type='initial',
+                notes='Pago inicial registrado automáticamente al asignar el lote'
+            )
 
 
 class LoteHistory(models.Model):

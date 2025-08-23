@@ -116,8 +116,17 @@ export const dynamicReportsService = {
     return 'normal';
   },
 
+  getOverdueUrgencyLevel: (overdueInstallments: number) => {
+    if (overdueInstallments === 0) return 'normal';
+    if (overdueInstallments === 1) return 'warning';
+    if (overdueInstallments <= 3) return 'urgent';
+    return 'critical';
+  },
+
   getUrgencyStyle: (level: string) => {
     switch (level) {
+      case 'critical':
+        return 'bg-red-100 text-red-800 border-red-200';
       case 'overdue':
         return 'bg-red-100 text-red-800 border-red-200';
       case 'urgent':
@@ -129,6 +138,16 @@ export const dynamicReportsService = {
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  },
+
+  formatPaymentDay: (paymentDay: number) => {
+    return `Día ${paymentDay} de cada mes`;
+  },
+
+  getOverdueText: (overdueInstallments: number) => {
+    if (overdueInstallments === 0) return 'Al día';
+    if (overdueInstallments === 1) return '1 cuota vencida';
+    return `${overdueInstallments} cuotas vencidas`;
   },
 
   getMethodIcon: (method: string) => {

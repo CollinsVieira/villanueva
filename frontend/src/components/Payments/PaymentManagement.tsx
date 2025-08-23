@@ -74,6 +74,7 @@ const PaymentManagement: React.FC = () => {
   const handleSave = () => {
     setShowForm(false);
     setSearchTerm(''); // Limpiar la búsqueda para ver el nuevo pago
+    loadPayments(); // Recargar la lista de pagos para mostrar el nuevo pago
   };
   
   const handleDelete = async (id: number) => {

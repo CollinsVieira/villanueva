@@ -18,6 +18,7 @@ interface PendingInstallmentsData {
   summary: {
     total_customers_with_pending: number;
     total_pending_installments: number;
+    total_overdue_installments: number;
     total_pending_amount: number;
     overdue_customers: number;
     due_soon_customers: number;
@@ -45,13 +46,16 @@ interface CustomerPendingItem {
 interface LotePendingItem {
   lote_description: string;
   pending_installments: number;
+  overdue_installments: number;
   remaining_balance: number;
-  estimated_monthly_payment: number;
+  monthly_payment: number;
   total_financing_months: number;
+  payment_day: number;
   payments_made: number;
   completion_percentage: number;
   last_payment_date?: string;
   next_due_date?: string;
+  days_until_due?: number;
   days_overdue: number;
   status: 'overdue' | 'due_soon' | 'current';
 }
@@ -215,7 +219,7 @@ const PendingInstallmentsTab: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -253,6 +257,16 @@ const PendingInstallmentsTab: React.FC = () => {
               <p className="text-2xl font-bold">{data.summary.total_pending_installments}</p>
             </div>
             <Calendar className="w-6 h-6 text-blue-200" />
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm">Cuotas Vencidas</p>
+              <p className="text-2xl font-bold">{data.summary.total_overdue_installments}</p>
+            </div>
+            <XCircle className="w-6 h-6 text-purple-200" />
           </div>
         </div>
       </div>
@@ -338,10 +352,16 @@ const PendingInstallmentsTab: React.FC = () => {
               </div>
 
               {/* Customer Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
                 <div className="text-center">
                   <p className="text-sm text-gray-600">Cuotas Pendientes</p>
                   <p className="text-xl font-bold text-orange-600">{customer.total_pending_installments}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Cuotas Vencidas</p>
+                  <p className="text-xl font-bold text-red-600">
+                    {customer.lotes.reduce((sum, lote) => sum + lote.overdue_installments, 0)}
+                  </p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-gray-600">Monto Pendiente</p>
@@ -375,10 +395,18 @@ const PendingInstallmentsTab: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm mb-3">
                       <div>
                         <p className="text-gray-600">Cuotas Restantes</p>
                         <p className="font-semibold text-orange-600">{lote.pending_installments}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Cuotas Vencidas</p>
+                        <p className="font-semibold text-red-600">{lote.overdue_installments}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Día de Pago</p>
+                        <p className="font-semibold text-blue-600">Día {lote.payment_day}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Saldo Pendiente</p>
@@ -387,9 +415,9 @@ const PendingInstallmentsTab: React.FC = () => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Pago Mensual Est.</p>
+                        <p className="text-gray-600">Pago Mensual</p>
                         <p className="font-semibold text-blue-600">
-                          {dynamicReportsService.formatCurrency(lote.estimated_monthly_payment)}
+                          {dynamicReportsService.formatCurrency(lote.monthly_payment)}
                         </p>
                       </div>
                       <div>

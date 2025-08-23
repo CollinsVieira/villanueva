@@ -43,8 +43,10 @@ export interface Lote {
   remaining_balance: string;
   status: 'disponible' | 'vendido' | 'reservado' | 'desarrollo';
   owner?: Customer;
-  installments_paid: number; // <-- AÑADIR ESTA LÍNEA
+  installments_paid: number;
   monthly_installment: string;
+  has_initial_payment: boolean;
+  initial_payment_amount: string;
   history: LoteHistory[];
   created_at: string;
   updated_at: string;
@@ -57,6 +59,7 @@ export interface Payment {
   payment_date: string;
   due_date?: string;
   method: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
+  payment_type: 'initial' | 'installment';
   receipt_number?: string;
   receipt_date?: string;
   installment_number?: number;

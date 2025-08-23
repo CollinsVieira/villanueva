@@ -21,30 +21,39 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [installmentNumber, setInstallmentNumber] = useState<number>(1);
+  const [paymentType, setPaymentType] = useState<'installment' | 'initial'>('installment');
 
   useEffect(() => {
     // Carga todos los lotes vendidos una sola vez
     loteService.getLotes({ status: "reservado" }).then(setAllLotes);
   }, []);
 
+  // Recalcular cuando cambie el tipo de pago o el lote seleccionado
+  useEffect(() => {
+    if (selectedLote) {
+      // Si ya existe un pago inicial, forzar tipo 'installment'
+      if (selectedLote.has_initial_payment && paymentType === 'initial') {
+        setPaymentType('installment');
+        return;
+      }
+      
+      if (paymentType === 'initial') {
+        setPaymentAmount(selectedLote.initial_payment?.toString() || '0');
+        setInstallmentNumber(0); // Los pagos iniciales no tienen número de cuota
+      } else {
+        const monthlyAmount = parseFloat(selectedLote.monthly_installment || "0");
+        setPaymentAmount(monthlyAmount.toString());
+        const nextInstallment = (selectedLote.installments_paid || 0) + 1;
+        setInstallmentNumber(nextInstallment);
+      }
+    }
+  }, [paymentType, selectedLote]);
+
   // Cuando el ID del lote seleccionado cambia, busca sus detalles completos
   useEffect(() => {
     if (selectedLoteId) {
       const loteDetails = allLotes.find((l) => l.id === selectedLoteId);
       setSelectedLote(loteDetails || null);
-
-      // Calcular automáticamente el monto de la cuota y el número de cuota siguiente
-      if (loteDetails) {
-        // Calcular cuota mensual
-        const monthlyAmount = parseFloat(
-          loteDetails.monthly_installment || "0"
-        );
-        setPaymentAmount(monthlyAmount.toString());
-
-        // Calcular número de cuota siguiente
-        const nextInstallment = (loteDetails.installments_paid || 0) + 1;
-        setInstallmentNumber(nextInstallment);
-      }
     } else {
       setSelectedLote(null);
       setPaymentAmount("");
@@ -77,6 +86,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
       formData.append("receipt_image", selectedFile);
     }
     formData.set("lote_id", String(selectedLoteId));
+    formData.set("payment_type", paymentType);
 
     try {
       await paymentService.createPayment(formData);
@@ -125,14 +135,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 </div>
                 Seleccionar Lote y Cliente
               </label>
-              <SearchableSelect
+              <SearchableSelect 
                 options={loteOptions}
                 value={selectedLoteId}
                 onChange={(value) => setSelectedLoteId(value as number | null)}
                 placeholder="Buscar por cliente, DNI o lote..."
               />
             </div>
-
+            
             {/* Información del lote seleccionado */}
             {selectedLote && (
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
@@ -235,10 +245,31 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     required
                   />
                 </div>
-              </div>
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Pago
+                </label>
+                <select 
+                  value={paymentType} 
+                  onChange={(e) => setPaymentType(e.target.value as 'installment' | 'initial')}
+                  disabled={selectedLote?.has_initial_payment}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="installment">💳 Cuota Mensual</option>
+                  <option value="initial" disabled={selectedLote?.has_initial_payment}>
+                    {selectedLote?.has_initial_payment ? '💰 Pago Inicial Ya Realizado' : '💰 Pago Inicial/Enganche'}
+                  </option>
+                </select>
+                {selectedLote?.has_initial_payment && (
+                  <p className="text-xs text-green-600 mt-1 bg-green-100 px-2 py-1 rounded">
+                    ✅ Pago inicial de S/. {selectedLote.initial_payment_amount} ya registrado
+                  </p>
+                )}
+                </div>
+                 <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Método de Pago
                 </label>
@@ -247,9 +278,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   <option value="efectivo">💵 Efectivo</option>
                   <option value="tarjeta">💳 Tarjeta de Crédito/Débito</option>
                   <option value="otro">🔄 Otro</option>
-                </select>
-              </div>
-              <div>
+                    </select>
+                </div>
+                <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   N° de Cuota
                 </label>
@@ -260,12 +291,13 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   onChange={(e) =>
                     setInstallmentNumber(parseInt(e.target.value) || 1)
                   }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={paymentType === 'initial'}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   min="1"
                   max={selectedLote?.financing_months || 999}
                 />
                 <p className="text-xs text-gray-500 mt-1 bg-gray-100 px-2 py-1 rounded">
-                  🔢 Auto-calculado, pero editable
+                  {paymentType === 'initial' ? '💰 No aplica para pagos iniciales' : '🔢 Auto-calculado, pero editable'}
                 </p>
               </div>
             </div>
@@ -306,10 +338,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     📅 Fecha del comprobante bancario
                   </p>
                 </div>
-              </div>
+            </div>
               
               {/* Campo de notas */}
-              <div>
+            <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Notas Adicionales
                 </label>

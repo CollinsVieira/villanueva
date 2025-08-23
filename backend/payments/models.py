@@ -16,6 +16,11 @@ class Payment(models.Model):
         ('tarjeta', _('Tarjeta de Crédito/Débito')),
         ('otro', _('Otro')),
     ]
+    
+    PAYMENT_TYPE_CHOICES = [
+        ('initial', _('Pago Inicial/Enganche')),
+        ('installment', _('Cuota Mensual')),
+    ]
 
     receipt_image = models.ImageField(_("Imagen del Comprobante"), upload_to='payment_receipts/', blank=True, null=True)
     installment_number = models.PositiveIntegerField(_("Número de Cuota"), blank=True, null=True)
@@ -43,6 +48,13 @@ class Payment(models.Model):
         max_length=20,
         choices=METHOD_CHOICES,
         default='transferencia'
+    )
+    
+    payment_type = models.CharField(
+        _("Tipo de Pago"),
+        max_length=20,
+        choices=PAYMENT_TYPE_CHOICES,
+        default='installment'
     )
     
     receipt_number = models.CharField(_("Número de Operación"), max_length=100, blank=True)

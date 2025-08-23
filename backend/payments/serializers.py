@@ -19,6 +19,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'payment_date',
             'due_date',
             'method',
+            'payment_type',
             'receipt_number',
             'receipt_date',
             'installment_number',

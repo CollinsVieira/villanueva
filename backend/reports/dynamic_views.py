@@ -30,14 +30,15 @@ def customers_debt_live(request):
         for customer in customers_with_lots:
             total_debt = Decimal('0.00')
             pending_installments = 0
+            overdue_installments_total = 0
             customer_lotes = []
             
             for lote in customer.lotes.all():
                 if lote.remaining_balance > 0:
                     total_debt += lote.remaining_balance
                     
-                    # Calcular cuotas pendientes
-                    payments_query = lote.payments.all()
+                    # Obtener pagos realizados (solo cuotas mensuales, no pago inicial)
+                    payments_query = lote.payments.filter(payment_type='installment')
                     if start_date:
                         payments_query = payments_query.filter(payment_date__gte=start_date)
                     if end_date:
@@ -47,22 +48,87 @@ def customers_debt_live(request):
                     pending = max(0, lote.financing_months - total_payments)
                     pending_installments += pending
                     
-                    # Calcular días hasta próximo vencimiento
-                    last_payment = lote.payments.order_by('-payment_date').first()
+                    # Calcular cuotas vencidas y días hasta próximo vencimiento usando payment_day del lote
+                    overdue_installments = 0
                     days_until_due = None
                     
-                    if last_payment and lote.financing_months > 0:
-                        # Asumir pagos mensuales
-                        next_payment_due = last_payment.payment_date + timedelta(days=30)
-                        days_until_due = (next_payment_due - current_date).days
+                    if lote.financing_months > 0 and lote.payment_day:
+                        # Obtener la fecha de asignación del lote (cuando se le asignó owner)
+                        lote_history = lote.history.filter(
+                            action='assigned'
+                        ).order_by('timestamp').first()
+                        
+                        if lote_history:
+                            start_payment_date = lote_history.timestamp.date()
+                        else:
+                            # Si no hay historial, usar la fecha de creación
+                            start_payment_date = lote.created_at.date()
+                        
+                        # Calcular cuántas cuotas deberían haberse pagado hasta la fecha
+                        months_since_start = 0
+                        temp_date = start_payment_date
+                        
+                        while temp_date <= current_date:
+                            # Calcular la fecha de vencimiento de esta cuota
+                            if temp_date.day <= lote.payment_day:
+                                # El vencimiento es en el mismo mes
+                                due_date = temp_date.replace(day=lote.payment_day)
+                            else:
+                                # El vencimiento es en el siguiente mes
+                                if temp_date.month == 12:
+                                    next_month = temp_date.replace(year=temp_date.year + 1, month=1, day=lote.payment_day)
+                                else:
+                                    try:
+                                        next_month = temp_date.replace(month=temp_date.month + 1, day=lote.payment_day)
+                                    except ValueError:
+                                        # El día no existe en el siguiente mes (ej: 31 en febrero)
+                                        # Usar el último día del mes
+                                        from calendar import monthrange
+                                        last_day = monthrange(temp_date.year, temp_date.month + 1)[1]
+                                        next_month = temp_date.replace(month=temp_date.month + 1, day=min(lote.payment_day, last_day))
+                                due_date = next_month
+                            
+                            if due_date <= current_date:
+                                months_since_start += 1
+                            
+                            # Avanzar al siguiente mes
+                            if temp_date.month == 12:
+                                temp_date = temp_date.replace(year=temp_date.year + 1, month=1, day=1)
+                            else:
+                                temp_date = temp_date.replace(month=temp_date.month + 1, day=1)
+                        
+                        # Cuotas vencidas = cuotas que deberían haberse pagado - cuotas pagadas
+                        expected_payments = min(months_since_start, lote.financing_months)
+                        overdue_installments = max(0, expected_payments - total_payments)
+                        overdue_installments_total += overdue_installments
+                        
+                        # Calcular días hasta próximo vencimiento
+                        if total_payments < lote.financing_months:
+                            next_payment_month = start_payment_date
+                            for i in range(total_payments + 1):
+                                if next_payment_month.month == 12:
+                                    next_payment_month = next_payment_month.replace(year=next_payment_month.year + 1, month=1)
+                                else:
+                                    next_payment_month = next_payment_month.replace(month=next_payment_month.month + 1)
+                            
+                            try:
+                                next_due_date = next_payment_month.replace(day=lote.payment_day)
+                            except ValueError:
+                                # El día no existe en ese mes
+                                from calendar import monthrange
+                                last_day = monthrange(next_payment_month.year, next_payment_month.month)[1]
+                                next_due_date = next_payment_month.replace(day=min(lote.payment_day, last_day))
+                            
+                            days_until_due = (next_due_date - current_date).days
                     
                     customer_lotes.append({
                         'lote_id': lote.id,
                         'lote_description': str(lote),
                         'remaining_balance': float(lote.remaining_balance),
-                        'total_payments_made': lote.payments.count(),
+                        'total_payments_made': lote.payments.filter(payment_type='installment').count(),
                         'financing_months': lote.financing_months,
                         'pending_installments': pending,
+                        'overdue_installments': overdue_installments,
                         'payment_day': lote.payment_day,
                         'days_until_next_payment': days_until_due
                     })
@@ -75,12 +141,14 @@ def customers_debt_live(request):
                     'customer_phone': customer.phone,
                     'total_debt': float(total_debt),
                     'pending_installments': pending_installments,
+                    'overdue_installments': overdue_installments_total,
                     'lotes': customer_lotes
                 })
         
         report_data = {
             'total_customers_with_debt': len(customers_debt),
             'total_debt_amount': sum(item['total_debt'] for item in customers_debt),
+            'total_overdue_installments': sum(item['overdue_installments'] for item in customers_debt),
             'customers': customers_debt,
             'generated_at': timezone.now().isoformat(),
             'period': {
@@ -273,39 +341,105 @@ def pending_installments_live(request):
             customer_lotes = []
             
             for lote in customer.lotes.all():
-                total_payments = lote.payments.count()
+                total_payments = lote.payments.filter(payment_type='installment').count()
                 pending = max(0, lote.financing_months - total_payments)
                 
                 if pending > 0:
-                    # Calcular cuota mensual estimada
-                    monthly_payment = lote.remaining_balance / pending if pending > 0 else 0
+                    # Calcular cuota mensual real
+                    monthly_payment = float(lote.monthly_installment) if hasattr(lote, 'monthly_installment') else (lote.remaining_balance / pending if pending > 0 else 0)
                     lote_pending_amount = lote.remaining_balance
                     
                     customer_pending_installments += pending
                     customer_pending_amount += lote_pending_amount
                     
-                    # Información de vencimiento
-                    last_payment = lote.payments.order_by('-payment_date').first()
+                    # Calcular información de vencimiento usando payment_day del lote
+                    current_date = timezone.now().date()
                     next_due_date = None
                     days_overdue = 0
+                    overdue_installments = 0
                     
-                    if last_payment:
-                        next_due_date = last_payment.payment_date + timedelta(days=30)
-                        if next_due_date < timezone.now().date():
-                            days_overdue = (timezone.now().date() - next_due_date).days
+                    if lote.financing_months > 0 and lote.payment_day:
+                        # Obtener la fecha de asignación del lote
+                        lote_history = lote.history.filter(action='assigned').order_by('timestamp').first()
+                        if lote_history:
+                            start_payment_date = lote_history.timestamp.date()
+                        else:
+                            start_payment_date = lote.created_at.date()
+                        
+                        # Calcular cuántas cuotas deberían haberse pagado hasta la fecha
+                        months_since_start = 0
+                        temp_date = start_payment_date
+                        
+                        while temp_date <= current_date:
+                            # Calcular la fecha de vencimiento de esta cuota
+                            if temp_date.day <= lote.payment_day:
+                                due_date = temp_date.replace(day=lote.payment_day)
+                            else:
+                                # Vencimiento en el siguiente mes
+                                if temp_date.month == 12:
+                                    next_month = temp_date.replace(year=temp_date.year + 1, month=1, day=lote.payment_day)
+                                else:
+                                    try:
+                                        next_month = temp_date.replace(month=temp_date.month + 1, day=lote.payment_day)
+                                    except ValueError:
+                                        from calendar import monthrange
+                                        last_day = monthrange(temp_date.year, temp_date.month + 1)[1]
+                                        next_month = temp_date.replace(month=temp_date.month + 1, day=min(lote.payment_day, last_day))
+                                due_date = next_month
+                            
+                            if due_date <= current_date:
+                                months_since_start += 1
+                            
+                            # Avanzar al siguiente mes
+                            if temp_date.month == 12:
+                                temp_date = temp_date.replace(year=temp_date.year + 1, month=1, day=1)
+                            else:
+                                temp_date = temp_date.replace(month=temp_date.month + 1, day=1)
+                        
+                        # Cuotas vencidas
+                        expected_payments = min(months_since_start, lote.financing_months)
+                        overdue_installments = max(0, expected_payments - total_payments)
+                        
+                        # Calcular próxima fecha de vencimiento
+                        if total_payments < lote.financing_months:
+                            next_payment_month = start_payment_date
+                            for i in range(total_payments + 1):
+                                if next_payment_month.month == 12:
+                                    next_payment_month = next_payment_month.replace(year=next_payment_month.year + 1, month=1)
+                                else:
+                                    next_payment_month = next_payment_month.replace(month=next_payment_month.month + 1)
+                            
+                            try:
+                                next_due_date = next_payment_month.replace(day=lote.payment_day)
+                            except ValueError:
+                                from calendar import monthrange
+                                last_day = monthrange(next_payment_month.year, next_payment_month.month)[1]
+                                next_due_date = next_payment_month.replace(day=min(lote.payment_day, last_day))
+                            
+                            days_overdue = (current_date - next_due_date).days if next_due_date < current_date else 0
+                    
+                    # Determinar estado basado en cuotas vencidas y próximo vencimiento
+                    if overdue_installments > 0:
+                        status = 'overdue'
+                    elif next_due_date and (next_due_date - current_date).days <= 7:
+                        status = 'due_soon'
+                    else:
+                        status = 'current'
                     
                     customer_lotes.append({
                         'lote_description': str(lote),
                         'pending_installments': pending,
+                        'overdue_installments': overdue_installments,
                         'remaining_balance': float(lote_pending_amount),
-                        'estimated_monthly_payment': float(monthly_payment),
+                        'monthly_payment': float(monthly_payment),
                         'total_financing_months': lote.financing_months,
                         'payments_made': total_payments,
                         'completion_percentage': round((total_payments / lote.financing_months) * 100, 2) if lote.financing_months > 0 else 0,
-                        'last_payment_date': last_payment.payment_date.isoformat() if last_payment else None,
+                        'payment_day': lote.payment_day,
                         'next_due_date': next_due_date.isoformat() if next_due_date else None,
+                        'days_until_due': (next_due_date - current_date).days if next_due_date else None,
                         'days_overdue': days_overdue,
-                        'status': 'overdue' if days_overdue > 0 else ('due_soon' if days_overdue > -7 else 'current')
+                        'status': status
                     })
             
             if customer_pending_installments > 0:
@@ -327,10 +461,17 @@ def pending_installments_live(request):
         due_soon_customers = [c for c in pending_customers if any(l['status'] == 'due_soon' for l in c['lotes']) and c not in overdue_customers]
         current_customers = [c for c in pending_customers if c not in overdue_customers and c not in due_soon_customers]
         
+        # Calcular total de cuotas vencidas
+        total_overdue_installments = sum(
+            sum(lote['overdue_installments'] for lote in customer['lotes'])
+            for customer in pending_customers
+        )
+        
         return Response({
             'summary': {
                 'total_customers_with_pending': len(pending_customers),
                 'total_pending_installments': total_pending_installments,
+                'total_overdue_installments': total_overdue_installments,
                 'total_pending_amount': float(total_pending_amount),
                 'overdue_customers': len(overdue_customers),
                 'due_soon_customers': len(due_soon_customers),

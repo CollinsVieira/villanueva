@@ -3,8 +3,8 @@ from .models import Payment, PaymentPlan
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ['lote', 'amount', 'payment_date', 'due_date', 'installment_number', 'method', 'is_overdue']
-    list_filter = ['method', 'payment_date', 'due_date', 'lote__status']
+    list_display = ['lote', 'amount', 'payment_date', 'due_date', 'installment_number', 'payment_type', 'method', 'is_overdue']
+    list_filter = ['payment_type', 'method', 'payment_date', 'due_date', 'lote__status']
     search_fields = ['lote__block', 'lote__lot_number', 'lote__owner__full_name', 'receipt_number']
     readonly_fields = ['is_overdue', 'days_overdue', 'created_at', 'updated_at']
     ordering = ['-payment_date', 'due_date']
