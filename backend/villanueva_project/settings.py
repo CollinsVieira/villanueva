@@ -90,13 +90,17 @@ WSGI_APPLICATION = 'villanueva_project.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
+    'default1': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'villanueva_db',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'villanueva_db',
         'PORT': 5432,
+    },
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'db.sqlite3',
     }
 }
 

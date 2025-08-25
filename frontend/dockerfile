@@ -3,28 +3,18 @@
 # =================================
 FROM node:18-alpine AS builder
 
-# Instalar dependencias del sistema para compilación
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++
-
 # Establecer directorio de trabajo
 WORKDIR /app
 
 # Copiar archivos de configuración y dependencias
-COPY . /app
+COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias con cache optimizado
+# Instalar dependencias
 RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile
 
 # Copiar código fuente
-COPY src/ ./src/
-COPY index.html ./
-
-# Crear directorio public vacío si no existe (Vite lo requiere para el build)
-RUN mkdir -p public
+COPY . .
 
 # Variables de entorno para Vite (disponibles en build time)
 ARG VITE_API_URL
@@ -34,50 +24,13 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV NODE_ENV=production
 RUN pnpm run build
 
-# Verificar que el build se completó correctamente
-RUN ls -la /app/dist/
-
 # =================================
 # Etapa de producción (Runtime)
 # =================================
-FROM nginx:1.25-alpine AS production
+FROM alpine:latest AS production
 
-# Instalar dependencias adicionales para el script de entrada
-RUN apk add --no-cache \
-    curl \
-    bash
+# Solo mantener los archivos construidos
+COPY --from=builder /app/dist /dist
 
-# El usuario nginx ya existe en la imagen base, solo ajustar permisos
-
-# Copiar configuración optimizada de Nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copiar archivos construidos desde la etapa de construcción
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Establecer permisos correctos para archivos web
-RUN chown -R nginx:nginx /usr/share/nginx/html
-
-# Los directorios de cache ya existen con permisos correctos en la imagen base
-
-# Copiar y configurar script de entrada
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
-
-# Usar el usuario nginx existente (comentado para evitar problemas de permisos en desarrollo)
-# USER nginx
-
-# Exponer puerto 80
-EXPOSE 80
-
-# Labels para metadatos
-LABEL maintainer="Villanueva Project"
-LABEL version="1.0"
-LABEL description="Frontend React/TypeScript para Villanueva Project"
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:80/ || exit 1
-
-# Usar el script de entrada personalizado
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Comando para mantener el contenedor corriendo
+CMD ["tail", "-f", "/dev/null"]

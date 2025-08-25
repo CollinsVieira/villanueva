@@ -36,8 +36,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
+    container_name: villanueva_frontend
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -54,6 +53,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./static_volume:/app/staticfiles
       - ./media_volume:/app/media
+      - ./frontend/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
       - frontend
