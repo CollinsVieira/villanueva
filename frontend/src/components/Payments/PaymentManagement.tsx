@@ -280,17 +280,6 @@ const PaymentManagement: React.FC = () => {
           }
         }
 
-        // Truncar imagen base64 si es muy larga para Excel
-        let truncatedImageData = 'Sin imagen';
-        if (imageBase64) {
-          const base64Data = imageBase64.split(',')[1];
-          if (base64Data && base64Data.length > 32000) {
-            truncatedImageData = `Imagen muy grande (${Math.round(base64Data.length / 1024)}KB) - Ver URL`;
-          } else if (base64Data) {
-            truncatedImageData = base64Data;
-          }
-        }
-
         excelData.push({
           'Lote': `Mz. ${payment.lote.block} - Lt. ${payment.lote.lot_number}`,
           'Cliente': payment.lote.owner?.full_name || 'N/A',

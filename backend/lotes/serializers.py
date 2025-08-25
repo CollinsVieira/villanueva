@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Lote, LoteHistory
 from users.serializers import UserSerializer
-from customers.models import Customer # <-- Importamos el MODELO, no el serializador
+from customers.models import Customer
 
 # --- 1. PRIMERO, definimos el serializador anidado ---
 class NestedCustomerSerializer(serializers.ModelSerializer):

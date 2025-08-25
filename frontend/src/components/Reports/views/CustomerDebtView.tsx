@@ -7,10 +7,12 @@ import {
   MapPin, 
   Search,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Download
 } from 'lucide-react';
 import { CustomerDebtData } from '../../../types';
 import { reportsService } from '../../../services';
+import { excelService } from '../../../services/excelService';
 
 interface CustomerDebtViewProps {
   data: CustomerDebtData;
@@ -91,6 +93,38 @@ const CustomerDebtView: React.FC<CustomerDebtViewProps> = ({ data }) => {
             <span className="text-3xl">📊</span>
           </div>
         </div>
+      </div>
+
+      {/* Export Button */}
+      <div className="mb-6 flex justify-end">
+        <button
+          onClick={() => {
+            try {
+              // Crear un reporte temporal para la exportación
+              const tempReport = {
+                id: 0,
+                name: 'Reporte de Deuda de Clientes',
+                report_type: 'customers_debt' as const,
+                report_type_display: 'Deuda de Clientes',
+                status: 'completed' as const,
+                status_display: 'Completado',
+                data: data,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                requested_by: 0,
+                requested_by_name: 'Sistema'
+              };
+              excelService.exportReport(tempReport);
+            } catch (error) {
+              console.error('Error exporting to Excel:', error);
+              alert('Error al exportar a Excel');
+            }
+          }}
+          className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          <span>Exportar a Excel</span>
+        </button>
       </div>
 
       {/* Search */}

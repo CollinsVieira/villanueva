@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-656^oe7&+v9_kb=l=yg(ce8mi&-gj+pgfpq40irnp=xcs&fc$s
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -91,8 +91,12 @@ WSGI_APPLICATION = 'villanueva_project.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'villanueva_db',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'villanueva_db',
+        'PORT': 5432,
     }
 }
 
@@ -145,8 +149,45 @@ AUTH_USER_MODEL = 'users.User'
 
 #CORS
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://frontend:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://backend:8000",
+]
+
+# Configuraciones adicionales para CORS en Docker
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://frontend:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://backend:8000",
 ]
 
 REST_FRAMEWORK = {

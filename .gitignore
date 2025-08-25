@@ -40,6 +40,9 @@ media/
 staticfiles/
 static/
 
+#DB
+db_data/
+
 
 # Environment variables
 .env

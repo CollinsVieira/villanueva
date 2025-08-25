@@ -235,3 +235,34 @@ export interface HistoryEvent {
     initial_payment: number;
     financing_months: number;
   }
+
+  export interface FinancialOverviewData {
+    sales: {
+      total_lots_sold: number;
+      total_sales_value: number;
+      total_initial_payments: number;
+    };
+    payments: {
+      total_payments: number;
+      total_amount: number;
+    };
+    inventory: {
+      available_lots: number;
+      available_value: number;
+      total_available_area: number;
+    };
+    receivables: {
+      customers_with_debt: number;
+      total_debt: number;
+    };
+    kpis: {
+      conversion_rate: number;
+      average_payment: number;
+      collection_efficiency: number;
+    };
+    period?: {
+      start_date?: string;
+      end_date?: string;
+    };
+    generated_at?: string;
+  }

@@ -7,8 +7,7 @@ import {
   Play, 
   Clock, 
   CheckCircle, 
-  XCircle,
-  MoreHorizontal 
+  XCircle
 } from 'lucide-react';
 import { Report } from '../../types';
 import { reportsService } from '../../services';

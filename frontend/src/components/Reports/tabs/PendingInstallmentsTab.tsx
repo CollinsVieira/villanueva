@@ -11,7 +11,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { dynamicReportsService, pdfService } from '../../../services';
+import { dynamicReportsService, excelService } from '../../../services';
 import { LoadingSpinner } from '../../UI';
 
 interface PendingInstallmentsData {
@@ -87,23 +87,32 @@ const PendingInstallmentsTab: React.FC = () => {
     toast.success('Datos actualizados');
   };
 
-  const handleDownloadPDF = async () => {
+  const handleExportExcel = async () => {
     if (!data) return;
     
     try {
-      toast.loading('Generando PDF...', { id: 'pdf-generation' });
+      toast.loading('Exportando a Excel...', { id: 'excel-export' });
       
-      const reportElement = document.getElementById('pending-installments-content');
-      if (reportElement) {
-        await pdfService.generateFromElement(
-          reportElement, 
-          `cuotas-pendientes-${new Date().toISOString().split('T')[0]}.pdf`
-        );
-        toast.success('PDF generado exitosamente', { id: 'pdf-generation' });
-      }
+      // Crear un reporte temporal para la exportación
+      const tempReport = {
+        id: 0,
+        name: 'Cuotas Pendientes',
+        report_type: 'pending_installments' as const,
+        report_type_display: 'Cuotas Pendientes',
+        status: 'completed' as const,
+        status_display: 'Completado',
+        data: data,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        requested_by: 0,
+        requested_by_name: 'Sistema'
+      };
+      
+      excelService.exportReport(tempReport);
+      toast.success('Excel exportado exitosamente', { id: 'excel-export' });
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Error al generar el PDF', { id: 'pdf-generation' });
+      console.error('Error exporting to Excel:', error);
+      toast.error('Error al exportar a Excel', { id: 'excel-export' });
     }
   };
 
@@ -208,11 +217,11 @@ const PendingInstallmentsTab: React.FC = () => {
               <span>Actualizar</span>
             </button>
             <button
-              onClick={handleDownloadPDF}
+              onClick={handleExportExcel}
               className="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 font-medium"
             >
               <Download className="w-4 h-4" />
-              <span>Descargar PDF</span>
+                              <span>Exportar a Excel</span>
             </button>
           </div>
         </div>

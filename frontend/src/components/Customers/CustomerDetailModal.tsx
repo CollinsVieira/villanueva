@@ -3,6 +3,7 @@ import { X, Trash2 } from 'lucide-react';
 import { Customer, HistoryEvent } from '../../types';
 import customerService from '../../services/customerService';
 import LoadingSpinner from '../UI/LoadingSpinner';
+import loteService from '../../services/loteService';
 
 interface CustomerDetailModalProps {
   customerId: number;

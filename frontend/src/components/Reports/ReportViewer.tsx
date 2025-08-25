@@ -1,7 +1,8 @@
 import React from 'react';
 import { X, Download, FileText, Calendar, User } from 'lucide-react';
 import { Report, CustomerDebtData, PaymentHistoryData, AvailableLotsData } from '../../types';
-import { reportsService, pdfService } from '../../services';
+import { reportsService } from '../../services';
+import { excelService } from '../../services/excelService';
 import CustomerDebtView from './views/CustomerDebtView';
 import PaymentHistoryView from './views/PaymentHistoryView';
 import AvailableLotsView from './views/AvailableLotsView';
@@ -18,12 +19,13 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
   isOpen,
   onClose
 }) => {
-  const handleDownloadPDF = () => {
+  const handleExportExcel = () => {
     try {
-      pdfService.generateReportPDF(report);
+      excelService.exportReport(report);
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error('Error exporting to Excel:', error);
       // Aquí podrías mostrar un toast de error
+      alert('Error al exportar el reporte a Excel');
     }
   };
 
@@ -91,11 +93,11 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
           <div className="flex items-center space-x-3">
             {report.status === 'completed' && (
               <button
-                onClick={handleDownloadPDF}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                onClick={handleExportExcel}
+                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 <Download className="w-4 h-4" />
-                <span>Descargar PDF</span>
+                <span>Exportar a Excel</span>
               </button>
             )}
             <button

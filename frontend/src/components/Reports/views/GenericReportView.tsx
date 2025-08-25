@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FileText, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, Copy, Check, Download } from 'lucide-react';
+import { excelService } from '../../../services/excelService';
 
 interface GenericReportViewProps {
   data: any;
@@ -234,6 +235,38 @@ const GenericReportView: React.FC<GenericReportViewProps> = ({ data, reportType 
             </div>
           </div>
         )}
+      </div>
+
+      {/* Export Button */}
+      <div className="mb-6 flex justify-end">
+        <button
+          onClick={() => {
+            try {
+              // Crear un reporte temporal para la exportación
+              const tempReport = {
+                id: 0,
+                name: reportType,
+                report_type: 'custom' as const,
+                report_type_display: reportType,
+                status: 'completed' as const,
+                status_display: 'Completado',
+                data: data,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                requested_by: 0,
+                requested_by_name: 'Sistema'
+              };
+              excelService.exportReport(tempReport);
+            } catch (error) {
+              console.error('Error exporting to Excel:', error);
+              alert('Error al exportar a Excel');
+            }
+          }}
+          className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          <span>Exportar a Excel</span>
+        </button>
       </div>
 
       {/* Data Viewer */}

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   FileText, 
   TrendingUp, 
-  Users, 
   CreditCard, 
   Home, 
   AlertTriangle, 

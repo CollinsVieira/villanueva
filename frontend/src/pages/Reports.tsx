@@ -96,7 +96,7 @@ const Reports: React.FC = () => {
     }
   };
 
-  const handleDownloadReport = async (reportId: number) => {
+  const handleExportReport = async (reportId: number) => {
     try {
       const report = reports.find(r => r.id === reportId);
       if (!report) {
@@ -105,20 +105,20 @@ const Reports: React.FC = () => {
       }
 
       if (report.status !== 'completed') {
-        toast.error('El reporte debe estar completado para descargarlo');
+        toast.error('El reporte debe estar completado para exportarlo');
         return;
       }
 
-      toast.loading('Preparando descarga...', { id: 'downloading' });
+      toast.loading('Preparando exportación a Excel...', { id: 'downloading' });
 
-      // Use our PDF service to generate PDF
-      const { pdfService } = await import('../services');
-      pdfService.generateReportPDF(report);
+      // Use our Excel service to export to Excel
+      const { excelService } = await import('../services');
+      excelService.exportReport(report);
       
-      toast.success('Descarga iniciada', { id: 'downloading' });
+      toast.success('Exportación a Excel iniciada', { id: 'downloading' });
     } catch (error) {
-      console.error('Error downloading report:', error);
-      toast.error('Error al descargar el reporte', { id: 'downloading' });
+      console.error('Error exporting report:', error);
+      toast.error('Error al exportar el reporte a Excel', { id: 'downloading' });
     }
   };
 
@@ -204,7 +204,7 @@ const Reports: React.FC = () => {
                 report={report}
                 onView={handleViewReport}
                 onGenerate={handleGenerateReport}
-                onDownload={handleDownloadReport}
+                onDownload={handleExportReport}
               />
             ))}
           </div>
