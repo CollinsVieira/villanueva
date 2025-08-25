@@ -24,8 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-656^oe7&+v9_kb=l=yg(ce8mi&-gj+pgfpq40irnp=xcs&fc$s'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
+# Permitir acceso desde la red local
 ALLOWED_HOSTS = ['*']
 
 
@@ -90,7 +91,7 @@ WSGI_APPLICATION = 'villanueva_project.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default1': {
+    'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'villanueva_db',
         'USER': 'postgres',
@@ -98,10 +99,10 @@ DATABASES = {
         'HOST': 'villanueva_db',
         'PORT': 5432,
     },
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'db.sqlite3',
-    }
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': 'db.sqlite3',
+    # }
 }
 
 
@@ -159,6 +160,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "http://backend:8000",
+    "http://0.0.0.0:8000",
+    "http://0.0.0.0:5173",
+    "http://0.0.0.0:80",
+    "http://192.168.*",
 ]
 
 # Configuraciones adicionales para CORS en Docker
@@ -192,6 +197,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "http://backend:8000",
+    "http://0.0.0.0:8000",
+    "http://0.0.0.0:5173",
+    "http://0.0.0.0:80",
+    "http://192.168.*",
 ]
 
 REST_FRAMEWORK = {
