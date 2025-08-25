@@ -31,7 +31,7 @@ const LoginForm: React.FC = () => {
       <div className="w-full max-w-xl mx-auto flex flex-col justify-center px-6 py-12">
         <div className="mb-10">
           <h1 className="text-4xl font-semibold tracking-tight text-gray-900">Bienvenido. :)</h1>
-          <p className="mt-3 text-gray-600">Accede a tu cuenta y continúa con tu trabajo</p>
+          <p className="mt-3 text-gray-600">Accede a tu cuenta y continúa creciendo.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

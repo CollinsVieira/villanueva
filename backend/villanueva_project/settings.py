@@ -164,6 +164,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://0.0.0.0:5173",
     "http://0.0.0.0:80",
     "http://192.168.*",
+    "http://192.168.*:8000",
+    "http://192.168.*:80",
 ]
 
 # Configuraciones adicionales para CORS en Docker
@@ -201,6 +203,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://0.0.0.0:5173",
     "http://0.0.0.0:80",
     "http://192.168.*",
+    "http://192.168.*:8000",
+    "http://192.168.*:80",
 ]
 
 REST_FRAMEWORK = {
