@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, PlusCircle, Download, Trash2, Search, DollarSign, Calendar, TrendingUp, Users, FileText, FileSpreadsheet } from 'lucide-react';
+import { CreditCard, PlusCircle, Download, Search, DollarSign, Calendar, TrendingUp, Users, FileText, FileSpreadsheet } from 'lucide-react';
 import { Payment } from '../../types';
 import paymentService from '../../services/paymentService';
 import LoadingSpinner from '../UI/LoadingSpinner';
@@ -77,21 +77,11 @@ const PaymentManagement: React.FC = () => {
     loadPayments(); // Recargar la lista de pagos para mostrar el nuevo pago
   };
   
-  const handleDelete = async (id: number) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este pago?')) {
-      try {
-        await paymentService.deletePayment(id);
-        loadPayments();
-      } catch (err: any) {
-        setError(err.response?.data?.detail || 'Error al eliminar el pago.');
-      }
-    }
-  };
-
   // Función para convertir imagen URL a base64
   const getImageAsBase64 = async (imageUrl: string): Promise<string> => {
     try {
-      const response = await fetch(imageUrl);
+      const nginxUrl = imageUrl.replace('http://192.168.100.4:8000', 'http://192.168.100.4');
+      const response = await fetch(nginxUrl);
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -107,6 +97,7 @@ const PaymentManagement: React.FC = () => {
 
   const handleExportToPDF = async () => {
     try {
+      
       setError(null);
       const toastId = 'pdf-export';
       
@@ -485,7 +476,6 @@ const PaymentManagement: React.FC = () => {
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Operación</th>
                   <th className="p-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Comprobante</th>
-                  <th className="p-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -500,7 +490,6 @@ const PaymentManagement: React.FC = () => {
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">Mz. {payment.lote.block} - Lt. {payment.lote.lot_number}</div>
-                          <div className="text-sm text-gray-500">Área: {parseFloat(payment.lote.area).toFixed(0)} m²</div>
                         </div>
                       </div>
                     </td>
@@ -571,15 +560,6 @@ const PaymentManagement: React.FC = () => {
                       ) : (
                         <span className="text-gray-400 text-sm italic">No adjunto</span>
                       )}
-                    </td>
-                    <td className="p-4 text-right">
-                      <button 
-                        onClick={() => handleDelete(payment.id)} 
-                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors group" 
-                        title="Eliminar Pago"
-                      >
-                        <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
-                      </button>
                     </td>
                   </tr>
                 ))}
