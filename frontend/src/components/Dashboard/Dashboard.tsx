@@ -66,7 +66,7 @@ const Dashboard: React.FC = () => {
       const soldLotes = lotes.filter((l: Lote) => l.status === 'vendido' || l.status === 'reservado');
       
       // Calcular fechas de vencimiento próximas
-      const upcomingDueDates = calculateUpcomingDueDates(lotes, customers);
+      const upcomingDueDates = calculateUpcomingDueDates(lotes);
       
       // Calcular métodos de pago
       const paymentMethods = calculatePaymentMethods(recentPayments);
@@ -93,7 +93,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const calculateUpcomingDueDates = (lotes: Lote[], customers: Customer[]) => {
+  const calculateUpcomingDueDates = (lotes: Lote[]) => {
     const today = new Date();
     const dueDates: Array<{
       lote: Lote;

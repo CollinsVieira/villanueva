@@ -58,7 +58,6 @@ export interface Payment {
   amount: string;
   payment_date: string;
   payment_date_display?: string;
-  due_date?: string;
   method: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
   payment_type: 'initial' | 'installment';
   receipt_number?: string;

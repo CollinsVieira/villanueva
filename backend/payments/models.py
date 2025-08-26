@@ -61,9 +61,6 @@ class Payment(models.Model):
     receipt_date = models.DateField(_("Fecha de Operación"), blank=True, null=True)
     notes = models.TextField(_("Notas Adicionales"), blank=True)
     
-    # Fecha de vencimiento de esta cuota
-    due_date = models.DateField(_("Fecha de Vencimiento"), blank=True, null=True)
-    
     # Relación con el plan de pagos
     payment_plan = models.ForeignKey(
         'PaymentPlan',
@@ -113,16 +110,23 @@ class Payment(models.Model):
 
     @property
     def is_overdue(self):
-        """Retorna True si el pago está vencido."""
-        if self.due_date and not self.payment_date:
-            return date.today() > self.due_date
+        """Retorna True si el pago está vencido basado en el payment_day del lote."""
+        if not self.payment_date and self.payment_type == 'installment':
+            # Calcular la fecha de vencimiento basada en el payment_day del lote
+            today = date.today()
+            current_due_date = today.replace(day=min(self.lote.payment_day, 28))
+            
+            # Si estamos después del día de pago de este mes, está vencido
+            return today > current_due_date
         return False
 
     @property
     def days_overdue(self):
-        """Retorna el número de días de atraso."""
+        """Retorna el número de días de atraso basado en el payment_day del lote."""
         if self.is_overdue:
-            return (date.today() - self.due_date).days
+            today = date.today()
+            current_due_date = today.replace(day=min(self.lote.payment_day, 28))
+            return (today - current_due_date).days
         return 0
 
 
@@ -158,7 +162,7 @@ class PaymentPlan(models.Model):
     def generate_payment_schedule(self):
         """
         Genera el cronograma de pagos para este lote.
-        Crea registros de Payment con fecha de vencimiento para cada cuota.
+        Crea registros de Payment para cada cuota sin fecha de vencimiento específica.
         """
         # Limpiar pagos existentes del plan (solo los no pagados)
         self.payments.filter(payment_date__isnull=True).delete()
@@ -170,23 +174,15 @@ class PaymentPlan(models.Model):
             return
         
         # Generar cuotas mensuales
-        current_date = self.start_date
         for i in range(1, financing_months + 1):
-            # Calcular fecha de vencimiento (día específico del mes)
-            due_date = current_date.replace(day=min(self.payment_day, 28))  # Evitar problemas con febrero
-            
             Payment.objects.create(
                 lote=self.lote,
                 amount=monthly_amount,
                 payment_plan=self,
                 installment_number=i,
-                due_date=due_date,
                 method='transferencia',  # Valor por defecto
                 recorded_by=None  # Se asignará cuando se realice el pago
             )
-            
-            # Avanzar al siguiente mes
-            current_date = current_date + relativedelta(months=1)
 
     def get_payment_status(self):
         """
@@ -194,10 +190,14 @@ class PaymentPlan(models.Model):
         """
         total_payments = self.payments.count()
         paid_payments = self.payments.filter(payment_date__isnull=False).count()
+        
+        # Calcular pagos vencidos basado en el payment_day del lote
+        today = date.today()
+        current_due_date = today.replace(day=min(self.lote.payment_day, 28))
         overdue_payments = self.payments.filter(
-            due_date__lt=date.today(),
-            payment_date__isnull=True
-        ).count()
+            payment_date__isnull=True,
+            payment_type='installment'
+        ).count() if today > current_due_date else 0
         
         return {
             'total': total_payments,
