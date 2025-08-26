@@ -1,4 +1,5 @@
 import api from './api';
+import DateService from './dateService';
 import { 
   Report, 
   ReportCreateData, 
@@ -75,11 +76,19 @@ export const reportsService = {
   },
 
   formatDate: (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('es-PE', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Usar DateService para convertir UTC a zona horaria local
+    return DateService.utcToLocalDateOnly(dateString);
+  },
+
+  formatDateTime: (dateString: string): string => {
+    // Para fechas con hora, usar el formato completo
+    return DateService.utcToLocalDate(dateString);
+  },
+
+  formatDateForDisplay: (dateString: string): string => {
+    // Formato más legible para mostrar en reportes
+    if (!dateString) return 'N/A';
+    return DateService.utcToLocalDateOnly(dateString);
   },
 
   getStatusColor: (status: string): string => {

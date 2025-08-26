@@ -58,6 +58,14 @@ const CustomerDebtView: React.FC<CustomerDebtViewProps> = ({ data }) => {
     }
   };
 
+  const formatDueDate = (daysUntilPayment?: number) => {
+    if (daysUntilPayment === null || daysUntilPayment === undefined) return 'Sin fecha';
+    if (daysUntilPayment < 0) return `Vencido hace ${Math.abs(daysUntilPayment)} días`;
+    if (daysUntilPayment <= 7) return `Vence en ${daysUntilPayment} días`;
+    if (daysUntilPayment <= 30) return `Próximo en ${daysUntilPayment} días`;
+    return 'Al día';
+  };
+
   return (
     <div className="p-6">
       {/* Summary Cards */}
@@ -273,7 +281,13 @@ const CustomerDebtView: React.FC<CustomerDebtViewProps> = ({ data }) => {
                               <div>
                                 <p className="text-gray-600">Vencimiento de Pago</p>
                                 <p className="font-semibold text-orange-600">
-                                  asdasd
+                                  {formatDueDate(lote.days_until_next_payment)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Día de Pago</p>
+                                <p className="font-semibold text-blue-600">
+                                  {lote.payment_day ? `Día ${lote.payment_day} de cada mes` : 'No configurado'}
                                 </p>
                               </div>
                             </div>
