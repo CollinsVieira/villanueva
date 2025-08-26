@@ -189,7 +189,7 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
                       name="startLotNumber" 
                       value={bulkData.startLotNumber} 
                       onChange={handleBulkDataChange} 
-                      className="w-full p-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                      className="w-full p-2 border border-blue-300 rounded-lg " 
                       min="1"
                       required 
                     />
@@ -201,7 +201,7 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
                       name="endLotNumber" 
                       value={bulkData.endLotNumber} 
                       onChange={handleBulkDataChange} 
-                      className="w-full p-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                      className="w-full p-2 border border-blue-300 rounded-lg " 
                       min="1"
                       required 
                     />
@@ -214,7 +214,7 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
                       value={bulkData.lotNumberPrefix} 
                       onChange={handleBulkDataChange} 
                       placeholder="Ej: LT-"
-                      className="w-full p-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                      className="w-full p-2 border border-blue-300 rounded-lg " 
                     />
                   </div>
                 </div>
@@ -235,29 +235,29 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Manzana</label>
-                    <input type="text" name="block" value={formData.block} onChange={handleChange} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" required />
+                    <input type="text" name="block" value={formData.block} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg  " required />
                 </div>
                 {!isBulkMode && (
                   <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">N° de Lote</label>
-                      <input type="text" name="lot_number" value={formData.lot_number} onChange={handleChange} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" required />
+                      <input type="text" name="lot_number" value={formData.lot_number} onChange={handleChange} className="w-full p-3  border border-gray-300 rounded-lg " required />
                   </div>
                 )}
                 <div className={isBulkMode ? 'col-span-2' : ''}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Área (m²)</label>
-                    <input type="number" step="0.01" name="area" value={formData.area} onChange={handleChange} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" required />
+                    <input type="number" step="0.01" name="area" value={formData.area} onChange={handleChange} className="w-full p-3  border border-gray-300 rounded-lg " required />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Precio de Venta</label>
-                    <input type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" required />
+                    <input type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} className="w-full p-3  border border-gray-300 rounded-lg " required />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pago Inicial (Enganche)</label>
-                    <input type="number" step="0.01" name="initial_payment" value={formData.initial_payment} onChange={handleChange} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+                    <input type="number" step="0.01" name="initial_payment" value={formData.initial_payment} onChange={handleChange} className="w-full p-3  border border-gray-300 rounded-lg " />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Meses de Financiamiento</label>
-                    <input type="number" name="financing_months" value={Number(formData.financing_months)} onChange={handleChange} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+                    <input type="number" name="financing_months" value={Number(formData.financing_months)} onChange={handleChange} className="w-full p-3  border border-gray-300 rounded-lg " />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Día de Vencimiento Mensual</label>
@@ -268,14 +268,14 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
                         onChange={handleChange} 
                         min="1" 
                         max="31"
-                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" 
+                        className="w-full p-3 border border-gray-300 rounded-lg " 
                         placeholder="15"
                     />
                     <p className="text-xs text-gray-500 mt-1">Día del mes en que vencen las cuotas (1-31)</p>
                 </div>
                 <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Propietario (Opcional)</label>
-                    <select name="owner_id" value={formData.owner_id || ''} onChange={handleChange} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <select name="owner_id" value={formData.owner_id || ''} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg ">
                         <option value="">Sin Asignar</option>
                         {customers.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
                     </select>
