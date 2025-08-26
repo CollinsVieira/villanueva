@@ -333,7 +333,22 @@ def pending_installments_live(request):
                                 # Calcular días de atraso si la fecha ya pasó
                                 if next_due_date < current_date:
                                     days_overdue = (current_date - next_due_date).days
-                                    overdue_installments = 1
+                                    
+                                    # Calcular cuotas vencidas: cuántas cuotas deberían haberse pagado desde la última hasta hoy
+                                    # Si la próxima cuota vence en junio 2023 y hoy es 2025, calcular cuántos meses han pasado
+                                    months_overdue = 0
+                                    if days_overdue > 0:
+                                        # Calcular meses completos de atraso
+                                        months_overdue = days_overdue // 30  # Aproximación de meses
+                                        
+                                        # Si hay más de 30 días de atraso, al menos 1 cuota está vencida
+                                        if months_overdue >= 1:
+                                            # El número de cuotas vencidas es el mínimo entre los meses de atraso y las cuotas pendientes
+                                            overdue_installments = min(months_overdue, pending)
+                                        else:
+                                            overdue_installments = 1 if days_overdue > 0 else 0
+                                    else:
+                                        overdue_installments = 0
                                 else:
                                     days_overdue = 0
                                     overdue_installments = 0

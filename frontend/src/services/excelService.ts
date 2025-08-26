@@ -21,9 +21,6 @@ class ExcelService {
 
   // Exportar datos de deuda de clientes
   exportCustomerDebt(data: CustomerDebtData, report: Report, options?: ExcelExportOptions): void {
-    console.log('🔍 Exportando CustomerDebt - Datos recibidos:', data);
-    console.log('🔍 Total de clientes:', data.total_customers_with_debt);
-    console.log('🔍 Primer cliente:', data.customers[0]);
     
     const opts = { ...this.defaultOptions, ...options };
     
@@ -485,6 +482,10 @@ class ExcelService {
           console.log('🔍 Exportando como financial_overview');
           this.exportFinancialOverview(report.data as FinancialOverviewData, report, { ...options, filename });
           break;
+        case 'pending_installments':
+          console.log('🔍 Exportando como pending_installments');
+          this.exportPendingInstallments(report.data, report, { ...options, filename });
+          break;
         default:
           console.log('🔍 Exportando como reporte genérico');
           this.exportGenericReport(report, { ...options, filename });
@@ -496,9 +497,72 @@ class ExcelService {
     }
   }
 
+  // Exportar cuotas pendientes
+  exportPendingInstallments(data: any, report: Report, options?: ExcelExportOptions): void {
+    
+    const opts = { ...this.defaultOptions, ...options };
+    
+    const wb = XLSX.utils.book_new();
+    
+    // Hoja de resumen ejecutivo
+    const summaryData = [
+      ['RESUMEN'],
+      [''],
+      ['Total de clientes con cuotas pendientes', data.summary?.total_customers_with_pending?.toString() || '0'],
+      ['Total de cuotas vencidas', data.summary?.total_overdue_installments?.toString() || '0'],
+      [''],
+      ['Vencidos', data.summary?.overdue_customers?.toString() || '0'],
+      ['Próximos a vencer', data.summary?.due_soon_customers?.toString() || '0'],
+      [''],
+      ['Generado', new Date().toLocaleDateString('es-PE')],
+      ['Reporte', report.name]
+    ];
+    
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, summarySheet, 'RESUMEN');
+    
+    // Hoja de clientes
+    const customersData = [
+      ['Cliente', 'Teléfono', 'Cuotas Pendientes', 'Cuotas Vencidas', 'Días Vencidos', 'Lote Asignado', 'Saldo Restante']
+    ];
+    
+    if (data.all_customers && Array.isArray(data.all_customers)) {
+      data.all_customers.forEach((customer: any) => {
+        const lotesInfo = customer.lotes?.map((l: any) => 
+          `${l.lote_description}`
+        ).join('; ') || 'Sin lotes';
+        const overdueInstallments = customer.lotes?.map((l: any) => 
+          `${l.overdue_installments}`
+        ).join('; ') || '0';
+        const daysOverdue = customer.lotes?.map((l: any) => 
+          `${l.days_overdue}`
+        ).join('; ') || '0';
+        
+        const customerRow = [
+          customer.customer_name || 'Sin nombre',
+          customer.customer_phone || 'Sin teléfono',
+          customer.total_pending_installments?.toString() || '0',
+          overdueInstallments,
+          daysOverdue,
+          lotesInfo,
+          'S/. ' + customer.total_pending_amount?.toString() || 'S/. 0'
+        ];
+        
+        customersData.push(customerRow);
+      });
+    }
+    
+    const customersSheet = XLSX.utils.aoa_to_sheet(customersData);
+    XLSX.utils.book_append_sheet(wb, customersSheet, 'DATOS');
+    
+    
+    // Guardar archivo
+    const filename = `${opts.filename || 'cuotas_pendientes'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
+  }
+
   // Exportar reporte genérico
   private exportGenericReport(report: Report, options?: ExcelExportOptions): void {
-    console.log('🔍 Exportando reporte genérico:', report);
     
     const opts = { ...this.defaultOptions, ...options };
     

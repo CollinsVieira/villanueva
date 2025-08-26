@@ -148,7 +148,7 @@ const PaymentManagement: React.FC = () => {
         // Título de la cuota
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
-        const cuotaTitle = `CUOTA N°${payment.installment_number || 'N/A'}`;
+        const cuotaTitle = `CUOTA N°${payment.installment_number || 'INICIAL'}`;
         doc.text(cuotaTitle, pageWidth / 2, currentY, { align: 'center' });
         currentY += 25;
 
@@ -198,7 +198,7 @@ const PaymentManagement: React.FC = () => {
               // Título de comprobante
               doc.setFontSize(10);
               doc.setFont('helvetica', 'bold');
-              doc.text(`COMPROBANTE DE PAGO: ${payment.receipt_number}`, margin, currentY);
+              doc.text(`COMPROBANTE DE PAGO: ${payment.receipt_number || 'NO TIENE COMPROBANTE'}`, margin, currentY, {align: 'center'});
               currentY += 20;
 
               // Determinar dimensiones de la imagen
