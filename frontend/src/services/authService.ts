@@ -3,7 +3,7 @@ import axios from 'axios';
 import { User } from '../types';
 
 // Configuración base de la API
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL =  'http://192.168.100.4:8000/api/v1';
 
 export interface LoginCredentials {
   email: string;

@@ -33,7 +33,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    # 'django.contrib.admin',  # Comentado para evitar conflictos con el frontend
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -144,6 +144,13 @@ STATIC_LOCATION= 'static'
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+# Media files (uploads)
+MEDIA_URL = 'http://192.168.100.4/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Forzar URLs relativas para archivos de media
+USE_ABSOLUTE_URLS = False
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -163,9 +170,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://0.0.0.0:8000",
     "http://0.0.0.0:5173",
     "http://0.0.0.0:80",
-    "http://192.168.100.85",
-    "http://192.168.100.85:8000",
-    "http://192.168.100.85:80",
+    "http://192.168.100.4",
+    "http://192.168.100.4:8000",
+    "http://192.168.100.4:80",
 ]
 
 # Configuraciones adicionales para CORS en Docker
@@ -202,9 +209,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://0.0.0.0:8000",
     "http://0.0.0.0:5173",
     "http://0.0.0.0:80",
-    "http://192.168.100.85",
-    "http://192.168.100.85:8000",
-    "http://192.168.100.85:80",
+    "http://192.168.100.4",
+    "http://192.168.100.4:8000",
+    "http://192.168.100.4:80",
 ]
 
 REST_FRAMEWORK = {
