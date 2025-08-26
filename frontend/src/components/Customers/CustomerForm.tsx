@@ -108,7 +108,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                   value={formData.first_name} 
                   onChange={handleChange} 
                   placeholder="Ej: Juan Carlos"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent" 
                   required 
                 />
               </div>
@@ -120,7 +120,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                   value={formData.last_name} 
                   onChange={handleChange} 
                   placeholder="Ej: García López"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent" 
                   required 
                 />
               </div>
@@ -133,7 +133,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                   value={formData.email} 
                   onChange={handleChange} 
                   placeholder="ejemplo@correo.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent" 
                 />
               </div>
               <div>
@@ -144,7 +144,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                   value={formData.phone} 
                   onChange={handleChange} 
                   placeholder="999 123 456"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent" 
                 />
               </div>
               {/* Tipo y Número de Documento */}
@@ -154,7 +154,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                   name="document_type" 
                   value={formData.document_type} 
                   onChange={handleDocumentTypeChange} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Seleccionar tipo</option>
                   <option value="DNI">DNI</option>
@@ -174,7 +174,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                     formData.document_type === 'RUC' ? '20123456789' :
                     'Número de documento'
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent" 
                 />
               </div>
             </div>
@@ -188,7 +188,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                   value={customDocumentType} 
                   onChange={handleCustomDocumentTypeChange} 
                   placeholder="Ej: Pasaporte, Carné de Extranjería, etc."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent" 
                   required
                 />
               </div>
@@ -203,7 +203,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                 onChange={handleChange} 
                 rows={3} 
                 placeholder="Av. Los Álamos 123, Lima, Perú"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent"
               ></textarea>
             </div>
           </div>

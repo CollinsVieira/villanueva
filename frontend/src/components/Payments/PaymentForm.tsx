@@ -264,7 +264,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       name="amount"
                       value={paymentAmount}
                       onChange={(e) => setPaymentAmount(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg "
                       required
                       placeholder="0.00"
                     />
@@ -287,7 +287,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     name="payment_date"
                     value={paymentDate} // Usar 'value' en lugar de 'defaultValue'
                     onChange={(e) => setPaymentDate(e.target.value)} // Actualizar el estado al cambiar
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 border border-gray-300 rounded-lg "
                     required
                   />
                 </div>
@@ -304,7 +304,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     setPaymentType(e.target.value as "installment" | "initial")
                   }
                   disabled={selectedLote?.has_initial_payment}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full p-3 border border-gray-300 rounded-lg  disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="installment">💳 Cuota Mensual</option>
                   <option
@@ -329,7 +329,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 </label>
                 <select
                   name="method"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg "
                 >
                   <option value="transferencia">
                     💳 Transferencia Bancaria
@@ -340,7 +340,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2" >
                   N° de Cuota
                 </label>
                 <input
@@ -351,15 +351,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     setInstallmentNumber(parseInt(e.target.value) || 1)
                   }
                   disabled={paymentType === "initial"}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full p-3 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
                   min="1"
                   max={selectedLote?.financing_months || 999}
+                  
                 />
-                <p className="text-xs text-gray-500 mt-1 bg-gray-100 px-2 py-1 rounded">
-                  {paymentType === "initial"
-                    ? "💰 No aplica para pagos iniciales"
-                    : "🔢 Auto-calculado, pero editable"}
-                </p>
               </div>
             </div>
 
@@ -380,7 +376,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     type="text"
                     name="receipt_number"
                     placeholder="Ej: OP-123456789"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 border border-gray-300 rounded-lg"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     📋 Número de transferencia, recibo, etc.
@@ -395,7 +391,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     name="receipt_date"
                     value={receiptDate}
                     onChange={(e) => setReceiptDate(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 border border-gray-300 rounded-lg "
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     📅 Fecha del comprobante bancario
@@ -412,7 +408,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   name="notes"
                   rows={3}
                   placeholder="Observaciones, comentarios adicionales..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg  resize-none"
                 ></textarea>
               </div>
             </div>

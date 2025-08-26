@@ -99,7 +99,7 @@ const CustomerManagement: React.FC = () => {
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
       {/* --- BARRA DE BÚSQUEDA AÑADIDA --- */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border flex items-center space-x-4">
+      <div className="bg-white p-4 rounded-lg shadow-sm  flex items-center space-x-4">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -108,10 +108,10 @@ const CustomerManagement: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+            className="w-full pl-10 pr-4 py-2  rounded-lg"
           />
         </div>
-        <button onClick={handleSearch} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800">
+        <button onClick={handleSearch} className="bg-gray-700 text-white px-4 py-2 rounded-lg">
           Buscar
         </button>
       </div>
@@ -135,7 +135,7 @@ const CustomerManagement: React.FC = () => {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-50">
                 <tr>
                   <th className="p-3 text-left">Nombre Completo</th>
                   <th className="p-3 text-left">Contacto</th>
@@ -172,7 +172,7 @@ const CustomerManagement: React.FC = () => {
         
         {/* Paginación */}
         {!isLoading && totalPages > 1 && (
-          <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
+          <div className="px-6 py-4 bg-gray-50  flex items-center justify-between">
             <div className="text-sm text-gray-700">
               Mostrando {startIndex + 1} a {Math.min(endIndex, customers.length)} de {customers.length} registros
             </div>
