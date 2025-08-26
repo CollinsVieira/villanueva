@@ -66,7 +66,7 @@ const Dashboard: React.FC = () => {
       const soldLotes = lotes.filter((l: Lote) => l.status === 'vendido' || l.status === 'reservado');
       
       // Calcular fechas de vencimiento próximas
-      const upcomingDueDates = calculateUpcomingDueDates(lotes);
+      const upcomingDueDates = calculateUpcomingDueDates(lotes, pendingInstallments);
       
       // Calcular métodos de pago
       const paymentMethods = calculatePaymentMethods(recentPayments);
@@ -93,7 +93,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const calculateUpcomingDueDates = (lotes: Lote[]) => {
+  const calculateUpcomingDueDates = (lotes: Lote[], pendingInstallments: any) => {
     const today = new Date();
     const dueDates: Array<{
       lote: Lote;
@@ -103,33 +103,57 @@ const Dashboard: React.FC = () => {
       amount: string;
     }> = [];
 
-    lotes.forEach(lote => {
-      if (lote.owner && lote.status === 'reservado' && lote.financing_months > 0) {
-        // Calcular próxima fecha de vencimiento basada en payment_day
-        const nextDueDate = new Date();
-        nextDueDate.setDate(lote.payment_day);
-        
-        // Si ya pasó este mes, calcular para el próximo mes
-        if (nextDueDate < today) {
-          nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-        }
-        
-        const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysUntilDue <= 30) { // Solo mostrar vencimientos en los próximos 30 días
-          dueDates.push({
-            lote,
-            customer: lote.owner,
-            dueDate: nextDueDate.toISOString().split('T')[0],
-            daysUntilDue,
-            amount: lote.monthly_installment
+    // Usar los datos del reporte de cuotas pendientes que ya tienen la lógica correcta
+    if (pendingInstallments.all_customers) {
+      pendingInstallments.all_customers.forEach((customer: any) => {
+        customer.lotes.forEach((loteData: any) => {
+          // Buscar el lote correspondiente por descripción
+          // El formato del backend es "Manzana A, Lote 2" pero necesitamos "A - 2"
+          const lote = lotes.find(l => {
+            // Extraer bloque y número del lote desde la descripción del backend
+            const match = loteData.lote_description.match(/Manzana ([A-Z]), Lote (\d+)/);
+            if (match) {
+              const [, block, lotNumber] = match;
+              return l.block === block && l.lot_number === lotNumber;
+            }
+            
+            // Fallback: intentar con formato alternativo
+            const altMatch = loteData.lote_description.match(/([A-Z]) - (\d+)/);
+            if (altMatch) {
+              const [, block, lotNumber] = altMatch;
+              return l.block === block && l.lot_number === lotNumber;
+            }
+            
+            return false;
           });
-        }
-      }
-    });
+          
+          if (lote && lote.owner) {
+            const nextDueDate = loteData.next_due_date ? new Date(loteData.next_due_date) : null;
+            if (nextDueDate) {
+              const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              
+              // Solo mostrar vencimientos en los próximos 30 días o vencidos recientemente
+              if (daysUntilDue <= 30 || (daysUntilDue < 0 && daysUntilDue > -30)) {
+                dueDates.push({
+                  lote,
+                  customer: lote.owner,
+                  dueDate: nextDueDate.toISOString().split('T')[0],
+                  daysUntilDue,
+                  amount: loteData.monthly_payment.toString()
+                });
+              }
+            }
+          }
+        });
+      });
+    }
 
-    // Ordenar por días hasta vencimiento
-    return dueDates.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+    // Ordenar por días hasta vencimiento (vencidos primero, luego por proximidad)
+    return dueDates.sort((a, b) => {
+      if (a.daysUntilDue < 0 && b.daysUntilDue >= 0) return -1; // Vencidos primero
+      if (a.daysUntilDue >= 0 && b.daysUntilDue < 0) return 1;
+      return a.daysUntilDue - b.daysUntilDue;
+    });
   };
 
   const calculatePaymentMethods = (payments: Payment[]) => {
@@ -155,6 +179,7 @@ const Dashboard: React.FC = () => {
   };
 
   const getUrgencyColor = (days: number) => {
+    if (days < 0) return 'text-red-600 bg-red-50'; // Vencido
     if (days <= 3) return 'text-red-600 bg-red-50';
     if (days <= 7) return 'text-orange-600 bg-orange-50';
     if (days <= 15) return 'text-yellow-600 bg-yellow-50';
@@ -162,6 +187,7 @@ const Dashboard: React.FC = () => {
   };
 
   const getUrgencyIcon = (days: number) => {
+    if (days < 0) return <AlertTriangle className="w-4 h-4" />; // Vencido
     if (days <= 3) return <AlertTriangle className="w-4 h-4" />;
     if (days <= 7) return <Clock className="w-4 h-4" />;
     return <Calendar className="w-4 h-4" />;
@@ -354,11 +380,12 @@ const Dashboard: React.FC = () => {
                     <p className="text-sm font-semibold text-gray-900">
                       S/ {parseFloat(item.amount).toFixed(2)}
                     </p>
-                    <p className={`text-xs font-medium ${getUrgencyColor(item.daysUntilDue).split(' ')[0]}`}>
-                      {item.daysUntilDue === 0 ? 'Vence hoy' : 
-                       item.daysUntilDue === 1 ? 'Vence mañana' : 
-                       `Vence en ${item.daysUntilDue} días`}
-                    </p>
+                                         <p className={`text-xs font-medium ${getUrgencyColor(item.daysUntilDue).split(' ')[0]}`}>
+                       {item.daysUntilDue < 0 ? `Vencido hace ${Math.abs(item.daysUntilDue)} días` :
+                        item.daysUntilDue === 0 ? 'Vence hoy' : 
+                        item.daysUntilDue === 1 ? 'Vence mañana' : 
+                        `Vence en ${item.daysUntilDue} días`}
+                     </p>
                   </div>
                 </div>
               ))

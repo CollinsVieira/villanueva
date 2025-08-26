@@ -122,12 +122,171 @@ class Payment(models.Model):
 
     @property
     def days_overdue(self):
-        """Retorna el número de días de atraso basado en el payment_day del lote."""
+        """Retorna el número de días de atraso basado en la fecha de vencimiento real."""
         if self.is_overdue:
             today = date.today()
-            current_due_date = today.replace(day=min(self.lote.payment_day, 28))
-            return (today - current_due_date).days
+            return (today - self.due_date).days
         return 0
+
+    @property
+    def due_date(self):
+        """
+        Calcula la fecha de vencimiento basada en la secuencia real de pagos.
+        
+        Lógica:
+        - Si es la cuota 1: vence según payment_day del mes de creación del lote
+        - Si hay cuotas anteriores pagadas: vence en el mes siguiente a la última cuota pagada
+        - Siempre usar el payment_day del lote como día de vencimiento
+        - Manejar casos donde el día no existe en el mes
+        """
+        if self.payment_type != 'installment':
+            return None
+            
+        if not self.installment_number:
+            return None
+            
+        # Obtener el payment_day del lote
+        payment_day = self.lote.payment_day
+        
+        if self.installment_number == 1:
+            # Primera cuota: vence en el mes de creación del lote
+            return self._get_due_date_for_month(
+                self.lote.created_at.date().replace(day=1),
+                payment_day
+            )
+        else:
+            # Cuotas posteriores: vencen en el mes siguiente a la última cuota pagada
+            last_paid_payment = self._get_last_paid_payment()
+            if last_paid_payment:
+                # Calcular el mes siguiente a la fecha de pago de la última cuota
+                next_month_date = self._get_next_month_date(last_paid_payment.payment_date.date())
+                return self._get_due_date_for_month(next_month_date, payment_day)
+            else:
+                # Fallback: usar la fecha de creación del lote
+                return self._get_due_date_for_month(
+                    self.lote.created_at.date().replace(day=1),
+                    payment_day
+                )
+
+    def _get_last_paid_payment(self):
+        """
+        Obtiene la última cuota pagada anterior a esta.
+        """
+        if not self.installment_number or self.installment_number <= 1:
+            return None
+            
+        return self.lote.payments.filter(
+            payment_type='installment',
+            installment_number__lt=self.installment_number,
+            payment_date__isnull=False
+        ).order_by('-installment_number').first()
+
+    def _get_next_month_date(self, current_date):
+        """
+        Calcula la fecha del mes siguiente, manejando cambios de año.
+        """
+        if current_date.month == 12:
+            return current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            return current_date.replace(month=current_date.month + 1)
+
+    def _get_due_date_for_month(self, month_date, payment_day):
+        """
+        Calcula la fecha de vencimiento para un mes específico,
+        manejando casos donde el día no existe en el mes.
+        """
+        try:
+            # Intentar usar el payment_day exacto
+            return month_date.replace(day=payment_day)
+        except ValueError:
+            # Si el día no existe en el mes, usar el último día del mes
+            if month_date.month == 12:
+                next_month = month_date.replace(year=month_date.year + 1, month=1)
+            else:
+                next_month = month_date.replace(month=month_date.month + 1)
+            
+            last_day_of_month = next_month.replace(day=1) - timedelta(days=1)
+            return last_day_of_month
+
+    @classmethod
+    def calculate_next_due_date(cls, lote, next_installment_number):
+        """
+        Método de clase para calcular la próxima fecha de vencimiento
+        sin crear una instancia del modelo.
+        """
+        if not lote or not lote.payment_day or not next_installment_number:
+            return None
+            
+        payment_day = lote.payment_day
+        
+        if next_installment_number == 1:
+            # Primera cuota: vence en el mes de creación del lote
+            return cls._calculate_due_date_for_month_static(
+                lote.created_at.date().replace(day=1),
+                payment_day
+            )
+        else:
+            # Cuotas posteriores: vencen en el mes siguiente a la última cuota pagada
+            last_paid_payment = cls._get_last_paid_payment_static(lote, next_installment_number)
+            if last_paid_payment:
+                # Calcular el mes siguiente a la fecha de pago de la última cuota
+                next_month_date = cls._calculate_next_month_date_static(last_paid_payment.payment_date.date())
+                return cls._calculate_due_date_for_month_static(next_month_date, payment_day)
+            else:
+                # Fallback: usar la fecha de creación del lote
+                return cls._calculate_due_date_for_month_static(
+                    lote.created_at.date().replace(day=1),
+                    payment_day
+                )
+
+    @staticmethod
+    def _get_last_paid_payment_static(lote, current_installment_number):
+        """
+        Método estático para obtener la última cuota pagada anterior.
+        """
+        if not current_installment_number or current_installment_number <= 1:
+            return None
+            
+        return lote.payments.filter(
+            payment_type='installment',
+            installment_number__lt=current_installment_number,
+            payment_date__isnull=False
+        ).order_by('-installment_number').first()
+
+    @staticmethod
+    def _calculate_next_month_date_static(current_date):
+        """
+        Método estático para calcular la fecha del mes siguiente.
+        """
+        if current_date.month == 12:
+            return current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            return current_date.replace(month=current_date.month + 1)
+
+    @staticmethod
+    def _calculate_due_date_for_month_static(month_date, payment_day):
+        """
+        Método estático para calcular la fecha de vencimiento para un mes específico.
+        """
+        try:
+            # Intentar usar el payment_day exacto
+            return month_date.replace(day=payment_day)
+        except ValueError:
+            # Si el día no existe en el mes, usar el último día del mes
+            if month_date.month == 12:
+                next_month = month_date.replace(year=month_date.year + 1, month=1)
+            else:
+                next_month = month_date.replace(month=month_date.month + 1)
+            
+            last_day_of_month = next_month.replace(day=1) - timedelta(days=1)
+            return last_day_of_month
+
+    @property
+    def is_overdue(self):
+        """Retorna True si el pago está vencido basado en la fecha de vencimiento real."""
+        if not self.due_date:
+            return False
+        return date.today() > self.due_date
 
 
 class PaymentPlan(models.Model):

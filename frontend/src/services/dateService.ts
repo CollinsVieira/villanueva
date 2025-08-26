@@ -50,14 +50,26 @@ export class DateService {
   static utcToLocalDate(utcDateString: string): string {
     const utcDate = new Date(utcDateString);
     
-    // Formatear en zona horaria local
-    return utcDate.toLocaleDateString('es-PE', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    // Usar zona horaria específica de América/Lima para asegurar consistencia
+    try {
+      return utcDate.toLocaleDateString('es-PE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Lima'
+      });
+    } catch (error) {
+      // Fallback si la zona horaria no está disponible
+      return utcDate.toLocaleDateString('es-PE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
   }
 
   /**
@@ -68,11 +80,22 @@ export class DateService {
   static utcToLocalDateOnly(utcDateString: string): string {
     const utcDate = new Date(utcDateString);
     
-    return utcDate.toLocaleDateString('es-PE', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
+    // Usar zona horaria específica de América/Lima para asegurar consistencia
+    try {
+      return utcDate.toLocaleDateString('es-PE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'America/Lima'
+      });
+    } catch (error) {
+      // Fallback si la zona horaria no está disponible
+      return utcDate.toLocaleDateString('es-PE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+    }
   }
 
   /**

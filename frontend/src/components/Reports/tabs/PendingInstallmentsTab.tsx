@@ -64,10 +64,17 @@ const PendingInstallmentsTab: React.FC = () => {
   const [data, setData] = useState<PendingInstallmentsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overdue' | 'due_soon' | 'current' | 'all'>('overdue');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    // Resetear a la primera página cuando cambie el tab
+    setCurrentPage(1);
+  }, [activeTab]);
 
   const loadData = async () => {
     try {
@@ -158,19 +165,36 @@ const PendingInstallmentsTab: React.FC = () => {
   const getCurrentCustomers = () => {
     if (!data) return [];
     
+    let customers: CustomerPendingItem[] = [];
+    
     switch (activeTab) {
       case 'overdue':
-        return data.customers_by_priority.overdue;
+        customers = data.customers_by_priority.overdue;
+        break;
       case 'due_soon':
-        return data.customers_by_priority.due_soon;
+        customers = data.customers_by_priority.due_soon;
+        break;
       case 'current':
-        return data.customers_by_priority.current;
+        customers = data.customers_by_priority.current;
+        break;
       case 'all':
-        return data.all_customers;
+        customers = data.all_customers;
+        break;
       default:
-        return [];
+        customers = [];
     }
+    
+    return customers;
   };
+
+  const getPaginatedCustomers = () => {
+    const customers = getCurrentCustomers();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return customers.slice(startIndex, endIndex);
+  };
+
+  const totalPages = Math.ceil(getCurrentCustomers().length / itemsPerPage);
 
   if (loading) {
     return (
@@ -194,7 +218,8 @@ const PendingInstallmentsTab: React.FC = () => {
     );
   }
 
-  const currentCustomers = getCurrentCustomers();
+  const currentCustomers = getPaginatedCustomers();
+  const allCustomers = getCurrentCustomers();
 
   return (
     <div className="p-6" id="pending-installments-content">
@@ -280,19 +305,6 @@ const PendingInstallmentsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Total Amount Card */}
-      <div className="bg-gray-900 rounded-lg p-6 mb-8 text-white">
-        <div className="text-center">
-          <p className="text-gray-300 text-lg">Monto Total Pendiente</p>
-          <p className="text-4xl font-bold text-white">
-            {dynamicReportsService.formatCurrency(data.summary.total_pending_amount)}
-          </p>
-          <p className="text-gray-400 mt-2">
-            {data.summary.total_customers_with_pending} clientes con cuotas pendientes
-          </p>
-        </div>
-      </div>
-
       {/* Priority Tabs */}
       <div className="mb-6">
         <div className="border-b border-gray-200">
@@ -323,6 +335,15 @@ const PendingInstallmentsTab: React.FC = () => {
           </nav>
         </div>
       </div>
+
+      {/* Pagination Info */}
+      {allCustomers.length > itemsPerPage && (
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, allCustomers.length)} de {allCustomers.length} clientes
+          </div>
+        </div>
+      )}
 
       {/* Customers List */}
       <div className="space-y-4">
@@ -467,6 +488,7 @@ const PendingInstallmentsTab: React.FC = () => {
                             <span className="text-gray-600">Próximo vencimiento:</span>
                             <span className="font-medium">
                               {dynamicReportsService.formatDate(lote.next_due_date)}
+
                             </span>
                             {lote.days_overdue > 0 && (
                               <span className="text-red-600 font-semibold">
@@ -497,6 +519,46 @@ const PendingInstallmentsTab: React.FC = () => {
             {activeTab === 'current' && 'No hay clientes con cuotas al día'}
             {activeTab === 'all' && 'No hay clientes con cuotas pendientes'}
           </p>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-center">
+          <nav className="flex items-center space-x-2">
+            {/* Botón Anterior */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+
+            {/* Números de página */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  currentPage === page
+                    ? 'bg-blue-600 text-white border border-blue-600'
+                    : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 hover:text-gray-700'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {/* Botón Siguiente */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
+          </nav>
         </div>
       )}
     </div>
