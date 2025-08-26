@@ -41,7 +41,7 @@ class Payment(models.Model):
         validators=[MinValueValidator(0.01)]
     )
     
-    payment_date = models.DateField(_("Fecha de Pago"))
+    payment_date = models.DateTimeField(_("Fecha de Pago"))
     
     method = models.CharField(
         _("Método de Pago"),

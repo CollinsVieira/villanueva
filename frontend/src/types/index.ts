@@ -57,11 +57,13 @@ export interface Payment {
   lote: Lote;
   amount: string;
   payment_date: string;
+  payment_date_display?: string;
   due_date?: string;
   method: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
   payment_type: 'initial' | 'installment';
   receipt_number?: string;
   receipt_date?: string;
+  receipt_date_display?: string;
   installment_number?: number;
   receipt_image?: string;
   notes?: string;

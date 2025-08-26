@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Upload, CreditCard } from "lucide-react";
+import { CreditCard, X, Upload } from "lucide-react";
+import { paymentService, loteService } from "../../services";
 import { Lote } from "../../types";
-import loteService from "../../services/loteService";
-import paymentService from "../../services/paymentService";
-import Alert from "../UI/Alert";
-import SearchableSelect from "../UI/SearchableSelect"; // Asegúrate de haber creado este componente
+import { Alert } from "../UI";
+import { SearchableSelect } from "../UI";
+import DateService from "../../services/dateService";
 
 interface PaymentFormProps {
   onClose: () => void;
@@ -21,7 +21,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [installmentNumber, setInstallmentNumber] = useState<number>(1);
-  const [paymentType, setPaymentType] = useState<'installment' | 'initial'>('installment');
+  const [paymentType, setPaymentType] = useState<"installment" | "initial">(
+    "installment"
+  );
+
+  const [paymentDate, setPaymentDate] = useState(DateService.getCurrentLocalDate());
+  const [receiptDate, setReceiptDate] = useState(DateService.getCurrentLocalDate());
 
   useEffect(() => {
     // Carga todos los lotes vendidos una sola vez
@@ -32,16 +37,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
   useEffect(() => {
     if (selectedLote) {
       // Si ya existe un pago inicial, forzar tipo 'installment'
-      if (selectedLote.has_initial_payment && paymentType === 'initial') {
-        setPaymentType('installment');
+      if (selectedLote.has_initial_payment && paymentType === "initial") {
+        setPaymentType("installment");
         return;
       }
-      
-      if (paymentType === 'initial') {
-        setPaymentAmount(selectedLote.initial_payment?.toString() || '0');
+
+      if (paymentType === "initial") {
+        setPaymentAmount(selectedLote.initial_payment?.toString() || "0");
         setInstallmentNumber(0); // Los pagos iniciales no tienen número de cuota
       } else {
-        const monthlyAmount = parseFloat(selectedLote.monthly_installment || "0");
+        const monthlyAmount = parseFloat(
+          selectedLote.monthly_installment || "0"
+        );
         setPaymentAmount(monthlyAmount.toString());
         const nextInstallment = (selectedLote.installments_paid || 0) + 1;
         setInstallmentNumber(nextInstallment);
@@ -88,6 +95,15 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
     formData.set("lote_id", String(selectedLoteId));
     formData.set("payment_type", paymentType);
 
+    // Usar el servicio de fechas para convertir a UTC correctamente
+    const utcDateString = DateService.localDateToUTCSafe(paymentDate);
+    formData.set("payment_date", utcDateString);
+    
+    // También convertir la fecha de operación si está presente
+    if (receiptDate) {
+      // Para receipt_date, enviar solo la fecha sin la hora
+      formData.set("receipt_date", receiptDate);
+    }
     try {
       await paymentService.createPayment(formData);
       onSave();
@@ -111,8 +127,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   <CreditCard size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">Registrar Pago Realizado</h3>
-                  <p className="text-blue-100 text-sm">Registre un pago que ya fue efectuado por el cliente</p>
+                  <h3 className="text-xl font-bold">
+                    Registrar Pago Realizado
+                  </h3>
+                  <p className="text-blue-100 text-sm">
+                    Registre un pago que ya fue efectuado por el cliente
+                  </p>
                 </div>
               </div>
               <button
@@ -126,7 +146,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
           </div>
           <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
             {error && <Alert type="error" message={error} />}
-            
+
             {/* Selección de lote */}
             <div className="bg-gray-50 rounded-xl p-4">
               <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
@@ -135,14 +155,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 </div>
                 Seleccionar Lote y Cliente
               </label>
-              <SearchableSelect 
+              <SearchableSelect
                 options={loteOptions}
                 value={selectedLoteId}
                 onChange={(value) => setSelectedLoteId(value as number | null)}
                 placeholder="Buscar por cliente, DNI o lote..."
               />
             </div>
-            
+
             {/* Información del lote seleccionado */}
             {selectedLote && (
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
@@ -154,7 +174,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Cliente</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                      Cliente
+                    </p>
                     <p className="font-semibold text-gray-900">
                       {selectedLote.owner?.full_name}
                     </p>
@@ -163,7 +185,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     </p>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Lote</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                      Lote
+                    </p>
                     <p className="font-semibold text-gray-900">
                       Mz. {selectedLote.block} - Lt. {selectedLote.lot_number}
                     </p>
@@ -172,29 +196,45 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     </p>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Progreso de Pagos</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                      Progreso de Pagos
+                    </p>
                     <p className="font-semibold text-gray-900">
-                      {selectedLote.installments_paid} de {selectedLote.financing_months} cuotas
+                      {selectedLote.installments_paid} de{" "}
+                      {selectedLote.financing_months} cuotas
                     </p>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                      <div 
+                      <div
                         className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                         style={{
-                          width: `${selectedLote.financing_months > 0 ? (selectedLote.installments_paid / selectedLote.financing_months) * 100 : 0}%`
+                          width: `${
+                            selectedLote.financing_months > 0
+                              ? (selectedLote.installments_paid /
+                                  selectedLote.financing_months) *
+                                100
+                              : 0
+                          }%`,
                         }}
                       ></div>
                     </div>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Saldo Restante</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                      Saldo Restante
+                    </p>
                     <p className="font-bold text-2xl text-red-600">
                       S/.{parseFloat(selectedLote.remaining_balance).toFixed(2)}
                     </p>
                   </div>
                   <div className="md:col-span-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-4 border border-blue-200">
-                    <p className="text-sm text-blue-700 mb-1">💡 Cuota Mensual Sugerida</p>
+                    <p className="text-sm text-blue-700 mb-1">
+                      💡 Cuota Mensual Sugerida
+                    </p>
                     <p className="font-bold text-3xl text-blue-600">
-                      S/.{parseFloat(selectedLote.monthly_installment || "0").toFixed(2)}
+                      S/.
+                      {parseFloat(
+                        selectedLote.monthly_installment || "0"
+                      ).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -215,7 +255,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     Monto del Pago *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">S/.</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
+                      S/.
+                    </span>
                     <input
                       type="number"
                       step="0.01"
@@ -229,7 +271,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   </div>
                   {selectedLote && (
                     <p className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-1 rounded">
-                      💡 Cuota sugerida: S/.{parseFloat(selectedLote.monthly_installment || "0").toFixed(2)}
+                      💡 Cuota sugerida: S/.
+                      {parseFloat(
+                        selectedLote.monthly_installment || "0"
+                      ).toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -240,47 +285,61 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   <input
                     type="date"
                     name="payment_date"
-                    defaultValue={new Date().toISOString().split("T")[0]}
+                    value={paymentDate} // Usar 'value' en lugar de 'defaultValue'
+                    onChange={(e) => setPaymentDate(e.target.value)} // Actualizar el estado al cambiar
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
                 </div>
-                </div>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tipo de Pago
                 </label>
-                <select 
-                  value={paymentType} 
-                  onChange={(e) => setPaymentType(e.target.value as 'installment' | 'initial')}
+                <select
+                  value={paymentType}
+                  onChange={(e) =>
+                    setPaymentType(e.target.value as "installment" | "initial")
+                  }
                   disabled={selectedLote?.has_initial_payment}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="installment">💳 Cuota Mensual</option>
-                  <option value="initial" disabled={selectedLote?.has_initial_payment}>
-                    {selectedLote?.has_initial_payment ? '💰 Pago Inicial Ya Realizado' : '💰 Pago Inicial/Enganche'}
+                  <option
+                    value="initial"
+                    disabled={selectedLote?.has_initial_payment}
+                  >
+                    {selectedLote?.has_initial_payment
+                      ? "💰 Pago Inicial Ya Realizado"
+                      : "💰 Pago Inicial/Enganche"}
                   </option>
                 </select>
                 {selectedLote?.has_initial_payment && (
                   <p className="text-xs text-green-600 mt-1 bg-green-100 px-2 py-1 rounded">
-                    ✅ Pago inicial de S/. {selectedLote.initial_payment_amount} ya registrado
+                    ✅ Pago inicial de S/. {selectedLote.initial_payment_amount}{" "}
+                    ya registrado
                   </p>
                 )}
-                </div>
-                 <div>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Método de Pago
                 </label>
-                <select name="method" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                  <option value="transferencia">💳 Transferencia Bancaria</option>
+                <select
+                  name="method"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="transferencia">
+                    💳 Transferencia Bancaria
+                  </option>
                   <option value="efectivo">💵 Efectivo</option>
                   <option value="tarjeta">💳 Tarjeta de Crédito/Débito</option>
                   <option value="otro">🔄 Otro</option>
-                    </select>
-                </div>
-                <div>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   N° de Cuota
                 </label>
@@ -291,17 +350,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   onChange={(e) =>
                     setInstallmentNumber(parseInt(e.target.value) || 1)
                   }
-                  disabled={paymentType === 'initial'}
+                  disabled={paymentType === "initial"}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   min="1"
                   max={selectedLote?.financing_months || 999}
                 />
                 <p className="text-xs text-gray-500 mt-1 bg-gray-100 px-2 py-1 rounded">
-                  {paymentType === 'initial' ? '💰 No aplica para pagos iniciales' : '🔢 Auto-calculado, pero editable'}
+                  {paymentType === "initial"
+                    ? "💰 No aplica para pagos iniciales"
+                    : "🔢 Auto-calculado, pero editable"}
                 </p>
               </div>
             </div>
-            
+
             {/* Información de comprobante */}
             <div className="bg-gray-50 rounded-xl p-4">
               <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
@@ -332,16 +393,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   <input
                     type="date"
                     name="receipt_date"
+                    value={receiptDate}
+                    onChange={(e) => setReceiptDate(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     📅 Fecha del comprobante bancario
                   </p>
                 </div>
-            </div>
-              
+              </div>
+
               {/* Campo de notas */}
-            <div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Notas Adicionales
                 </label>
@@ -363,30 +426,48 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
               </label>
               <div
                 className={`border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all ${
-                  selectedFile 
-                    ? 'border-green-300 bg-green-50' 
-                    : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50'
+                  selectedFile
+                    ? "border-green-300 bg-green-50"
+                    : "border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50"
                 }`}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <div className="text-center">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                    selectedFile ? 'bg-green-100' : 'bg-gray-100'
-                  }`}>
-                    <Upload className={`h-8 w-8 ${selectedFile ? 'text-green-600' : 'text-gray-400'}`} />
+                  <div
+                    className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                      selectedFile ? "bg-green-100" : "bg-gray-100"
+                    }`}
+                  >
+                    <Upload
+                      className={`h-8 w-8 ${
+                        selectedFile ? "text-green-600" : "text-gray-400"
+                      }`}
+                    />
                   </div>
                   <div className="space-y-2">
                     {selectedFile ? (
                       <>
-                        <p className="font-medium text-green-700">✅ Archivo seleccionado</p>
-                        <p className="text-sm text-green-600">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500">Haz clic para cambiar el archivo</p>
+                        <p className="font-medium text-green-700">
+                          ✅ Archivo seleccionado
+                        </p>
+                        <p className="text-sm text-green-600">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Haz clic para cambiar el archivo
+                        </p>
                       </>
                     ) : (
                       <>
-                        <p className="font-medium text-gray-700">📸 Subir comprobante</p>
-                        <p className="text-sm text-gray-500">Haz clic para seleccionar una imagen</p>
-                        <p className="text-xs text-gray-400">PNG, JPG, JPEG hasta 10MB</p>
+                        <p className="font-medium text-gray-700">
+                          📸 Subir comprobante
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Haz clic para seleccionar una imagen
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          PNG, JPG, JPEG hasta 10MB
+                        </p>
                       </>
                     )}
                   </div>

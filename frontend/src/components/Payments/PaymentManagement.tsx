@@ -6,6 +6,7 @@ import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import PaymentForm from './PaymentForm';
 import { useDebounce } from '../../hooks/useDebounce';
+import DateService from '../../services/dateService';
 
 const PaymentManagement: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -161,7 +162,7 @@ const PaymentManagement: React.FC = () => {
           ['Lote', `Mz. ${payment.lote.block} - Lt. ${payment.lote.lot_number}`],
           ['Fecha de Pago', new Date(payment.payment_date).toLocaleDateString('es-ES')],
           ['N° Operación', payment.receipt_number || 'N/A'],
-          ['Fecha de N° Op', payment.receipt_date ? new Date(payment.receipt_date).toLocaleDateString('es-ES') : 'N/A'],
+          ['Fecha de N° Op', payment.receipt_date_display || 'N/A'],
           ['Monto', `S/. ${parseFloat(payment.amount).toFixed(2)}`],
           ['Método', payment.method]
         ];
@@ -282,7 +283,7 @@ const PaymentManagement: React.FC = () => {
           'Monto': parseFloat(payment.amount).toFixed(2),
           'Método de Pago': payment.method,
           'N° de Operación': payment.receipt_number || 'N/A',
-          'Fecha del Recibo': payment.receipt_date ? new Date(payment.receipt_date).toLocaleDateString('es-ES') : 'N/A',
+          'Fecha del Recibo': payment.receipt_date_display || 'N/A',
           'URL Comprobante': payment.receipt_image || 'Sin imagen',
           'Tiene Comprobante': payment.receipt_image ? 'Sí' : 'No',
           'Tamaño Imagen': imageBase64 ? `${Math.round(imageBase64.length / 1024)}KB` : 'N/A'
@@ -519,7 +520,7 @@ const PaymentManagement: React.FC = () => {
                       <div className="flex items-center">
                         <Calendar size={16} className="text-gray-400 mr-2" />
                         <span className="text-gray-900">
-                          {new Date(payment.payment_date).toLocaleDateString('es-ES')}
+                          {DateService.utcToLocalDateOnly(payment.payment_date)}
                         </span>
                       </div>
                     </td>
@@ -538,7 +539,7 @@ const PaymentManagement: React.FC = () => {
                           {payment.receipt_date && (
                             <div className="text-xs text-gray-500 flex items-center mt-1">
                               <Calendar size={12} className="mr-1" />
-                              {new Date(payment.receipt_date).toLocaleDateString('es-ES')}
+                              {payment.receipt_date_display || 'N/A'}
                             </div>
                           )}
                         </div>

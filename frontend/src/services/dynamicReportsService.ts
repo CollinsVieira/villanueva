@@ -1,4 +1,5 @@
 import api from './api';
+import DateService from './dateService';
 
 export interface ReportFilters {
   start_date?: string;
@@ -91,11 +92,8 @@ export const dynamicReportsService = {
   },
 
   formatDate: (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('es-PE', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Usar el DateService para convertir UTC a zona horaria local
+    return DateService.utcToLocalDateOnly(dateString);
   },
 
   formatDateTime: (dateString: string): string => {

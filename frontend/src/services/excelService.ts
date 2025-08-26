@@ -6,6 +6,7 @@ import {
   AvailableLotsData,
   FinancialOverviewData
 } from '../types';
+import DateService from './dateService';
 
 export interface ExcelExportOptions {
   sheetName?: string;
@@ -145,7 +146,7 @@ class ExcelService {
     data.payments.forEach((payment, index) => {
       console.log(`🔍 Procesando pago ${index + 1}:`, payment);
       const paymentRow = [
-        new Date(payment.payment_date).toLocaleDateString('es-PE'),
+        DateService.utcToLocalDateOnly(payment.payment_date),
         payment.customer,
         payment.lote,
         payment.amount.toString(),
