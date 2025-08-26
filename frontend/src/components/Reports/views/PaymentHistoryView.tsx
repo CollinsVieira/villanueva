@@ -13,7 +13,6 @@ import {
 import { PaymentHistoryData } from '../../../types';
 import { reportsService } from '../../../services';
 import { excelService } from '../../../services/excelService';
-import DateService from '../../../services/dateService';
 
 interface PaymentHistoryViewProps {
   data: PaymentHistoryData;

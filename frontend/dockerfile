@@ -17,7 +17,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Variables de entorno para Vite (disponibles en build time)
-ARG VITE_API_URL
+# Valor por defecto apuntando al proxy de Nginx
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
 # Construir la aplicación para producción
@@ -32,5 +33,5 @@ FROM alpine:latest AS production
 # Solo mantener los archivos construidos
 COPY --from=builder /app/dist /dist
 
-# Comando para mantener el contenedor corriendo
-CMD ["tail", "-f", "/dev/null"]
+# Al iniciar, copiar artefactos de build al volumen montado /app/dist y mantener contenedor activo
+CMD sh -c "rm -rf /app/dist && mkdir -p /app/dist && cp -r /dist/* /app/dist && tail -f /dev/null"

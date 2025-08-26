@@ -81,8 +81,7 @@ const PaymentManagement: React.FC = () => {
   // Función para convertir imagen URL a base64
   const getImageAsBase64 = async (imageUrl: string): Promise<string> => {
     try {
-      const nginxUrl = imageUrl.replace('http://192.168.100.4:8000', 'http://192.168.100.4');
-      const response = await fetch(nginxUrl);
+      const response = await fetch(imageUrl); // NO reemplazar el puerto
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -197,9 +196,9 @@ const PaymentManagement: React.FC = () => {
               checkNewPage(300); // Verificar espacio para imagen
               
               // Título de comprobante
-              doc.setFontSize(12);
+              doc.setFontSize(10);
               doc.setFont('helvetica', 'bold');
-              doc.text('COMPROBANTE DE PAGO:', margin, currentY);
+              doc.text(`COMPROBANTE DE PAGO: ${payment.receipt_number}`, margin, currentY);
               currentY += 20;
 
               // Determinar dimensiones de la imagen
@@ -262,15 +261,6 @@ const PaymentManagement: React.FC = () => {
       for (let i = 0; i < payments.length; i++) {
         const payment = payments[i];
         toast.loading(`Procesando registro ${i + 1} de ${payments.length}...`, { id: toastId });
-        
-        let imageBase64 = '';
-        if (payment.receipt_image) {
-          try {
-            imageBase64 = await getImageAsBase64(payment.receipt_image);
-          } catch (error) {
-            console.error('Error loading image:', error);
-          }
-        }
 
         excelData.push({
           'Lote': `Mz. ${payment.lote.block} - Lt. ${payment.lote.lot_number}`,
@@ -284,9 +274,7 @@ const PaymentManagement: React.FC = () => {
           'Método de Pago': payment.method,
           'N° de Operación': payment.receipt_number || 'N/A',
           'Fecha del Recibo': payment.receipt_date_display || 'N/A',
-          'URL Comprobante': payment.receipt_image || 'Sin imagen',
           'Tiene Comprobante': payment.receipt_image ? 'Sí' : 'No',
-          'Tamaño Imagen': imageBase64 ? `${Math.round(imageBase64.length / 1024)}KB` : 'N/A'
         });
       }
 

@@ -23,9 +23,6 @@ class PaymentService {
     await api.delete(`/payments/${id}/`);
   }
 
-
-
-
 }
 
 export default new PaymentService();
