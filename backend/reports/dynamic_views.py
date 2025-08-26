@@ -344,6 +344,11 @@ def pending_installments_live(request):
                 total_payments = lote.payments.filter(payment_type='installment').count()
                 pending = max(0, lote.financing_months - total_payments)
                 
+                # Si el saldo pendiente es 0, el lote está completamente pagado
+                # aunque tenga cuotas pendientes, no debe aparecer en el reporte
+                if lote.remaining_balance <= 0:
+                    continue
+                
                 if pending > 0:
                     # Calcular cuota mensual real
                     monthly_payment = float(lote.monthly_installment) if hasattr(lote, 'monthly_installment') else (lote.remaining_balance / pending if pending > 0 else 0)
