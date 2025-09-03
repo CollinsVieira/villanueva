@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from lotes.models import Lote
+from customers.models import Customer
 
 class Payment(models.Model):
     """
@@ -32,6 +33,14 @@ class Payment(models.Model):
         on_delete=models.CASCADE,
         related_name='payments',
         verbose_name=_("Lote")
+    )
+    
+    # Relación con el cliente que realiza el pago
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='payments',
+        verbose_name=_("Cliente")
     )
     
     amount = models.DecimalField(

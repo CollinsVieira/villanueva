@@ -173,6 +173,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.100.4",
     "http://192.168.100.4:8000",
     "http://192.168.100.4:80",
+    ""
 ]
 
 # Configuraciones adicionales para CORS en Docker

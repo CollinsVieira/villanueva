@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from .models import Customer
 from users.serializers import UserSerializer
 from lotes.models import Lote
+from payments.serializers import PaymentSerializer
 
 class NestedLoteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,6 +15,9 @@ class CustomerSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     full_name = serializers.CharField(read_only=True)
     lotes = NestedLoteSerializer(many=True, read_only=True)
+    payments = PaymentSerializer(many=True, read_only=True)
+    total_payments = serializers.SerializerMethodField()
+    total_pending_balance = serializers.SerializerMethodField()
 
 
 
@@ -23,15 +27,23 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'first_name', 'last_name', 'full_name', 'email', 'phone', 
             'address', 'document_type', 'document_number', 'created_at', 
-            'updated_at', 'created_by', 'lotes'
+            'updated_at', 'created_by', 'lotes', 'payments', 'total_payments', 'total_pending_balance'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'total_payments', 'total_pending_balance']
 
     def create(self, validated_data):
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             validated_data['created_by'] = request.user
         return super().create(validated_data)
+        
+    def get_total_payments(self, obj):
+        """Retorna el total de pagos realizados por el cliente."""
+        return obj.total_payments
+        
+    def get_total_pending_balance(self, obj):
+        """Retorna el saldo total pendiente de todos los lotes del cliente."""
+        return obj.total_pending_balance
         
     def validate_email(self, value):
         """

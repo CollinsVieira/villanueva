@@ -9,7 +9,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     """
     API endpoint que permite la gestión de pagos.
     """
-    queryset = Payment.objects.all().select_related('lote', 'recorded_by', 'lote__owner')
+    queryset = Payment.objects.all().select_related('lote', 'customer', 'recorded_by', 'lote__owner')
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated, IsWorkerOrAdmin]
     
@@ -17,8 +17,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
     parser_classes = [MultiPartParser, FormParser] # Para manejar la subida de archivos/imágenes
-    # Filtros por lote_id y método de pago
-    filterset_fields = ['lote__id', 'method']
+    # Filtros por lote_id, customer_id y método de pago
+    filterset_fields = ['lote__id', 'customer__id', 'method']
     
     # Búsqueda por número de recibo o notas
     search_fields = [

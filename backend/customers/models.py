@@ -29,6 +29,18 @@ class Customer(models.Model):
         related_name='customers'
     )
 
+    @property
+    def total_payments(self):
+        """Devuelve el total de pagos realizados por el cliente."""
+        return self.payments.aggregate(
+            total=models.Sum('amount')
+        )['total'] or 0
+
+    @property
+    def total_pending_balance(self):
+        """Devuelve el saldo total pendiente de todos los lotes del cliente."""
+        return sum(lote.remaining_balance for lote in self.lotes.all())
+
     class Meta:
         verbose_name = _("Cliente")
         verbose_name_plural = _("Clientes")

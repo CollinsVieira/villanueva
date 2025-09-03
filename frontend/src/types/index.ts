@@ -55,6 +55,7 @@ export interface Lote {
 export interface Payment {
   id: number;
   lote: Lote;
+  customer: Customer;
   amount: string;
   payment_date: string;
   payment_date_display?: string;
@@ -105,6 +106,9 @@ export interface Customer {
   updated_at: string;
   created_by: User;
   lotes: Lote[];
+  payments?: Payment[];
+  total_payments?: number;
+  total_pending_balance?: number;
 }
 
 export interface HistoryEvent {

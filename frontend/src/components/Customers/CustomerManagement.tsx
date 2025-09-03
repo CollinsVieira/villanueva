@@ -75,6 +75,8 @@ const CustomerManagement: React.FC = () => {
     }
   };
 
+  
+
   const handleSave = () => {
     setShowForm(false);
     setEditingCustomer(null);
@@ -156,6 +158,9 @@ const CustomerManagement: React.FC = () => {
                     </td>
                     <td className="p-3">
                       <div className="flex items-center justify-end space-x-2">
+                        {/* <button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(customer.id, setError); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                          <Download size={16} />
+                        </button> */}
                         <button onClick={(e) => { e.stopPropagation(); handleEditCustomer(customer); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
                           <Edit size={16} />
                         </button>
@@ -250,6 +255,7 @@ const CustomerManagement: React.FC = () => {
           customerId={viewingCustomerId}
           onClose={() => setViewingCustomerId(null)}
           onDataChange={() => loadCustomers(searchTerm)}
+          setError={setError}
         />
       )}
     </div>

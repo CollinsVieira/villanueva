@@ -23,6 +23,15 @@ class PaymentService {
     await api.delete(`/payments/${id}/`);
   }
 
+  async getPaymentsByCustomer(customerId: number): Promise<Payment[]> {
+    const response = await api.get(`/customers/${customerId}/`, { 
+      params: { customer: customerId } 
+    });
+    console.log(response.data);
+    return response.data;
+
+  }
+
 }
 
 export default new PaymentService();
