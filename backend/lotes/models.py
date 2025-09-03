@@ -112,10 +112,7 @@ class Lote(models.Model):
         
         if self.owner:
             # Si tiene propietario, verificar si ha pagado completamente
-            if self.remaining_balance <= 0:
-                self.status = 'vendido'
-            else:
-                self.status = 'reservado'
+            self.status = 'vendido'
         else:
             self.status = 'disponible'
         
