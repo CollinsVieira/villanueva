@@ -47,6 +47,8 @@ export interface Lote {
   monthly_installment: string;
   has_initial_payment: boolean;
   initial_payment_amount: string;
+  contract_file?: string;
+  contract_date?: string;
   history: LoteHistory[];
   created_at: string;
   updated_at: string;

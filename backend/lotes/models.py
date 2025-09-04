@@ -13,7 +13,7 @@ class Lote(models.Model):
         ('disponible', _('Disponible')),
         ('vendido', _('Vendido')),
         ('reservado', _('Reservado')),
-        ('desarrollo', _('En Desarrollo')),
+        ('liquidado', _('Liquidado')),
     ]
 
     block = models.CharField(_("Manzana"), max_length=50)
@@ -42,6 +42,19 @@ class Lote(models.Model):
         blank=True,
         related_name='lotes',
         verbose_name=_("Propietario")
+    )
+
+    contract_file = models.FileField(
+        _("Contrato PDF"),
+        upload_to='contracts/',
+        null=True,
+        blank=True
+    )
+    
+    contract_date = models.DateTimeField(
+        _("Fecha de Contrato"),
+        null=True,
+        blank=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -112,7 +125,10 @@ class Lote(models.Model):
         
         if self.owner:
             # Si tiene propietario, verificar si ha pagado completamente
-            self.status = 'vendido'
+            if self.remaining_balance <= 0:
+                self.status = 'liquidado'
+            else:
+                self.status = 'vendido'
         else:
             self.status = 'disponible'
         

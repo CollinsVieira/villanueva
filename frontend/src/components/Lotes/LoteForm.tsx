@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, CheckSquare, Copy, Plus } from 'lucide-react';
+import { X, User, CheckSquare, Copy, Plus, FileText, Download, Trash2 } from 'lucide-react';
 import { Lote, Customer } from '../../types';
 import loteService from '../../services/loteService';
 import customerService from '../../services/customerService';
@@ -21,6 +21,9 @@ type LoteFormData = {
   financing_months: number;
   payment_day: number;
   owner_id: number | null;
+  contract_file?: File | null;
+  contract_date: string;
+  existing_contract_file?: string;
 }
 
 const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
@@ -33,6 +36,9 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
     financing_months: 0,
     payment_day: 15,
     owner_id: null,
+    contract_file: null,
+    contract_date: '',
+    existing_contract_file: '',
   });
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,6 +64,9 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
         financing_months: lote.financing_months,
         payment_day: lote.payment_day,
         owner_id: lote.owner?.id || null,
+        contract_file: null,
+        contract_date: lote.contract_date ? lote.contract_date.slice(0, 16) : '', // Formato para datetime-local
+        existing_contract_file: lote.contract_file || '',
       });
     }
   }, [lote]);
@@ -72,9 +81,34 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFormData(prev => ({ ...prev, contract_file: file }));
+  };
+
   const handleBulkDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setBulkData(prev => ({ ...prev, [name]: name.includes('Number') ? parseInt(value) || 1 : value }));
+  };
+
+  const handleDownloadContract = () => {
+    if (formData.existing_contract_file) {
+      const link = document.createElement('a');
+      link.href = formData.existing_contract_file;
+      link.target = '_blank';
+      link.download = formData.existing_contract_file.split('/').pop() || 'contrato.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleDeleteContract = () => {
+    setFormData(prev => ({ 
+      ...prev, 
+      existing_contract_file: '',
+      contract_file: null 
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,8 +131,13 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
         for (let i = startLotNumber; i <= endLotNumber; i++) {
           const lotNumber = lotNumberPrefix ? `${lotNumberPrefix}${i}` : i.toString();
           lotesToCreate.push({
-            ...formData,
+            block: formData.block,
             lot_number: lotNumber,
+            area: formData.area,
+            price: formData.price,
+            initial_payment: formData.initial_payment,
+            financing_months: formData.financing_months,
+            payment_day: formData.payment_day,
             owner_id: formData.owner_id ? Number(formData.owner_id) : null,
           });
         }
@@ -113,15 +152,54 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
         
       } else {
         // Creación/edición individual
-        const dataToSend = {
-          ...formData,
-          owner_id: formData.owner_id ? Number(formData.owner_id) : null,
-        };
+        const hasFile = formData.contract_file instanceof File;
+        const shouldDeleteContract = !formData.existing_contract_file && !hasFile;
+        
+        if (hasFile) {
+          // Usar FormData para archivos
+          const formDataToSend = new FormData();
+          formDataToSend.append('block', formData.block);
+          formDataToSend.append('lot_number', formData.lot_number);
+          formDataToSend.append('area', formData.area);
+          formDataToSend.append('price', formData.price);
+          formDataToSend.append('initial_payment', formData.initial_payment);
+          formDataToSend.append('financing_months', formData.financing_months.toString());
+          formDataToSend.append('payment_day', formData.payment_day.toString());
+          formDataToSend.append('owner_id', formData.owner_id ? formData.owner_id.toString() : '');
+          formDataToSend.append('contract_file', formData.contract_file!);
+          if (formData.contract_date) {
+            formDataToSend.append('contract_date', formData.contract_date);
+          }
 
-        if (lote) {
-          await loteService.updateLote(lote.id, dataToSend);
+          if (lote) {
+            await loteService.updateLoteWithFile(lote.id, formDataToSend);
+          } else {
+            await loteService.createLoteWithFile(formDataToSend);
+          }
         } else {
-          await loteService.createLote(dataToSend);
+          // Usar datos normales sin archivo
+          const dataToSend: any = {
+            block: formData.block,
+            lot_number: formData.lot_number,
+            area: formData.area,
+            price: formData.price,
+            initial_payment: formData.initial_payment,
+            financing_months: formData.financing_months,
+            payment_day: formData.payment_day,
+            owner_id: formData.owner_id ? Number(formData.owner_id) : null,
+            contract_date: formData.contract_date || undefined,
+          };
+
+          // Solo incluir contract_file si se debe eliminar
+          if (shouldDeleteContract) {
+            dataToSend.contract_file = null;
+          }
+
+          if (lote) {
+            await loteService.updateLote(lote.id, dataToSend);
+          } else {
+            await loteService.createLote(dataToSend);
+          }
         }
         onSave();
       }
@@ -206,17 +284,6 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
                       required 
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-blue-700 mb-1">Prefijo (Opcional)</label>
-                    <input 
-                      type="text" 
-                      name="lotNumberPrefix" 
-                      value={bulkData.lotNumberPrefix} 
-                      onChange={handleBulkDataChange} 
-                      placeholder="Ej: LT-"
-                      className="w-full p-2 border border-blue-300 rounded-lg " 
-                    />
-                  </div>
                 </div>
                 
                 <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-lg">
@@ -274,12 +341,93 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
                     <p className="text-xs text-gray-500 mt-1">Día del mes en que vencen las cuotas (1-31)</p>
                 </div>
                 <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Propietario (Opcional)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Propietario</label>
                     <select name="owner_id" value={formData.owner_id || ''} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg ">
                         <option value="">Sin Asignar</option>
                         {customers.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
                     </select>
                 </div>
+                
+                {/* Campos de contrato - solo en modo edición */}
+                {lote && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <FileText className="inline mr-2" size={16} />
+                      Contrato PDF
+                    </label>
+                    
+                    {/* Mostrar contrato existente */}
+                    {formData.existing_contract_file && (
+                      <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <FileText className="text-green-600" size={16} />
+                            <span className="text-sm text-green-800">
+                              Contrato existente: {formData.existing_contract_file.split('/').pop()}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={handleDownloadContract}
+                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 flex items-center space-x-1"
+                            >
+                              <Download size={12} />
+                              <span>Descargar</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleDeleteContract}
+                              className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 flex items-center space-x-1"
+                            >
+                              <Trash2 size={12} />
+                              <span>Eliminar</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Input para nuevo archivo */}
+                    <div className="flex items-center space-x-3">
+                      <input 
+                        type="file" 
+                        name="contract_file" 
+                        accept=".pdf"
+                        onChange={handleFileChange} 
+                        className="flex-1 p-3 border border-gray-300 rounded-lg text-sm text-gray-700"
+                      />
+                      {formData.contract_file && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, contract_file: null }))}
+                          className="px-3 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                    {formData.contract_file && (
+                      <p className="text-xs text-blue-600 mt-1 flex items-center">
+                        <FileText size={12} className="mr-1" />
+                        Nuevo archivo: {formData.contract_file.name}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {lote && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha y hora del Contrato</label>
+                    <input 
+                      type="datetime-local" 
+                      name="contract_date" 
+                      value={formData.contract_date || ''} 
+                      onChange={handleChange} 
+                      className="w-full p-3 border border-gray-300 rounded-lg text-sm text-gray-700"
+                    />
+                  </div>
+                )}
             </div>
           </div>
           <div className="flex justify-end space-x-3 p-6 border-t bg-gray-50">

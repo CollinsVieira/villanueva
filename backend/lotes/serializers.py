@@ -53,6 +53,8 @@ class LoteSerializer(serializers.ModelSerializer):
             'owner',
             'owner_id',
             'history',
+            'contract_file',
+            'contract_date',
             'created_at',
             'updated_at'
         ]
