@@ -3,7 +3,7 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from users.permissions import IsWorkerOrAdmin
 from .models import Lote, LoteHistory
@@ -21,7 +21,7 @@ class LoteViewSet(viewsets.ModelViewSet):
     queryset = Lote.objects.all().select_related('owner', 'created_by')
     serializer_class = LoteSerializer
     permission_classes = [permissions.IsAuthenticated, IsWorkerOrAdmin]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'block']
