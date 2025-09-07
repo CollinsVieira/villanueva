@@ -91,13 +91,13 @@ class VentaSummarySerializer(serializers.ModelSerializer):
     customer_display = serializers.SerializerMethodField()
     remaining_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    
+    payment_day = serializers.SerializerMethodField()
     class Meta:
         model = Venta
         fields = [
             'id', 'lote_display', 'customer_display', 'sale_price', 
             'initial_payment', 'remaining_balance', 'status', 'status_display',
-            'sale_date', 'contract_date'
+            'sale_date', 'contract_date','payment_day'
         ]
     
     def get_lote_display(self, obj):
@@ -105,6 +105,15 @@ class VentaSummarySerializer(serializers.ModelSerializer):
     
     def get_customer_display(self, obj):
         return f"{obj.customer.first_name} {obj.customer.last_name}"
+
+    def get_payment_day(self, obj):
+        """Obtiene el día de pago del plan de pagos asociado"""
+        try:
+            if hasattr(obj, 'plan_pagos'):
+                return obj.plan_pagos.payment_day
+            return 15  # Valor por defecto
+        except:
+            return 15  # Valor por defecto
 
 
 class VentaCancelSerializer(serializers.Serializer):
