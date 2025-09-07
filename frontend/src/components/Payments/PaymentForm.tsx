@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CreditCard, X, Upload } from "lucide-react";
-import { paymentService, loteService } from "../../services";
+import { paymentService, loteService, salesService } from "../../services";
 import { Lote } from "../../types";
 import { Alert } from "../UI";
 import { SearchableSelect } from "../UI";
@@ -14,7 +14,10 @@ interface PaymentFormProps {
 const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
   const [allLotes, setAllLotes] = useState<Lote[]>([]);
   const [selectedLoteId, setSelectedLoteId] = useState<number | null>(null);
-  const [selectedLote, setSelectedLote] = useState<Lote | null>(null); // Estado para los detalles del lote
+  const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
+  const [activeVenta, setActiveVenta] = useState<any>(null); // Venta activa del lote
+  const [paymentSchedules, setPaymentSchedules] = useState<any[]>([]); // Cronograma de pagos
+  const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,43 +33,76 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
 
   useEffect(() => {
     // Carga todos los lotes vendidos una sola vez
-    loteService.getLotes({ status: "reservado" }).then(setAllLotes);
+    loteService.getLotes({ status: "vendido" }).then(setAllLotes);
   }, []);
 
-  // Recalcular cuando cambie el tipo de pago o el lote seleccionado
+  // Recalcular cuando cambie el tipo de pago o la venta activa
   useEffect(() => {
-    if (selectedLote) {
-      // Si ya existe un pago inicial, forzar tipo 'installment'
-      if (selectedLote.has_initial_payment && paymentType === "initial") {
-        setPaymentType("installment");
-        return;
-      }
-
+    if (activeVenta) {
       if (paymentType === "initial") {
-        setPaymentAmount(selectedLote.initial_payment?.toString() || "0");
-        setInstallmentNumber(0); // Los pagos iniciales no tienen número de cuota
+        // Para pago inicial, usar el monto de la venta
+        setPaymentAmount(activeVenta.sale_price?.toString() || "0");
+        setInstallmentNumber(0);
       } else {
-        const monthlyAmount = parseFloat(
-          selectedLote.monthly_installment || "0"
-        );
-        setPaymentAmount(monthlyAmount.toString());
-        const nextInstallment = (selectedLote.installments_paid || 0) + 1;
-        setInstallmentNumber(nextInstallment);
+        // Para cuotas, buscar la próxima cuota pendiente
+        const pendingSchedules = paymentSchedules.filter(s => s.status === 'pending');
+        if (pendingSchedules.length > 0) {
+          const nextSchedule = pendingSchedules[0];
+          setPaymentAmount(nextSchedule.scheduled_amount?.toString() || "0");
+          setInstallmentNumber(nextSchedule.installment_number);
+          setSelectedScheduleId(nextSchedule.id);
+        }
       }
     }
-  }, [paymentType, selectedLote]);
+  }, [paymentType, activeVenta, paymentSchedules]);
 
-  // Cuando el ID del lote seleccionado cambia, busca sus detalles completos
+  // Cuando el ID del lote seleccionado cambia, busca sus detalles completos y la venta activa
   useEffect(() => {
     if (selectedLoteId) {
       const loteDetails = allLotes.find((l) => l.id === selectedLoteId);
       setSelectedLote(loteDetails || null);
+      
+      // Buscar la venta activa para este lote
+      if (loteDetails) {
+        loadActiveVentaAndSchedules(selectedLoteId);
+      }
     } else {
       setSelectedLote(null);
+      setActiveVenta(null);
+      setPaymentSchedules([]);
+      setSelectedScheduleId(null);
       setPaymentAmount("");
       setInstallmentNumber(1);
     }
   }, [selectedLoteId, allLotes]);
+
+  const loadActiveVentaAndSchedules = async (loteId: number) => {
+    try {
+      // Buscar venta activa para el lote
+      const ventas = await salesService.getVentasByLote(loteId);
+      const activeVenta = ventas.find((v: any) => v.status === 'active');
+      
+      if (activeVenta) {
+        setActiveVenta(activeVenta);
+        
+        // Cargar cronograma de pagos
+        const schedules = await paymentService.getPaymentScheduleByVenta(activeVenta.id);
+        setPaymentSchedules(schedules);
+        
+        // Si es pago inicial y ya existe, cambiar a cuota
+        if (paymentType === "initial" && parseFloat(activeVenta.initial_payment || "0") > 0) {
+          setPaymentType("installment");
+        }
+      } else {
+        setActiveVenta(null);
+        setPaymentSchedules([]);
+        setError("No se encontró una venta activa para este lote");
+      }
+    } catch (err) {
+      console.error('Error loading venta and schedules:', err);
+      setError("Error al cargar la información de la venta");
+    }
+  };
 
   const loteOptions = allLotes.map((lote) => ({
     value: lote.id,
@@ -81,36 +117,47 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedLoteId) {
-      setError("Por favor, seleccione un lote.");
+    if (!selectedLoteId || !activeVenta) {
+      setError("Por favor, seleccione un lote con venta activa.");
       return;
     }
     setIsSubmitting(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
-    if (selectedFile) {
-      formData.append("receipt_image", selectedFile);
-    }
-    formData.set("lote_id", String(selectedLoteId));
-    formData.set("payment_type", paymentType);
-
-    // Usar el servicio de fechas para convertir a UTC correctamente
-    const utcDateString = DateService.localDateToUTCSafe(paymentDate);
-    formData.set("payment_date", utcDateString);
-    
-    // También convertir la fecha de operación si está presente
-    if (receiptDate) {
-      // Para receipt_date, enviar solo la fecha sin la hora
-      formData.set("receipt_date", receiptDate);
-    }
     try {
-      await paymentService.createPayment(formData);
+      if (paymentType === "initial") {
+        // Pago inicial a través de la venta
+        await salesService.registerInitialPayment(activeVenta.id, {
+          amount: paymentAmount,
+          payment_date: DateService.localDateToUTCSafe(paymentDate),
+          method: (e.currentTarget.elements.namedItem('method') as HTMLSelectElement)?.value || 'transferencia',
+          receipt_number: e.currentTarget.receipt_number.value,
+          receipt_date: e.currentTarget.receipt_date.value,
+          receipt_image: selectedFile || undefined,
+          notes: e.currentTarget.notes.value,
+        });
+      } else {
+        // Pago de cuota a través del cronograma
+        if (!selectedScheduleId) {
+          setError("No se encontró una cuota pendiente para pagar.");
+          return;
+        }
+        
+        await paymentService.registerPayment(selectedScheduleId, {
+          amount: parseFloat(paymentAmount),
+          method: (e.currentTarget.elements.namedItem('method') as HTMLSelectElement)?.value || 'transferencia',
+          receipt_number: e.currentTarget.receipt_number.value,
+          receipt_date: e.currentTarget.receipt_date.value,
+          receipt_image: selectedFile || undefined,
+          notes: e.currentTarget.notes.value,
+        });
+      }
+
       onSave();
+      onClose();
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || "Ocurrió un error al registrar el pago."
-      );
+      setError(err.response?.data?.error || 'Error al registrar el pago');
+      console.error('Error saving payment:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -163,14 +210,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
               />
             </div>
 
-            {/* Información del lote seleccionado */}
-            {selectedLote && (
+            {/* Información de la venta activa */}
+            {selectedLote && activeVenta && (
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                 <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
                   <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
                     <span className="text-blue-600 text-xs font-bold">✓</span>
                   </div>
-                  Información del Lote Seleccionado
+                  Información de la Venta Activa
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white/60 rounded-lg p-3">
@@ -178,10 +225,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       Cliente
                     </p>
                     <p className="font-semibold text-gray-900">
-                      {selectedLote.owner?.full_name}
+                      {activeVenta.customer_info?.full_name || selectedLote.owner?.full_name}
                     </p>
                     <p className="text-xs text-gray-600">
-                      {selectedLote.owner?.document_number}
+                      {activeVenta.customer_info?.document_number || selectedLote.owner?.document_number}
                     </p>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
@@ -197,46 +244,46 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                      Progreso de Pagos
+                      Precio de Venta
                     </p>
                     <p className="font-semibold text-gray-900">
-                      {selectedLote.installments_paid} de{" "}
-                      {selectedLote.financing_months} cuotas
+                      S/.{parseFloat(activeVenta.sale_price || "0").toFixed(2)}
                     </p>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${
-                            selectedLote.financing_months > 0
-                              ? (selectedLote.installments_paid /
-                                  selectedLote.financing_months) *
-                                100
-                              : 0
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                      Saldo Restante
+                      Pago Inicial
+                    </p>
+                    <p className="font-semibold text-gray-900">
+                      S/.{parseFloat(activeVenta.initial_payment || "0").toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                      Saldo Pendiente
                     </p>
                     <p className="font-bold text-2xl text-red-600">
-                      S/.{parseFloat(selectedLote.remaining_balance).toFixed(2)}
+                      S/.{parseFloat(activeVenta.remaining_balance || "0").toFixed(2)}
                     </p>
                   </div>
-                  <div className="md:col-span-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-4 border border-blue-200">
-                    <p className="text-sm text-blue-700 mb-1">
-                      💡 Cuota Mensual Sugerida
+                  <div className="bg-white/60 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                      Estado
                     </p>
-                    <p className="font-bold text-3xl text-blue-600">
-                      S/.
-                      {parseFloat(
-                        selectedLote.monthly_installment || "0"
-                      ).toFixed(2)}
+                    <p className="font-semibold text-green-600">
+                      {activeVenta.status_display || 'Activa'}
                     </p>
                   </div>
+                  {paymentSchedules.length > 0 && (
+                    <div className="md:col-span-2 bg-gradient-to-r from-green-100 to-blue-100 rounded-lg p-4 border border-green-200">
+                      <p className="text-sm text-green-700 mb-1">
+                        📅 Cronograma de Pagos
+                      </p>
+                      <p className="font-bold text-lg text-green-600">
+                        {paymentSchedules.filter(s => s.status === 'pending').length} cuotas pendientes
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

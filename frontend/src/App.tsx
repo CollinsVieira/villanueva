@@ -15,6 +15,7 @@ import Dashboard from "./components/Dashboard/Dashboard";
 import CustomerManagement from "./components/Customers/CustomerManagement"; // <-- Import añadido
 import LoteManagement from "./components/Lotes/LoteManagement"; 
 import PaymentManagement from "./components/Payments/PaymentManagement";
+import SalesPage from "./pages/SalesPage";
 import DynamicReports from "./pages/DynamicReports";
 
 
@@ -163,6 +164,18 @@ const MainApp: React.FC = () => {
             <ProtectedRoute adminOnly>
               <AppLayout>
                 <DynamicReports />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- NUEVA RUTA PARA VENTAS --- */}
+        <Route
+          path="/admin/ventas"
+          element={
+            <ProtectedRoute adminOnly>
+              <AppLayout>
+                <SalesPage />
               </AppLayout>
             </ProtectedRoute>
           }

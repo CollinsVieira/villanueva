@@ -50,10 +50,10 @@ const LoteDetailModal: React.FC<LoteDetailModalProps> = ({ loteId, onClose }) =>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Sección de Detalles */}
           <div className="bg-gray-50 p-4 rounded-lg grid grid-cols-2 gap-4">
-            <div><strong className="block text-sm">Propietario:</strong> {lote.owner?.full_name || 'Sin Asignar'}</div>
             <div><strong className="block text-sm">Estado:</strong> <span className="capitalize">{lote.status}</span></div>
             <div><strong className="block text-sm">Precio:</strong> S/. {parseFloat(lote.price).toFixed(2)}</div>
-            <div><strong className="block text-sm">Saldo Restante:</strong> S/. {parseFloat(lote.remaining_balance).toFixed(2)}</div>
+            <div><strong className="block text-sm">Área:</strong> {parseFloat(lote.area).toFixed(0)} m²</div>
+            <div><strong className="block text-sm">Manzana:</strong> {lote.block}</div>
           </div>
 
           {/* Sección de Historial */}

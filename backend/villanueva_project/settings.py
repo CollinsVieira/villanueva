@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-656^oe7&+v9_kb=l=yg(ce8mi&-gj+pgfpq40irnp=xcs&fc$s'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # Permitir acceso desde la red local
 ALLOWED_HOSTS = ['*']
@@ -35,6 +35,7 @@ ALLOWED_HOSTS = ['*']
 INSTALLED_APPS = [
     # 'django.contrib.admin',  # Comentado para evitar conflictos con el frontend
     'django.contrib.auth',
+    'django.contrib.admin',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
     'users',
     'customers',
     'lotes',
+    'sales',
     'payments',
     'reports',
     'reminders',

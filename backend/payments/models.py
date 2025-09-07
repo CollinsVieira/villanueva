@@ -4,12 +4,13 @@ from django.core.validators import MinValueValidator
 from django.utils.translation import gettext_lazy as _
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 from lotes.models import Lote
 from customers.models import Customer
 
 class Payment(models.Model):
     """
-    Modelo para representar un pago realizado por un lote.
+    Modelo para representar un pago realizado por una venta.
     """
     METHOD_CHOICES = [
         ('efectivo', _('Efectivo')),
@@ -23,31 +24,29 @@ class Payment(models.Model):
         ('installment', _('Cuota Mensual')),
     ]
 
-    receipt_image = models.ImageField(_("Imagen del Comprobante"), upload_to='payment_receipts/', blank=True, null=True)
-    installment_number = models.PositiveIntegerField(_("Número de Cuota"), blank=True, null=True)
-
-
-    # Relación con el lote al que corresponde el pago
-    lote = models.ForeignKey(
-        Lote,
+    # Relación con la venta a la que corresponde el pago
+    venta = models.ForeignKey(
+        'sales.Venta',
         on_delete=models.CASCADE,
         related_name='payments',
-        verbose_name=_("Lote")
+        verbose_name=_("Venta")
     )
     
-    # Relación con el cliente que realiza el pago
-    customer = models.ForeignKey(
-        Customer,
-        on_delete=models.CASCADE,
-        related_name='payments',
-        verbose_name=_("Cliente")
+    # Relación con el cronograma de pagos (opcional, para cuotas)
+    payment_schedule = models.ForeignKey(
+        'PaymentSchedule',
+        on_delete=models.SET_NULL,
+        related_name='schedule_payments',
+        verbose_name=_("Cronograma de Pago"),
+        null=True,
+        blank=True
     )
     
     amount = models.DecimalField(
         _("Monto del Pago"),
         max_digits=12,
         decimal_places=2,
-        validators=[MinValueValidator(0.01)]
+        validators=[MinValueValidator(Decimal('0.01'))]
     )
     
     payment_date = models.DateTimeField(_("Fecha de Pago"))
@@ -68,17 +67,8 @@ class Payment(models.Model):
     
     receipt_number = models.CharField(_("Número de Operación"), max_length=100, blank=True)
     receipt_date = models.DateField(_("Fecha de Operación"), blank=True, null=True)
+    receipt_image = models.ImageField(_("Imagen del Comprobante"), upload_to='payment_receipts/', blank=True, null=True)
     notes = models.TextField(_("Notas Adicionales"), blank=True)
-    
-    # Relación con el plan de pagos
-    payment_plan = models.ForeignKey(
-        'PaymentPlan',
-        on_delete=models.CASCADE,
-        related_name='payments',
-        verbose_name=_("Plan de Pagos"),
-        blank=True,
-        null=True
-    )
 
     # Relación con el usuario que registró el pago
     recorded_by = models.ForeignKey(
@@ -102,212 +92,43 @@ class Payment(models.Model):
         Sobrescribe el método save para actualizar el estado del lote después de registrar un pago.
         """
         super().save(*args, **kwargs)
-        # Actualizar el estado del lote después de guardar el pago
-        self.lote.save()
+        # Actualizar el estado del lote a través de la venta
+        if self.venta and hasattr(self.venta, 'lote') and self.venta.lote:
+            self.venta.lote.save()
 
     def delete(self, *args, **kwargs):
         """
         Sobrescribe el método delete para actualizar el estado del lote después de eliminar un pago.
         """
-        lote = self.lote
+        venta_lote = None
+        if self.venta and hasattr(self.venta, 'lote') and self.venta.lote:
+            venta_lote = self.venta.lote
+        
         super().delete(*args, **kwargs)
         # Actualizar el estado del lote después de eliminar el pago
-        lote.save()
+        if venta_lote:
+            venta_lote.save()
 
     def __str__(self):
-        return f"Pago de {self.amount} para {self.lote} el {self.payment_date}"
+        lote_display = "Sin lote"
+        if self.venta and hasattr(self.venta, 'lote') and self.venta.lote:
+            lote_display = str(self.venta.lote)
+        return f"Pago de {self.amount} para Venta #{self.venta.id if self.venta else 'N/A'} ({lote_display}) el {self.payment_date}"
 
-    @property
-    def is_overdue(self):
-        """Retorna True si el pago está vencido basado en el payment_day del lote."""
-        if not self.payment_date and self.payment_type == 'installment':
-            # Calcular la fecha de vencimiento basada en el payment_day del lote
-            today = date.today()
-            current_due_date = today.replace(day=min(self.lote.payment_day, 28))
-            
-            # Si estamos después del día de pago de este mes, está vencido
-            return today > current_due_date
-        return False
 
-    @property
-    def days_overdue(self):
-        """Retorna el número de días de atraso basado en la fecha de vencimiento real."""
-        if self.is_overdue:
-            today = date.today()
-            return (today - self.due_date).days
-        return 0
 
-    @property
-    def due_date(self):
-        """
-        Calcula la fecha de vencimiento basada en la secuencia real de pagos.
-        
-        Lógica:
-        - Si es la cuota 1: vence según payment_day del mes de creación del lote
-        - Si hay cuotas anteriores pagadas: vence en el mes siguiente a la última cuota pagada
-        - Siempre usar el payment_day del lote como día de vencimiento
-        - Manejar casos donde el día no existe en el mes
-        """
-        if self.payment_type != 'installment':
-            return None
-            
-        if not self.installment_number:
-            return None
-            
-        # Obtener el payment_day del lote
-        payment_day = self.lote.payment_day
-        
-        if self.installment_number == 1:
-            # Primera cuota: vence en el mes de creación del lote
-            return self._get_due_date_for_month(
-                self.lote.created_at.date().replace(day=1),
-                payment_day
-            )
-        else:
-            # Cuotas posteriores: vencen en el mes siguiente a la última cuota pagada
-            last_paid_payment = self._get_last_paid_payment()
-            if last_paid_payment:
-                # Calcular el mes siguiente a la fecha de pago de la última cuota
-                next_month_date = self._get_next_month_date(last_paid_payment.payment_date.date())
-                return self._get_due_date_for_month(next_month_date, payment_day)
-            else:
-                # Fallback: usar la fecha de creación del lote
-                return self._get_due_date_for_month(
-                    self.lote.created_at.date().replace(day=1),
-                    payment_day
-                )
-
-    def _get_last_paid_payment(self):
-        """
-        Obtiene la última cuota pagada anterior a esta.
-        """
-        if not self.installment_number or self.installment_number <= 1:
-            return None
-            
-        return self.lote.payments.filter(
-            payment_type='installment',
-            installment_number__lt=self.installment_number,
-            payment_date__isnull=False
-        ).order_by('-installment_number').first()
-
-    def _get_next_month_date(self, current_date):
-        """
-        Calcula la fecha del mes siguiente, manejando cambios de año.
-        """
-        if current_date.month == 12:
-            return current_date.replace(year=current_date.year + 1, month=1)
-        else:
-            return current_date.replace(month=current_date.month + 1)
-
-    def _get_due_date_for_month(self, month_date, payment_day):
-        """
-        Calcula la fecha de vencimiento para un mes específico,
-        manejando casos donde el día no existe en el mes.
-        """
-        try:
-            # Intentar usar el payment_day exacto
-            return month_date.replace(day=payment_day)
-        except ValueError:
-            # Si el día no existe en el mes, usar el último día del mes
-            if month_date.month == 12:
-                next_month = month_date.replace(year=month_date.year + 1, month=1)
-            else:
-                next_month = month_date.replace(month=month_date.month + 1)
-            
-            last_day_of_month = next_month.replace(day=1) - timedelta(days=1)
-            return last_day_of_month
-
-    @classmethod
-    def calculate_next_due_date(cls, lote, next_installment_number):
-        """
-        Método de clase para calcular la próxima fecha de vencimiento
-        sin crear una instancia del modelo.
-        """
-        if not lote or not lote.payment_day or not next_installment_number:
-            return None
-            
-        payment_day = lote.payment_day
-        
-        if next_installment_number == 1:
-            # Primera cuota: vence en el mes de creación del lote
-            return cls._calculate_due_date_for_month_static(
-                lote.created_at.date().replace(day=1),
-                payment_day
-            )
-        else:
-            # Cuotas posteriores: vencen en el mes siguiente a la última cuota pagada
-            last_paid_payment = cls._get_last_paid_payment_static(lote, next_installment_number)
-            if last_paid_payment:
-                # Calcular el mes siguiente a la fecha de pago de la última cuota
-                next_month_date = cls._calculate_next_month_date_static(last_paid_payment.payment_date.date())
-                return cls._calculate_due_date_for_month_static(next_month_date, payment_day)
-            else:
-                # Fallback: usar la fecha de creación del lote
-                return cls._calculate_due_date_for_month_static(
-                    lote.created_at.date().replace(day=1),
-                    payment_day
-                )
-
-    @staticmethod
-    def _get_last_paid_payment_static(lote, current_installment_number):
-        """
-        Método estático para obtener la última cuota pagada anterior.
-        """
-        if not current_installment_number or current_installment_number <= 1:
-            return None
-            
-        return lote.payments.filter(
-            payment_type='installment',
-            installment_number__lt=current_installment_number,
-            payment_date__isnull=False
-        ).order_by('-installment_number').first()
-
-    @staticmethod
-    def _calculate_next_month_date_static(current_date):
-        """
-        Método estático para calcular la fecha del mes siguiente.
-        """
-        if current_date.month == 12:
-            return current_date.replace(year=current_date.year + 1, month=1)
-        else:
-            return current_date.replace(month=current_date.month + 1)
-
-    @staticmethod
-    def _calculate_due_date_for_month_static(month_date, payment_day):
-        """
-        Método estático para calcular la fecha de vencimiento para un mes específico.
-        """
-        try:
-            # Intentar usar el payment_day exacto
-            return month_date.replace(day=payment_day)
-        except ValueError:
-            # Si el día no existe en el mes, usar el último día del mes
-            if month_date.month == 12:
-                next_month = month_date.replace(year=month_date.year + 1, month=1)
-            else:
-                next_month = month_date.replace(month=month_date.month + 1)
-            
-            last_day_of_month = next_month.replace(day=1) - timedelta(days=1)
-            return last_day_of_month
-
-    @property
-    def is_overdue(self):
-        """Retorna True si el pago está vencido basado en la fecha de vencimiento real."""
-        if not self.due_date:
-            return False
-        return date.today() > self.due_date
 
 
 class PaymentPlan(models.Model):
     """
-    Modelo para representar un plan de pagos de un lote.
-    Se genera automáticamente cuando se asigna un propietario a un lote.
+    Modelo para representar un plan de pagos de una venta específica.
+    Cada venta tiene su propio plan de pagos independiente.
     """
-    lote = models.OneToOneField(
-        Lote,
+    venta = models.OneToOneField(
+        'sales.Venta',
         on_delete=models.CASCADE,
-        related_name='payment_plan',
-        verbose_name=_("Lote")
+        related_name='plan_pagos',
+        verbose_name=_("Venta")
     )
     
     start_date = models.DateField(_("Fecha de Inicio"))
@@ -325,52 +146,467 @@ class PaymentPlan(models.Model):
         verbose_name_plural = _("Planes de Pagos")
 
     def __str__(self):
-        return f"Plan de Pagos para {self.lote}"
+        return f"Plan de Pagos para Venta #{self.venta.id} - {self.venta.lote}"
 
     def generate_payment_schedule(self):
         """
-        Genera el cronograma de pagos para este lote.
-        Crea registros de Payment para cada cuota sin fecha de vencimiento específica.
+        Genera el cronograma de pagos para esta venta.
+        Ahora delega la creación al modelo PaymentSchedule.
         """
-        # Limpiar pagos existentes del plan (solo los no pagados)
-        self.payments.filter(payment_date__isnull=True).delete()
-        
-        monthly_amount = self.lote.monthly_installment
-        financing_months = self.lote.financing_months
-        
-        if financing_months <= 0 or monthly_amount <= 0:
-            return
-        
-        # Generar cuotas mensuales
-        for i in range(1, financing_months + 1):
-            Payment.objects.create(
-                lote=self.lote,
-                amount=monthly_amount,
-                payment_plan=self,
-                installment_number=i,
-                method='transferencia',  # Valor por defecto
-                recorded_by=None  # Se asignará cuando se realice el pago
-            )
+        # Usar el método del PaymentSchedule que es la fuente de verdad
+        return PaymentSchedule.generate_schedule_for_venta(self.venta)
 
     def get_payment_status(self):
         """
-        Retorna estadísticas del plan de pagos.
+        Retorna estadísticas del plan de pagos basado en PaymentSchedule.
         """
-        total_payments = self.payments.count()
-        paid_payments = self.payments.filter(payment_date__isnull=False).count()
+        # Usar PaymentSchedule como fuente de verdad
+        schedules = self.venta.payment_schedules.all()
         
-        # Calcular pagos vencidos basado en el payment_day del lote
-        today = date.today()
-        current_due_date = today.replace(day=min(self.lote.payment_day, 28))
-        overdue_payments = self.payments.filter(
-            payment_date__isnull=True,
-            payment_type='installment'
-        ).count() if today > current_due_date else 0
+        total_payments = schedules.count()
+        paid_payments = schedules.filter(status='paid').count()
+        forgiven_payments = schedules.filter(status='forgiven').count()
+        overdue_payments = schedules.filter(status='overdue').count()
+        partial_payments = schedules.filter(status='partial').count()
+        
+        # Las cuotas absueltas cuentan como "completadas" para el porcentaje
+        completed_payments = paid_payments + forgiven_payments
         
         return {
             'total': total_payments,
             'paid': paid_payments,
-            'pending': total_payments - paid_payments,
+            'pending': schedules.filter(status='pending').count(),
             'overdue': overdue_payments,
-            'completion_percentage': (paid_payments / total_payments * 100) if total_payments > 0 else 0
+            'partial': partial_payments,
+            'forgiven': forgiven_payments,
+            'completion_percentage': (completed_payments / total_payments * 100) if total_payments > 0 else 0
         }
+    
+    @property
+    def is_completed(self):
+        """Verifica si el plan de pagos está completado"""
+        status = self.get_payment_status()
+        return status['completion_percentage'] >= 100
+
+
+class PaymentSchedule(models.Model):
+    """
+    Modelo para representar el cronograma detallado de pagos de un lote.
+    Cada registro representa una cuota específica con flexibilidad para pagos parciales,
+    cuotas absueltas y modificaciones del cronograma.
+    """
+    STATUS_CHOICES = [
+        ('pending', _('Pendiente')),
+        ('paid', _('Pagado')),
+        ('overdue', _('Vencido')),
+        ('partial', _('Pago Parcial')),
+        ('forgiven', _('Absuelto')),
+    ]
+    
+    PAYMENT_METHOD_CHOICES = [
+        ('efectivo', _('Efectivo')),
+        ('transferencia', _('Transferencia Bancaria')),
+        ('tarjeta', _('Tarjeta de Crédito/Débito')),
+        ('otro', _('Otro')),
+    ]
+
+    venta = models.ForeignKey(
+        'sales.Venta',
+        on_delete=models.CASCADE,
+        related_name='payment_schedules',
+        verbose_name=_("Venta")
+    )
+    
+    installment_number = models.PositiveIntegerField(_("Número de Cuota"))
+    
+    # Montos flexibles
+    original_amount = models.DecimalField(
+        _("Monto Original"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text=_("Monto original programado al crear el cronograma")
+    )
+    
+    scheduled_amount = models.DecimalField(
+        _("Monto Programado Actual"),
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text=_("Monto actual a pagar (puede ser diferente al original)")
+    )
+    
+    paid_amount = models.DecimalField(
+        _("Monto Pagado"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(0)]
+    )
+    
+    # Fechas
+    due_date = models.DateField(_("Fecha de Vencimiento"))
+    payment_date = models.DateTimeField(
+        _("Fecha de Pago"),
+        null=True,
+        blank=True,
+        help_text=_("Fecha en que se realizó el pago")
+    )
+    
+    # Información del pago
+    receipt_image = models.ImageField(
+        _("Imagen del Comprobante"),
+        upload_to='payment_receipts/',
+        blank=True,
+        null=True
+    )
+    receipt_number = models.CharField(
+        _("Número de Operación"),
+        max_length=100,
+        blank=True,
+        null=True
+    )
+    receipt_date = models.DateField(
+        _("Fecha de Operación"),
+        blank=True,
+        null=True
+    )
+    payment_method = models.CharField(
+        _("Método de Pago"),
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        blank=True,
+        null=True
+    )
+    
+    # Estado y flexibilidad
+    status = models.CharField(
+        _("Estado"),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    
+    is_forgiven = models.BooleanField(
+        _("Cuota Absuelto"),
+        default=False,
+        help_text=_("Marca si esta cuota ha sido perdonada/regalada")
+    )
+    
+    notes = models.TextField(
+        _("Notas"),
+        blank=True,
+        help_text=_("Notas adicionales sobre cambios o situaciones especiales")
+    )
+    
+    # Relación con pagos realizados
+    payments = models.ManyToManyField(
+        'Payment',
+        blank=True,
+        related_name='payment_schedules',
+        verbose_name=_("Pagos Asociados"),
+        help_text=_("Pagos que se han aplicado a esta cuota del cronograma")
+    )
+    
+    # Auditoría
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorded_schedule_payments',
+        verbose_name=_("Registrado por")
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def lote(self):
+        """Acceso al lote a través de la venta"""
+        return self.venta.lote
+    
+    @property
+    def customer(self):
+        """Acceso al cliente a través de la venta"""
+        return self.venta.customer
+
+    class Meta:
+        verbose_name = _("Cronograma de Pago")
+        verbose_name_plural = _("Cronogramas de Pago")
+        ordering = ['venta', 'installment_number']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['venta', 'installment_number'], 
+                name='unique_venta_installment'
+            )
+        ]
+
+    def __str__(self):
+        return f"Cuota {self.installment_number} - Venta #{self.venta.id} ({self.venta.lote}) - Vence: {self.due_date}"
+
+    def save(self, *args, **kwargs):
+        """
+        Actualiza el estado automáticamente basado en los pagos y fechas.
+        """
+        # La venta ya maneja la consistencia entre lote y customer
+            
+        # Calcular paid_amount desde los pagos asociados si ya existe en la BD
+        if self.pk:
+            from django.db.models import Sum
+            payment_count = self.payments.count()
+            print(f"DEBUG: PaymentSchedule {self.pk} has {payment_count} payments")
+            total_paid = self.payments.aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0.00')
+            print(f"DEBUG: Calculated total_paid: {total_paid}")
+            self.paid_amount = total_paid
+        
+        # Actualizar estado automáticamente
+        if self.is_forgiven:
+            self.status = 'forgiven'
+        elif self.paid_amount >= self.scheduled_amount:
+            self.status = 'paid'
+        elif self.paid_amount > 0:
+            self.status = 'partial'
+        elif date.today() > self.due_date:
+            self.status = 'overdue'
+        else:
+            self.status = 'pending'
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def remaining_amount(self):
+        """Calcula el monto restante por pagar."""
+        return max(0, self.scheduled_amount - self.paid_amount)
+
+    @property
+    def is_overdue(self):
+        """Verifica si la cuota está vencida."""
+        return date.today() > self.due_date and self.status != 'paid'
+
+    @property
+    def days_overdue(self):
+        """Calcula los días de atraso."""
+        if self.is_overdue:
+            return (date.today() - self.due_date).days
+        return 0
+
+    @classmethod
+    def generate_schedule_for_venta(cls, venta):
+        """
+        Genera el cronograma completo de pagos para una venta específica.
+        """
+        lote = venta.lote
+        if not venta.customer or lote.financing_months <= 0:
+            return []
+
+        # No eliminar cronogramas existentes - cada venta tiene su propio cronograma
+        # Solo verificar que no exista ya un cronograma para esta venta
+        existing = cls.objects.filter(venta=venta).exists()
+        if existing:
+            return cls.objects.filter(venta=venta).order_by('installment_number')
+
+        monthly_amount = lote.monthly_installment
+        payment_day = lote.payment_day
+        start_date = venta.sale_date.date()
+
+        schedules = []
+        
+        for i in range(1, lote.financing_months + 1):
+            # Calcular fecha de vencimiento para cada cuota
+            due_date = cls._calculate_due_date(start_date, i, payment_day)
+            
+            schedule = cls.objects.create(
+                venta=venta,
+                installment_number=i,
+                original_amount=monthly_amount,
+                scheduled_amount=monthly_amount,
+                due_date=due_date
+            )
+            schedules.append(schedule)
+
+        return schedules
+    
+    @classmethod
+    def generate_schedule_for_lote(cls, lote):
+        """
+        Método de compatibilidad - busca la venta activa y genera el cronograma.
+        """
+        from sales.models import Venta
+        active_sale = Venta.get_active_sale_for_lote(lote)
+        if active_sale:
+            return cls.generate_schedule_for_venta(active_sale)
+        return []
+    
+    @classmethod
+    def transfer_ownership(cls, lote, old_owner, new_owner):
+        """
+        DEPRECATED: Este método ya no es necesario con el nuevo modelo de Venta.
+        La transferencia de propiedad ahora se maneja cancelando la venta anterior
+        y creando una nueva venta para el nuevo propietario.
+        """
+        # Con el nuevo modelo, esto se maneja a nivel de Venta
+        # 1. Cancelar venta anterior: venta.cancel_sale()
+        # 2. Crear nueva venta: Venta.create_sale(lote, new_owner, ...)
+        pass
+    
+    def register_payment(self, amount, payment_date=None, payment_method='transferencia', 
+                        receipt_number=None, receipt_date=None, receipt_image=None, 
+                        notes=None, recorded_by=None):
+        """
+        Registra un pago para esta cuota del cronograma.
+        """
+        from django.utils import timezone
+        from decimal import Decimal
+        
+        if payment_date is None:
+            payment_date = timezone.now()
+            
+        # Actualizar campos de pago
+        if self.paid_amount is None:
+            self.paid_amount = Decimal('0')
+        self.paid_amount += Decimal(str(amount))
+        self.payment_date = payment_date
+        self.payment_method = payment_method
+        self.receipt_number = receipt_number
+        self.receipt_date = receipt_date
+        self.receipt_image = receipt_image
+        self.recorded_by = recorded_by
+        
+        if notes:
+            if self.notes:
+                self.notes += f"\n{notes}"
+            else:
+                self.notes = notes
+                
+        self.save()
+        
+        # Crear el objeto Payment correspondiente
+        Payment.objects.create(
+            venta=self.venta,
+            payment_schedule=self,
+            amount=Decimal(str(amount)),
+            payment_date=payment_date,
+            method=payment_method,
+            receipt_number=receipt_number or '',
+            receipt_date=receipt_date,
+            receipt_image=receipt_image,
+            notes=notes or '',
+            recorded_by=recorded_by,
+            payment_type='installment'
+        )
+        
+        return self
+    
+    def forgive_installment(self, notes=None, recorded_by=None):
+        """
+        Marca esta cuota como absuelta/perdonada.
+        Esto reduce la deuda total del lote automáticamente.
+        """
+        self.is_forgiven = True
+        self.status = 'forgiven'
+        self.recorded_by = recorded_by
+        
+        if notes:
+            if self.notes:
+                self.notes += f"\n{notes}"
+            else:
+                self.notes = notes
+                
+        self.save()
+        
+        # Actualizar el estado del lote para recalcular el saldo
+        self.lote.save()
+        
+        return self
+    
+    def modify_amount(self, new_amount, notes=None, recorded_by=None):
+        """
+        Modifica el monto programado de esta cuota.
+        """
+        old_amount = self.scheduled_amount
+        self.scheduled_amount = new_amount
+        self.recorded_by = recorded_by
+        
+        modification_note = f"Monto modificado de {old_amount} a {new_amount}"
+        if notes:
+            modification_note += f" - {notes}"
+            
+        if self.notes:
+            self.notes += f"\n{modification_note}"
+        else:
+            self.notes = modification_note
+            
+        self.save()
+        return self
+
+    @staticmethod
+    def _calculate_due_date(start_date, installment_number, payment_day):
+        """
+        Calcula la fecha de vencimiento para una cuota específica.
+        """
+        # Calcular el mes de vencimiento
+        target_month = start_date.month + installment_number - 1
+        target_year = start_date.year + (target_month - 1) // 12
+        target_month = ((target_month - 1) % 12) + 1
+        
+        # Crear la fecha de vencimiento
+        try:
+            due_date = date(target_year, target_month, payment_day)
+        except ValueError:
+            # Si el día no existe en el mes, usar el último día del mes
+            if target_month == 12:
+                next_month = date(target_year + 1, 1, 1)
+            else:
+                next_month = date(target_year, target_month + 1, 1)
+            due_date = next_month - timedelta(days=1)
+        
+        return due_date
+
+    def add_payment(self, payment):
+        """
+        Asocia un pago a esta cuota del cronograma.
+        """
+        print(f"DEBUG: Adding payment {payment.id} (amount: {payment.amount}) to schedule {self.id}")
+        self.payments.add(payment)
+        print(f"DEBUG: Payment added to ManyToMany. Total payments now: {self.payments.count()}")
+        self.sync_payment_info()
+        print(f"DEBUG: Before save - paid_amount: {self.paid_amount}, status: {self.status}")
+        self.save()  # Esto actualizará automáticamente el estado y monto pagado
+        print(f"DEBUG: After save - paid_amount: {self.paid_amount}, status: {self.status}")
+    
+    def sync_payment_info(self):
+        """
+        Sincroniza la información de pago desde los pagos asociados.
+        """
+        if self.payments.exists():
+            # Obtener el último pago realizado
+            latest_payment = self.payments.order_by('-payment_date').first()
+            if latest_payment and latest_payment.payment_date:
+                self.payment_date = latest_payment.payment_date
+                self.payment_method = latest_payment.method
+                self.receipt_number = latest_payment.receipt_number
+                self.receipt_date = latest_payment.receipt_date
+                self.receipt_image = latest_payment.receipt_image
+                if latest_payment.notes and not self.notes:
+                    self.notes = latest_payment.notes
+
+    def get_payment_history(self):
+        """
+        Retorna el historial de pagos para esta cuota.
+        """
+        return self.payments.all().order_by('payment_date')
+    
+    @classmethod
+    def get_total_forgiven_amount(cls, lote):
+        """
+        Retorna el monto total de cuotas absueltas para un lote.
+        """
+        return cls.objects.filter(
+            lote=lote,
+            is_forgiven=True
+        ).aggregate(
+            total=models.Sum('scheduled_amount')
+        )['total'] or Decimal('0.00')

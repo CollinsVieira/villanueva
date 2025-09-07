@@ -12,13 +12,14 @@ from .serializers import LoteSerializer
 
 class LoteViewSet(viewsets.ModelViewSet):
     """
-    API endpoint que permite la gestión de lotes.
+    API endpoint que permite la gestión de lotes con nueva arquitectura simplificada.
     - Accesible por 'Trabajadores' y 'Administradores'.
     - Búsqueda por manzana y número de lote.
     - Filtro por estado del lote.
     - Ordenación por precio, área y fecha de creación.
+    - Las ventas se gestionan a través del módulo Sales.
     """
-    queryset = Lote.objects.all().select_related('owner', 'created_by')
+    queryset = Lote.objects.all().select_related('created_by')
     serializer_class = LoteSerializer
     permission_classes = [permissions.IsAuthenticated, IsWorkerOrAdmin]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -26,7 +27,7 @@ class LoteViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'block']
     search_fields = ['block', 'lot_number']
-    ordering_fields = ['price', 'area', 'created_at']
+    ordering_fields = ['price', 'area', 'created_at', 'block', 'lot_number']
     ordering = ['block', 'lot_number']
 
     def get_serializer_context(self):
@@ -35,20 +36,16 @@ class LoteViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         # Campos que queremos monitorear para el historial
         MONITORED_FIELDS = {
-            'owner_id': 'Propietario',
             'status': 'Estado',
             'price': 'Precio',
-            'initial_payment': 'Pago Inicial',
-            'financing_months': 'Meses de Financiamiento'
+            'area': 'Área'
         }
-
-    
 
         # Obtenemos la instancia del lote ANTES de que se guarde el cambio
         old_instance = self.get_object()
         old_values = {field: getattr(old_instance, field) for field in MONITORED_FIELDS}
 
-        # Guardamos la instancia actualizada una sola vez
+        # Guardamos la instancia actualizada
         new_instance = serializer.save()
 
         # Comparamos los valores antiguos y nuevos para cada campo monitoreado
@@ -57,78 +54,168 @@ class LoteViewSet(viewsets.ModelViewSet):
             new_value = getattr(new_instance, field)
 
             if old_value != new_value:
-                # Formateamos los valores para que se vean bien en el historial
-                if field == 'owner_id':
-                    # Para obtener el nombre del propietario anterior, no podemos usar old_instance.owner
-                    # porque la relación ya podría haber cambiado.
-                    old_display = "Ninguno"
-                    if old_value:
-                        # Asumimos que el cliente no se ha borrado en la misma transacción
-                        try:
-                            from customers.models import Customer
-                            old_display = Customer.objects.get(pk=old_value).full_name
-                        except Customer.DoesNotExist:
-                            old_display = f"ID de Cliente Eliminado: {old_value}"
-                    
-                    new_display = new_instance.owner.full_name if new_instance.owner else "Ninguno"
-                else:
-                    old_display = old_value
-                    new_display = new_value
-
                 LoteHistory.objects.create(
                     lote=new_instance,
                     user=self.request.user,
                     action=f"Cambio de {name}",
-                    details=f"El {name} cambió de '{old_display}' a '{new_display}'."
+                    details=f"El {name} cambió de '{old_value}' a '{new_value}'."
                 )
 
-    @action(detail=True, methods=['post'], url_path='transfer-owner')
-    @transaction.atomic
-    def transfer_owner(self, request, pk=None):
+    @action(detail=True, methods=['get'])
+    def sales_history(self, request, pk=None):
         """
-        Transfiere el propietario de este lote a un nuevo lote,
-        dejando este lote como 'disponible'.
-        Espera en el body: { "new_lote_id": <id_del_nuevo_lote> }
+        Devuelve el historial de ventas del lote.
         """
-        new_lote_id = request.data.get('new_lote_id')
-        if not new_lote_id:
-            return Response(
-                {"error": "Se requiere el ID del nuevo lote ('new_lote_id')."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        lote = self.get_object()
+        sales_history = lote.get_sales_history()
+        
+        data = []
+        for sale in sales_history:
+            sale_data = {
+                'id': sale.id,
+                'status': sale.status,
+                'sale_price': float(sale.sale_price),
+                'initial_payment': float(sale.initial_payment) if sale.initial_payment else 0,
+                'sale_date': sale.sale_date,
+                'contract_date': sale.contract_date,
+                'remaining_balance': float(sale.remaining_balance),
+                'total_payments': float(sale.total_payments),
+                'payment_completion_percentage': round(sale.payment_completion_percentage, 2),
+                'customer': {
+                    'id': sale.customer.id,
+                    'full_name': sale.customer.full_name,
+                    'document_number': sale.customer.document_number,
+                    'phone': sale.customer.phone,
+                    'email': sale.customer.email
+                } if sale.customer else None
+            }
+            data.append(sale_data)
+        
+        return Response(data)
 
-        try:
-            old_lote = self.get_object()
-            new_lote = Lote.objects.get(pk=new_lote_id)
-        except Lote.DoesNotExist:
-            return Response({"error": "Uno de los lotes no existe."}, status=status.HTTP_404_NOT_FOUND)
+    @action(detail=True, methods=['get'])
+    def payment_history(self, request, pk=None):
+        """
+        Devuelve el historial de pagos del lote a través de sus ventas.
+        """
+        lote = self.get_object()
+        payment_history = lote.get_payment_history()
+        
+        data = []
+        for payment in payment_history:
+            payment_data = {
+                'id': payment.id,
+                'amount': float(payment.amount),
+                'payment_date': payment.payment_date,
+                'method': payment.method,
+                'payment_type': payment.payment_type,
+                'receipt_number': payment.receipt_number,
+                'receipt_date': payment.receipt_date,
+                'notes': payment.notes,
+                'venta': {
+                    'id': payment.venta.id,
+                    'status': payment.venta.status,
+                    'sale_price': float(payment.venta.sale_price),
+                    'sale_date': payment.venta.sale_date
+                },
+                'customer': {
+                    'id': payment.venta.customer.id,
+                    'full_name': payment.venta.customer.full_name,
+                    'document_number': payment.venta.customer.document_number
+                } if payment.venta.customer else None
+            }
+            data.append(payment_data)
+        
+        return Response(data)
 
-        if old_lote.owner is None:
-            return Response({"error": "El lote actual no tiene propietario para transferir."}, status=status.HTTP_400_BAD_REQUEST)
-        if new_lote.owner is not None:
-            return Response({"error": "El nuevo lote ya está ocupado."}, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=True, methods=['get'])
+    def payment_schedules(self, request, pk=None):
+        """
+        Devuelve los cronogramas de pago del lote a través de sus ventas.
+        """
+        lote = self.get_object()
+        payment_schedules = lote.get_payment_schedules()
+        
+        data = []
+        for schedule in payment_schedules:
+            schedule_data = {
+                'id': schedule.id,
+                'installment_number': schedule.installment_number,
+                'scheduled_amount': float(schedule.scheduled_amount),
+                'paid_amount': float(schedule.paid_amount),
+                'due_date': schedule.due_date,
+                'status': schedule.status,
+                'payment_date': schedule.payment_date,
+                'venta': {
+                    'id': schedule.venta.id,
+                    'status': schedule.venta.status,
+                    'sale_price': float(schedule.venta.sale_price),
+                    'sale_date': schedule.venta.sale_date
+                },
+                'customer': {
+                    'id': schedule.venta.customer.id,
+                    'full_name': schedule.venta.customer.full_name,
+                    'document_number': schedule.venta.customer.document_number
+                } if schedule.venta.customer else None
+            }
+            data.append(schedule_data)
+        
+        return Response(data)
 
-        owner_to_transfer = old_lote.owner
+    @action(detail=False, methods=['get'])
+    def available(self, request):
+        """
+        Devuelve solo los lotes disponibles para venta.
+        """
+        available_lotes = self.get_queryset().filter(status='disponible')
+        
+        # Aplicar filtros adicionales
+        available_lotes = self.filter_queryset(available_lotes)
+        
+        page = self.paginate_queryset(available_lotes)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(available_lotes, many=True)
+        return Response(serializer.data)
 
-        # 1. Actualizar el nuevo lote
-        new_lote.owner = owner_to_transfer
-        new_lote.status = 'vendido'
-        new_lote.save()
-        LoteHistory.objects.create(
-            lote=new_lote, user=request.user, action="Propietario Asignado por Transferencia",
-            details=f"Se asignó a {owner_to_transfer.full_name} desde el lote {old_lote}."
-        )
+    @action(detail=False, methods=['get'])
+    def sold(self, request):
+        """
+        Devuelve solo los lotes vendidos.
+        """
+        sold_lotes = self.get_queryset().filter(status='vendido')
+        
+        # Aplicar filtros adicionales
+        sold_lotes = self.filter_queryset(sold_lotes)
+        
+        page = self.paginate_queryset(sold_lotes)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(sold_lotes, many=True)
+        return Response(serializer.data)
 
-        # 2. Actualizar el lote antiguo
-        old_lote.owner = None
-        old_lote.status = 'disponible'
-        old_lote.save()
-        LoteHistory.objects.create(
-            lote=old_lote, user=request.user, action="Propietario Transferido",
-            details=f"Se transfirió a {owner_to_transfer.full_name} al lote {new_lote}."
-        )
-
-        return Response(
-            {"status": "Transferencia completada exitosamente."},
-            status=status.HTTP_200_OK
-        )
+    @action(detail=False, methods=['get'])
+    def with_active_sales(self, request):
+        """
+        Devuelve lotes que tienen ventas activas.
+        """
+        from sales.models import Venta
+        
+        lotes_with_sales = self.get_queryset().filter(
+            ventas__status='active'
+        ).distinct()
+        
+        # Aplicar filtros adicionales
+        lotes_with_sales = self.filter_queryset(lotes_with_sales)
+        
+        page = self.paginate_queryset(lotes_with_sales)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(lotes_with_sales, many=True)
+        return Response(serializer.data)

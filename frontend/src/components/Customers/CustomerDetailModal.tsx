@@ -5,6 +5,7 @@ import customerService from "../../services/customerService";
 import LoadingSpinner from "../UI/LoadingSpinner";
 import loteService from "../../services/loteService";
 import { handleDownloadPDF } from "./PdfResumenPagos";
+import { handleDownloadCronogramaPDF } from "../Payments/PdfCronogramaPagos";
 
 interface CustomerDetailModalProps {
   customerId: number;
@@ -61,6 +62,29 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
     }
   };
 
+  const handleDownloadCronograma = async (customerId: number, setError: (error: string | null) => void) => {
+    try {
+      // Get customer's lotes
+      const customerData = await customerService.getCustomerById(customerId);
+      const customerLotes = customerData.lotes;
+      
+      if (!customerLotes || customerLotes.length === 0) {
+        setError("Este cliente no tiene lotes asignados para generar cronograma.");
+        return;
+      }
+      
+      // If customer has multiple lotes, use the first one or let user choose
+      // For now, we'll use the first lote
+      const loteId = customerLotes[0].id;
+      
+      // Call the PDF generation function
+      await handleDownloadCronogramaPDF(loteId, setError);
+    } catch (error) {
+      console.error("Error getting customer lotes:", error);
+      setError("Error al obtener los lotes del cliente.");
+    }
+  };
+
   if (isLoading || !customer) {
     return (
       <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
@@ -92,7 +116,7 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // handleDownloadCronograma(customer.id, setError);
+                  handleDownloadCronograma(customer.id, setError);
                 }}
                 className="p-2 text-white hover:bg-slate-200 hover:text-slate-900 rounded-lg flex items-center gap-2 bg-emerald-500"
                 title="Descargar Cronograma de Pagos"

@@ -1,19 +1,7 @@
 from rest_framework import serializers
 from .models import Lote, LoteHistory
 from users.serializers import UserSerializer
-from customers.models import Customer
 
-# --- 1. PRIMERO, definimos el serializador anidado ---
-class NestedCustomerSerializer(serializers.ModelSerializer):
-    """
-    Un serializador simple para mostrar información básica del propietario
-    dentro de la vista de un lote.
-    """
-    class Meta:
-        model = Customer
-        fields = ['id', 'full_name', 'document_number', 'phone', 'email']
-
-# --- 2. AHORA, definimos el resto de los serializadores ---
 class LoteHistorySerializer(serializers.ModelSerializer):
     """Serializador para el historial de un lote."""
     user = UserSerializer(read_only=True)
@@ -25,13 +13,12 @@ class LoteHistorySerializer(serializers.ModelSerializer):
 
 class LoteSerializer(serializers.ModelSerializer):
     """
-    Serializador para el modelo Lote.
+    Serializador para el modelo Lote con nueva arquitectura simplificada.
     """
-    # Ahora 'NestedCustomerSerializer' ya está definido y se puede usar
-    owner = NestedCustomerSerializer(read_only=True)
-    owner_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    history = LoteHistorySerializer(many=True, read_only=True) 
-    remaining_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    history = LoteHistorySerializer(many=True, read_only=True)
+    display_name = serializers.CharField(read_only=True)
+    is_available = serializers.BooleanField(read_only=True)
+    is_sold = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Lote
@@ -41,48 +28,38 @@ class LoteSerializer(serializers.ModelSerializer):
             'lot_number', 
             'area', 
             'price',
-            'initial_payment',
-            'financing_months',
-            'payment_day',
-            'remaining_balance', 
             'status',
-            'installments_paid',
-            'monthly_installment',
-            'has_initial_payment',
-            'initial_payment_amount',
-            'owner',
-            'owner_id',
+            'display_name',
+            'is_available',
+            'is_sold',
             'history',
-            'contract_file',
-            'contract_date',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 
-                            'created_at', 
-                            'updated_at', 
-                            'owner', 
-                            'history', 
-                            'remaining_balance', 
-                            'installments_paid', 
-                            'monthly_installment' ]
+        read_only_fields = [
+            'id', 
+            'created_at', 
+            'updated_at', 
+            'history',
+            'display_name',
+            'is_available',
+            'is_sold'
+        ]
 
     def create(self, validated_data):
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             validated_data['created_by'] = request.user
-        
-        owner_id = validated_data.pop('owner_id', None)
-        if owner_id:
-            validated_data['owner_id'] = owner_id
-
         return super().create(validated_data)
 
-    def update(self, instance, validated_data):
-        # Extraemos owner_id de los datos validados.
-        # validated_data.pop() nos permite manejarlo por separado.
-        owner_id = validated_data.pop('owner_id', None)
-        
-        # Asignamos el nuevo propietario. Si owner_id es null, se desasigna.
-        instance.owner_id = owner_id
-        return super().update(instance, validated_data)
+    def validate_price(self, value):
+        """Validar que el precio sea positivo."""
+        if value <= 0:
+            raise serializers.ValidationError("El precio debe ser mayor a 0.")
+        return value
+
+    def validate_area(self, value):
+        """Validar que el área sea positiva."""
+        if value <= 0:
+            raise serializers.ValidationError("El área debe ser mayor a 0.")
+        return value

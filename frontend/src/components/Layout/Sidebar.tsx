@@ -8,6 +8,7 @@ import {
   CreditCard,
   UserPen,
   FileText,
+  ShoppingCart,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
     { id: "lotes", label: "Lotes", icon: CheckSquare, path: "/admin/lotes" },
     { id: "clientes", label: "Clientes", icon: Users, path: "/admin/clientes" },
+    { id: "ventas", label: "Ventas", icon: ShoppingCart, path: "/admin/ventas" },
     { id: "pagos", label: "Pagos", icon: CreditCard, path: "/admin/pagos" },
     { id: "reportes", label: "Reportes", icon: FileText, path: "/admin/reportes" },
     { id: "usuarios", label: "Usuarios", icon: UserPen, path: "/admin/usuarios" },

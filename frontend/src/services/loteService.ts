@@ -38,7 +38,7 @@ class LoteService {
   async createLoteWithFile(loteData: FormData): Promise<Lote> {
     const response = await api.post('/lotes/', loteData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        Accept: 'application/json',
       },
     });
     return response.data;

@@ -37,18 +37,10 @@ export interface Lote {
   lot_number: string;
   area: string;
   price: string;
-  initial_payment: string;
-  financing_months: number;
-  payment_day: number;
-  remaining_balance: string;
-  status: 'disponible' | 'vendido' | 'reservado' | 'desarrollo';
-  owner?: Customer;
-  installments_paid: number;
-  monthly_installment: string;
-  has_initial_payment: boolean;
-  initial_payment_amount: string;
-  contract_file?: string;
-  contract_date?: string;
+  status: 'disponible' | 'vendido' | 'reservado' | 'liquidado';
+  display_name: string;
+  is_available: boolean;
+  is_sold: boolean;
   history: LoteHistory[];
   created_at: string;
   updated_at: string;
@@ -56,8 +48,17 @@ export interface Lote {
 
 export interface Payment {
   id: number;
-  lote: Lote;
-  customer: Customer;
+  venta: {
+    id: number;
+    status: string;
+    sale_price: string;
+    initial_payment?: string;
+    sale_date?: string;
+  };
+  payment_schedule?: {
+    id: number;
+    installment_number: number;
+  };
   amount: string;
   payment_date: string;
   payment_date_display?: string;
@@ -66,15 +67,34 @@ export interface Payment {
   receipt_number?: string;
   receipt_date?: string;
   receipt_date_display?: string;
-  installment_number?: number;
   receipt_image?: string;
   notes?: string;
-  payment_plan?: number;
   recorded_by: User;
-  is_overdue?: boolean;
-  days_overdue?: number;
   created_at: string;
   updated_at: string;
+  // Información contextual del serializer
+  venta_info?: {
+    id: number;
+    status: string;
+    sale_price: string;
+    initial_payment?: string;
+    sale_date?: string;
+  };
+  lote_info?: {
+    id: number;
+    block: string;
+    lot_number: string;
+    area: string;
+    display: string;
+  };
+  customer_info?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    document_number: string;
+    phone?: string;
+  };
 }
 
 export interface PaymentPlan {
@@ -272,4 +292,67 @@ export interface HistoryEvent {
       end_date?: string;
     };
     generated_at?: string;
+  }
+
+  // PaymentSchedule interfaces
+  export interface PaymentSchedule {
+    id: number;
+    venta: {
+      id: number;
+      status: string;
+      sale_price: string;
+      initial_payment?: string;
+      sale_date?: string;
+    };
+    installment_number: number;
+    scheduled_amount: string;
+    paid_amount: string;
+    due_date: string;
+    status: 'pending' | 'paid' | 'overdue' | 'partial' | 'forgiven';
+    payment_date?: string;
+    payment_method?: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
+    receipt_number?: string;
+    receipt_date?: string;
+    receipt_image?: string;
+    notes?: string;
+    is_forgiven: boolean;
+    recorded_by?: number;
+    created_at: string;
+    updated_at: string;
+    // Información contextual del serializer
+    lote_info?: {
+      id: number;
+      block: string;
+      lot_number: string;
+      area: string;
+      display: string;
+    };
+    customer_info?: {
+      id: number;
+      first_name: string;
+      last_name: string;
+      full_name: string;
+      document_number: string;
+      phone?: string;
+    };
+    payments_count?: number;
+    total_paid?: string;
+    remaining_amount?: string;
+  }
+
+  export interface PaymentScheduleSummary {
+    id: number;
+    installment_number: number;
+    scheduled_amount: string;
+    paid_amount: string;
+    due_date: string;
+    status: 'pending' | 'paid' | 'overdue' | 'partial' | 'forgiven';
+    payment_date?: string;
+    is_forgiven: boolean;
+    // Información contextual del serializer
+    lote_display?: string;
+    customer_display?: string;
+    payments_count?: number;
+    total_paid?: string;
+    remaining_amount?: string;
   }

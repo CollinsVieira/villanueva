@@ -309,14 +309,14 @@ const LoteManagement: React.FC = () => {
               </div>
             </div>
 
-            {/* Información del propietario */}
+            {/* Información del lote */}
             <div className="px-6 pb-4">
               <div className="flex items-center space-x-2 mb-4">
                 <User className="text-gray-500" size={16} />
-                <span className="text-sm text-gray-600">Propietario:</span>
+                <span className="text-sm text-gray-600">Estado:</span>
               </div>
-              <p className="text-lg font-semibold text-gray-900 ml-6">
-                {lote.owner?.full_name || 'Sin Asignar'}
+              <p className="text-lg font-semibold text-gray-900 ml-6 capitalize">
+                {lote.status}
               </p>
             </div>
 
@@ -325,48 +325,12 @@ const LoteManagement: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <DollarSign className="text-green-600" size={16} />
-                  <span className="text-sm text-gray-600">Precio Total:</span>
+                  <span className="text-sm text-gray-600">Precio:</span>
                 </div>
                 <span className="font-bold text-lg text-gray-900">
                   S/.{parseFloat(lote.price).toFixed(2)}
                 </span>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Saldo Restante:</span>
-                <span className="font-bold text-lg text-red-600">
-                  S/.{parseFloat(lote.remaining_balance).toFixed(2)}
-                </span>
-              </div>
-              
-              {lote.status === 'reservado' && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Vencimiento de Pago:</span>
-                  <span className="font-semibold text-orange-600">
-                    {lote.payment_day} de cada mes
-                  </span>
-                </div>
-              )}
-              
-              {lote.status === 'vendido' && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Cuotas Pagadas:</span>
-                    <span className="font-semibold text-blue-600">
-                      {lote.installments_paid} / {lote.financing_months}
-                    </span>
-                  </div>
-                  
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${lote.financing_months > 0 ? (lote.installments_paid / lote.financing_months) * 100 : 0}%`
-                      }}
-                    ></div>
-                  </div>
-                </>
-              )}
             </div>
 
             {/* Footer con acciones */}

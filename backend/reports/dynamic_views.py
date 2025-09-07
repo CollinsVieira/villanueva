@@ -58,7 +58,15 @@ def customers_debt_live(request):
                         
                         if next_installment_number <= lote.financing_months:
                             # Usar el método estático para calcular la fecha de vencimiento
-                            next_due_date = Payment.calculate_next_due_date(lote, next_installment_number)
+                            # Obtener la próxima cuota pendiente usando PaymentSchedule
+                            next_schedule = lote.payment_schedules.filter(
+                                status__in=['pending', 'overdue', 'partial']
+                            ).order_by('installment_number').first()
+                            
+                            if next_schedule:
+                                next_due_date = next_schedule.due_date
+                            else:
+                                next_due_date = None
                             
                             if next_due_date:
                                 # Calcular días hasta vencimiento o días vencidos
@@ -327,7 +335,15 @@ def pending_installments_live(request):
                         
                         if next_installment_number <= lote.financing_months:
                             # Usar el método estático para calcular la fecha de vencimiento
-                            next_due_date = Payment.calculate_next_due_date(lote, next_installment_number)
+                            # Obtener la próxima cuota pendiente usando PaymentSchedule
+                            next_schedule = lote.payment_schedules.filter(
+                                status__in=['pending', 'overdue', 'partial']
+                            ).order_by('installment_number').first()
+                            
+                            if next_schedule:
+                                next_due_date = next_schedule.due_date
+                            else:
+                                next_due_date = None
                             
                             if next_due_date:
                                 # Calcular días de atraso si la fecha ya pasó

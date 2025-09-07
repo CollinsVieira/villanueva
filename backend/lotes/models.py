@@ -1,13 +1,12 @@
 from django.db import models
 from django.conf import settings
-from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
-from datetime import date
-from customers.models import Customer
+from decimal import Decimal
 
 class Lote(models.Model):
     """
-    Modelo para representar un lote o terreno.
+    Modelo para representar un lote o terreno con nueva arquitectura simplificada.
+    Solo maneja información básica del lote. Las ventas se gestionan a través del modelo Venta.
     """
     STATUS_CHOICES = [
         ('disponible', _('Disponible')),
@@ -19,42 +18,13 @@ class Lote(models.Model):
     block = models.CharField(_("Manzana"), max_length=50)
     lot_number = models.CharField(_("Número de Lote"), max_length=50)
     area = models.DecimalField(_("Área (m²)"), max_digits=10, decimal_places=2)
-    price = models.DecimalField(_("Precio de Venta (Saldo Inicial)"), max_digits=12, decimal_places=2)
-    initial_payment = models.DecimalField(_("Pago Inicial (Enganche)"), max_digits=12, decimal_places=2, default=0.00)
-    financing_months = models.PositiveIntegerField(_("Meses de Financiamiento"), default=0)
-    payment_day = models.PositiveIntegerField(
-        _("Día de Vencimiento Mensual"), 
-        default=15, 
-        help_text=_("Día del mes en que vencen las cuotas (1-31)")
-    )
+    price = models.DecimalField(_("Precio de Venta"), max_digits=12, decimal_places=2)
     
     status = models.CharField(
         _("Estado"),
         max_length=20,
         choices=STATUS_CHOICES,
         default='disponible'
-    )
-    
-    owner = models.ForeignKey(
-        Customer,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='lotes',
-        verbose_name=_("Propietario")
-    )
-
-    contract_file = models.FileField(
-        _("Contrato PDF"),
-        upload_to='contracts/',
-        null=True,
-        blank=True
-    )
-    
-    contract_date = models.DateTimeField(
-        _("Fecha de Contrato"),
-        null=True,
-        blank=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -80,111 +50,101 @@ class Lote(models.Model):
         return f"Manzana {self.block}, Lote {self.lot_number}"
 
     @property
+    def display_name(self):
+        """Devuelve el nombre completo del lote."""
+        return f"Mz. {self.block} - Lt. {self.lot_number}"
+
+    @property
+    def is_available(self):
+        """Verifica si el lote está disponible para venta."""
+        return self.status == 'disponible'
+
+    @property
+    def is_sold(self):
+        """Verifica si el lote está vendido."""
+        return self.status == 'vendido'
+
+    @property
+    def has_active_sale(self):
+        """Verifica si el lote tiene una venta activa."""
+        from sales.models import Venta
+        return Venta.objects.filter(lote=self, status='active').exists()
+
+    @property
+    def active_sale(self):
+        """Obtiene la venta activa del lote."""
+        from sales.models import Venta
+        return Venta.objects.filter(lote=self, status='active').first()
+
+    @property
+    def current_owner(self):
+        """Obtiene el propietario actual del lote a través de la venta activa."""
+        active_sale = self.active_sale
+        return active_sale.customer if active_sale else None
+
+    @property
     def remaining_balance(self):
-        """Calcula el saldo restante del lote."""
-        total_paid_amount = self.payments.aggregate(total=Sum('amount'))['total'] or 0
-        return self.price - total_paid_amount
+        """Calcula el saldo restante del lote basado en la venta activa."""
+        active_sale = self.active_sale
+        if not active_sale:
+            return self.price  # Si no hay venta activa, el saldo es el precio completo
         
-    @property
-    def installments_paid(self):
-        """Calcula el número de pagos de cuotas registrados (solo tipo 'installment')."""
-        return self.payments.filter(payment_type='installment').count()
+        return active_sale.remaining_balance
 
     @property
-    def monthly_installment(self):
-        """Calcula el monto de la cuota mensual."""
-        if self.financing_months and self.financing_months > 0:
-            # El monto a financiar es el precio total menos el enganche configurado
-            # No usamos remaining_balance porque puede incluir pagos adicionales
-            amount_to_finance = self.price - self.initial_payment
-            return round(amount_to_finance / self.financing_months, 2)
-        return 0
-    
-    @property
-    def has_initial_payment(self):
-        """Verifica si ya se realizó el pago inicial."""
-        return self.payments.filter(payment_type='initial').exists()
-    
-    @property
-    def initial_payment_amount(self):
-        """Obtiene el monto del pago inicial ya realizado."""
-        initial_payment = self.payments.filter(payment_type='initial').first()
-        return initial_payment.amount if initial_payment else 0 
+    def total_payments(self):
+        """Calcula el total de pagos realizados para la venta activa."""
+        active_sale = self.active_sale
+        if not active_sale:
+            return Decimal('0.00')
+        
+        return active_sale.total_payments
 
-    def save(self, *args, **kwargs):
+
+    def get_sales_history(self):
+        """Obtiene el historial de ventas del lote."""
+        from sales.models import Venta
+        return Venta.objects.filter(lote=self).order_by('-created_at')
+
+    def get_payment_history(self):
+        """Obtiene el historial de pagos del lote a través de sus ventas."""
+        from sales.models import Venta
+        from payments.models import Payment
+        
+        ventas = Venta.objects.filter(lote=self)
+        return Payment.objects.filter(venta__in=ventas).order_by('-payment_date')
+
+    def get_payment_schedules(self):
+        """Obtiene los cronogramas de pago del lote a través de sus ventas."""
+        from sales.models import Venta
+        from payments.models import PaymentSchedule
+        
+        ventas = Venta.objects.filter(lote=self)
+        return PaymentSchedule.objects.filter(venta__in=ventas).order_by('installment_number')
+
+    def update_status_from_sales(self):
         """
-        Sobrescribe el método save para actualizar el estado automáticamente.
+        Actualiza el estado del lote basado en las ventas activas.
+        Este método debe ser llamado desde el modelo Venta cuando cambie el estado de una venta.
         """
-        # Verificar si es la primera vez que se asigna un propietario
-        is_new_owner = False
-        if self.pk:  # Si el lote ya existe
-            old_lote = Lote.objects.get(pk=self.pk)
-            is_new_owner = (not old_lote.owner and self.owner)
+        active_sale = self.active_sale
+        
+        if active_sale:
+            if active_sale.status == 'active':
+                self.status = 'vendido'
+            elif active_sale.status == 'completed':
+                self.status = 'liquidado'
+            elif active_sale.status == 'cancelled':
+                self.status = 'disponible'
         else:
-            is_new_owner = bool(self.owner)
-        
-        if self.owner:
-            # Si tiene propietario, verificar si ha pagado completamente
-            if self.remaining_balance <= 0:
+            # Si no hay venta activa, verificar si hay ventas completadas
+            completed_sales = self.get_sales_history().filter(status='completed')
+            if completed_sales.exists():
                 self.status = 'liquidado'
             else:
-                self.status = 'vendido'
-        else:
-            self.status = 'disponible'
+                self.status = 'disponible'
         
-        super().save(*args, **kwargs)
-        
-        # Generar plan de pagos y registrar pago inicial si se asignó un nuevo propietario
-        if is_new_owner and self.financing_months > 0:
-            self.create_payment_plan()
-            # Registrar pago inicial solo si no hay uno ya registrado
-            if self.initial_payment > 0 and not self.has_initial_payment:
-                self.register_initial_payment()
-
-    def create_payment_plan(self, payment_day=None):
-        """
-        Crea un plan de pagos para este lote.
-        """
-        from payments.models import PaymentPlan  # Import aquí para evitar circular imports
-        
-        # Eliminar plan existente si existe
-        if hasattr(self, 'payment_plan'):
-            self.payment_plan.delete()
-        
-        # Usar el payment_day del lote o el parámetro pasado
-        if payment_day is None:
-            payment_day = self.payment_day
-        
-        # Crear nuevo plan de pagos
-        payment_plan = PaymentPlan.objects.create(
-            lote=self,
-            start_date=date.today(),
-            payment_day=payment_day
-        )
-        
-        # Generar cronograma de pagos
-        payment_plan.generate_payment_schedule()
-        
-        return payment_plan
-    
-    def register_initial_payment(self):
-        """
-        Registra automáticamente el pago inicial como un pago de tipo 'initial'.
-        """
-        from payments.models import Payment  # Import aquí para evitar circular imports
-        from django.utils import timezone
-        
-        # Verificar si ya existe un pago inicial para este lote
-        if not self.has_initial_payment and self.initial_payment > 0:
-            # Crear el pago inicial
-            Payment.objects.create(
-                lote=self,
-                amount=self.initial_payment,
-                payment_date=timezone.now().date(),
-                method='transferencia',  # Default method
-                payment_type='initial',
-                notes='Pago inicial registrado automáticamente al asignar el lote'
-            )
+        self.save(update_fields=['status'])
 
 
 class LoteHistory(models.Model):
