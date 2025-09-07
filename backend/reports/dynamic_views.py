@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status as drf_status
 from django.db.models import Sum, Count
 from django.utils import timezone
 from datetime import timedelta
@@ -23,7 +23,7 @@ def customers_debt_live(request):
         end_date = request.query_params.get('end_date')
         
         # Obtener clientes con lotes
-        customers_with_lots = Customer.objects.filter(lotes__isnull=False).distinct()
+        customers_with_lots = Customer.objects.filter(ventas__isnull=False).distinct()
         customers_debt = []
         current_date = timezone.now().date()
         
@@ -33,33 +33,45 @@ def customers_debt_live(request):
             overdue_installments_total = 0
             customer_lotes = []
             
-            for lote in customer.lotes.all():
-                if lote.remaining_balance > 0:
-                    total_debt += lote.remaining_balance
+            for venta in customer.ventas.filter(status='active'):
+                lote = venta.lote
+                if venta.remaining_balance > 0:
+                    total_debt += venta.remaining_balance
                     
                     # Obtener pagos realizados (solo cuotas mensuales, no pago inicial)
-                    payments_query = lote.payments.filter(payment_type='installment')
+                    from payments.models import Payment
+                    payments_query = Payment.objects.filter(venta=venta, payment_type='installment')
                     if start_date:
                         payments_query = payments_query.filter(payment_date__gte=start_date)
                     if end_date:
                         payments_query = payments_query.filter(payment_date__lte=end_date)
                     
                     total_payments = payments_query.count()
-                    pending = max(0, lote.financing_months - total_payments)
+                    
+                    # Obtener información del plan de pagos
+                    payment_plan = getattr(venta, 'plan_pagos', None)
+                    if payment_plan:
+                        financing_months = venta.payment_schedules.count()  # Total de cuotas programadas
+                        payment_day = payment_plan.payment_day
+                    else:
+                        financing_months = 0
+                        payment_day = 15
+                    
+                    pending = max(0, financing_months - total_payments)
                     pending_installments += pending
                     
                     # Calcular cuotas vencidas y días hasta próximo vencimiento usando la nueva lógica
                     overdue_installments = 0
                     days_until_due = None
                     
-                    if lote.financing_months > 0 and lote.payment_day:
+                    if financing_months > 0 and payment_day:
                         # Obtener la próxima cuota pendiente (la que debería vencer)
                         next_installment_number = total_payments + 1
                         
-                        if next_installment_number <= lote.financing_months:
+                        if next_installment_number <= financing_months:
                             # Usar el método estático para calcular la fecha de vencimiento
                             # Obtener la próxima cuota pendiente usando PaymentSchedule
-                            next_schedule = lote.payment_schedules.filter(
+                            next_schedule = venta.payment_schedules.filter(
                                 status__in=['pending', 'overdue', 'partial']
                             ).order_by('installment_number').first()
                             
@@ -90,12 +102,12 @@ def customers_debt_live(request):
                     customer_lotes.append({
                         'lote_id': lote.id,
                         'lote_description': str(lote),
-                        'remaining_balance': float(lote.remaining_balance),
-                        'total_payments_made': lote.payments.filter(payment_type='installment').count(),
-                        'financing_months': lote.financing_months,
+                        'remaining_balance': float(venta.remaining_balance),
+                        'total_payments_made': total_payments,
+                        'financing_months': financing_months,
                         'pending_installments': pending,
                         'overdue_installments': overdue_installments,
-                        'payment_day': lote.payment_day,
+                        'payment_day': payment_day,
                         'days_until_next_payment': days_until_due
                     })
             
@@ -128,7 +140,7 @@ def customers_debt_live(request):
     except Exception as e:
         return Response(
             {'error': f'Error generando reporte de deudas: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -143,7 +155,7 @@ def payments_history_live(request):
         end_date = request.query_params.get('end_date')
         method_filter = request.query_params.get('method')
         
-        queryset = Payment.objects.select_related('lote', 'lote__owner').all()
+        queryset = Payment.objects.select_related('venta', 'venta__lote', 'venta__customer').all()
         
         if start_date:
             queryset = queryset.filter(payment_date__gte=start_date)
@@ -196,8 +208,8 @@ def payments_history_live(request):
                     'payment_date': payment.payment_date.isoformat(),
                     'method': payment.method,
                     'receipt_number': payment.receipt_number,
-                    'lote': str(payment.lote),
-                    'customer': payment.lote.owner.full_name if payment.lote.owner else 'Sin propietario',
+                    'lote': str(payment.venta.lote),
+                    'customer': payment.venta.customer.full_name if payment.venta.customer else 'Sin propietario',
                     'installment_number': payment.installment_number,
                     'notes': payment.notes
                 } for payment in payments[:500]  # Limitar para performance
@@ -208,7 +220,7 @@ def payments_history_live(request):
     except Exception as e:
         return Response(
             {'error': f'Error generando historial de pagos: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -259,8 +271,8 @@ def available_lots_live(request):
                 'area': float(lote.area),
                 'price': float(lote.price),
                 'price_per_m2': price_per_m2,
-                'initial_payment': float(lote.initial_payment),
-                'financing_months': lote.financing_months
+                'initial_payment': 0.0,  # Los lotes disponibles no tienen pago inicial
+                'financing_months': 0  # Los lotes disponibles no tienen financiamiento
             })
         
         return Response({
@@ -284,7 +296,7 @@ def available_lots_live(request):
     except Exception as e:
         return Response(
             {'error': f'Error generando reporte de lotes: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -296,7 +308,7 @@ def pending_installments_live(request):
     """
     try:
         # Obtener clientes con lotes
-        customers_with_lots = Customer.objects.filter(lotes__isnull=False).distinct()
+        customers_with_lots = Customer.objects.filter(ventas__isnull=False).distinct()
         pending_customers = []
         total_pending_installments = 0
         total_pending_amount = Decimal('0.00')
@@ -306,19 +318,33 @@ def pending_installments_live(request):
             customer_pending_amount = Decimal('0.00')
             customer_lotes = []
             
-            for lote in customer.lotes.all():
-                total_payments = lote.payments.filter(payment_type='installment').count()
-                pending = max(0, lote.financing_months - total_payments)
+            for venta in customer.ventas.filter(status='active'):
+                lote = venta.lote
+                
+                # Obtener pagos de la venta
+                from payments.models import Payment
+                total_payments = Payment.objects.filter(venta=venta, payment_type='installment').count()
+                
+                # Obtener información del plan de pagos
+                payment_plan = getattr(venta, 'plan_pagos', None)
+                if payment_plan:
+                    financing_months = venta.payment_schedules.count()  # Total de cuotas programadas
+                    payment_day = payment_plan.payment_day
+                else:
+                    financing_months = 0
+                    payment_day = 15
+                
+                pending = max(0, financing_months - total_payments)
                 
                 # Si el saldo pendiente es 0, el lote está completamente pagado
                 # aunque tenga cuotas pendientes, no debe aparecer en el reporte
-                if lote.remaining_balance <= 0:
+                if venta.remaining_balance <= 0:
                     continue
                 
                 if pending > 0:
                     # Calcular cuota mensual real
-                    monthly_payment = float(lote.monthly_installment) if hasattr(lote, 'monthly_installment') else (lote.remaining_balance / pending if pending > 0 else 0)
-                    lote_pending_amount = lote.remaining_balance
+                    monthly_payment = float(venta.remaining_balance / pending) if pending > 0 else 0
+                    lote_pending_amount = venta.remaining_balance
                     
                     customer_pending_installments += pending
                     customer_pending_amount += lote_pending_amount
@@ -329,14 +355,14 @@ def pending_installments_live(request):
                     days_overdue = 0
                     overdue_installments = 0
                     
-                    if lote.financing_months > 0 and lote.payment_day:
+                    if financing_months > 0 and payment_day:
                         # Obtener la próxima cuota pendiente (la que debería vencer)
                         next_installment_number = total_payments + 1
                         
-                        if next_installment_number <= lote.financing_months:
+                        if next_installment_number <= financing_months:
                             # Usar el método estático para calcular la fecha de vencimiento
                             # Obtener la próxima cuota pendiente usando PaymentSchedule
-                            next_schedule = lote.payment_schedules.filter(
+                            next_schedule = venta.payment_schedules.filter(
                                 status__in=['pending', 'overdue', 'partial']
                             ).order_by('installment_number').first()
                             
@@ -391,10 +417,10 @@ def pending_installments_live(request):
                         'overdue_installments': overdue_installments,
                         'remaining_balance': float(lote_pending_amount),
                         'monthly_payment': float(monthly_payment),
-                        'total_financing_months': lote.financing_months,
+                        'total_financing_months': financing_months,
                         'payments_made': total_payments,
-                        'completion_percentage': round((total_payments / lote.financing_months) * 100, 2) if lote.financing_months > 0 else 0,
-                        'payment_day': lote.payment_day,
+                        'completion_percentage': round((total_payments / financing_months) * 100, 2) if financing_months > 0 else 0,
+                        'payment_day': payment_day,
                         'next_due_date': next_due_date.isoformat() if next_due_date else None,
                         'days_until_due': (next_due_date - current_date).days if next_due_date else None,
                         'days_overdue': days_overdue,
@@ -448,7 +474,7 @@ def pending_installments_live(request):
     except Exception as e:
         return Response(
             {'error': f'Error generando reporte de cuotas pendientes: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -483,7 +509,7 @@ def sales_summary_live(request):
             sales_by_month[month_key]['count'] += 1
             sales_by_month[month_key]['total_value'] += float(lote.price)
             sales_by_month[month_key]['total_area'] += float(lote.area)
-            sales_by_month[month_key]['total_initial_payments'] += float(lote.initial_payment)
+            sales_by_month[month_key]['total_initial_payments'] += float(lote.active_sale.initial_payment) if lote.active_sale else 0.0
         
         monthly_breakdown = [
             {
@@ -501,7 +527,7 @@ def sales_summary_live(request):
             'total_lots_sold': queryset.count(),
             'total_area_sold': float(queryset.aggregate(Sum('area'))['area__sum'] or 0),
             'total_sales_value': float(queryset.aggregate(Sum('price'))['price__sum'] or 0),
-            'total_initial_payments': float(queryset.aggregate(Sum('initial_payment'))['initial_payment__sum'] or 0),
+            'total_initial_payments': sum(float(lote.active_sale.initial_payment) if lote.active_sale else 0.0 for lote in queryset),
             'average_lot_price': float(queryset.aggregate(Sum('price'))['price__sum'] or 0) / queryset.count() if queryset.count() > 0 else 0,
             'monthly_breakdown': monthly_breakdown,
             'period': {
@@ -514,7 +540,7 @@ def sales_summary_live(request):
     except Exception as e:
         return Response(
             {'error': f'Error generando resumen de ventas: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -548,8 +574,8 @@ def financial_overview_live(request):
         # Calcular deudas pendientes
         total_debt = Decimal('0.00')
         customers_with_debt = 0
-        for customer in Customer.objects.filter(lotes__isnull=False).distinct():
-            customer_debt = sum(lote.remaining_balance for lote in customer.lotes.all() if lote.remaining_balance > 0)
+        for customer in Customer.objects.filter(ventas__isnull=False).distinct():
+            customer_debt = sum(venta.remaining_balance for venta in customer.ventas.filter(status='active') if venta.remaining_balance > 0)
             if customer_debt > 0:
                 total_debt += customer_debt
                 customers_with_debt += 1
@@ -588,7 +614,7 @@ def financial_overview_live(request):
     except Exception as e:
         return Response(
             {'error': f'Error generando resumen financiero: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -689,5 +715,5 @@ def monthly_collections_live(request):
     except Exception as e:
         return Response(
             {'error': f'Error generando reporte de cobranzas: {str(e)}'}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR
         )
