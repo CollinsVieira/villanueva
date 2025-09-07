@@ -309,14 +309,21 @@ const LoteManagement: React.FC = () => {
               </div>
             </div>
 
-            {/* Información del lote */}
+            {/* Información del propietario */}
             <div className="px-6 pb-4">
               <div className="flex items-center space-x-2 mb-4">
                 <User className="text-gray-500" size={16} />
-                <span className="text-sm text-gray-600">Estado:</span>
+                <span className="text-sm text-gray-600">Propietario:</span>
               </div>
-              <p className="text-lg font-semibold text-gray-900 ml-6 capitalize">
-                {lote.status}
+              <p className="text-lg font-semibold text-gray-900 ml-6">
+                {lote.current_owner ? lote.current_owner.full_name : 'Sin propietario'}
+              </p>
+              <div className="flex items-center space-x-2 mb-4 mt-4">
+                <Calendar className="text-gray-500" size={16} />
+                <span className="text-sm text-gray-600">Día de pago:</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900 ml-6">
+                {lote.payment_day ? lote.payment_day + ' de cada mes' : 'Sin día de pago'}
               </p>
             </div>
 

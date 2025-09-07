@@ -41,9 +41,11 @@ export interface Lote {
   display_name: string;
   is_available: boolean;
   is_sold: boolean;
+  current_owner?: Customer;
   history: LoteHistory[];
   created_at: string;
   updated_at: string;
+  payment_day?: number;
 }
 
 export interface Payment {

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Lote, LoteHistory
 from users.serializers import UserSerializer
+from customers.serializers import CustomerSerializer
 
 class LoteHistorySerializer(serializers.ModelSerializer):
     """Serializador para el historial de un lote."""
@@ -19,6 +20,8 @@ class LoteSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(read_only=True)
     is_available = serializers.BooleanField(read_only=True)
     is_sold = serializers.BooleanField(read_only=True)
+    current_owner = serializers.SerializerMethodField()
+    payment_day = serializers.SerializerMethodField()
 
     class Meta:
         model = Lote
@@ -32,9 +35,11 @@ class LoteSerializer(serializers.ModelSerializer):
             'display_name',
             'is_available',
             'is_sold',
+            'current_owner',
             'history',
             'created_at',
-            'updated_at'
+            'updated_at',
+            'payment_day'
         ]
         read_only_fields = [
             'id', 
@@ -43,7 +48,9 @@ class LoteSerializer(serializers.ModelSerializer):
             'history',
             'display_name',
             'is_available',
-            'is_sold'
+            'is_sold',
+            'current_owner',
+            'payment_day',
         ]
 
     def create(self, validated_data):
@@ -63,3 +70,23 @@ class LoteSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("El área debe ser mayor a 0.")
         return value
+
+    def get_current_owner(self, obj):
+        """Obtiene la información del propietario actual del lote."""
+        if obj.current_owner:
+            return {
+                'id': obj.current_owner.id,
+                'first_name': obj.current_owner.first_name,
+                'last_name': obj.current_owner.last_name,
+                'full_name': obj.current_owner.full_name
+            }
+        return None
+
+    def get_payment_day(self, obj):
+        """Obtiene el día de pago del plan de pagos asociado"""
+        try:
+            if hasattr(obj, 'plan_pagos'):
+                return obj.plan_pagos.payment_day
+            return 15  # Valor por defecto
+        except:
+            return 15  # Valor por defecto
