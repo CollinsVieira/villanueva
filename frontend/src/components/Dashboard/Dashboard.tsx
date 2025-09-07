@@ -127,7 +127,7 @@ const Dashboard: React.FC = () => {
             return false;
           });
           
-          if (lote && lote.owner) {
+          if (lote && lote.current_owner) {
             const nextDueDate = loteData.next_due_date ? new Date(loteData.next_due_date) : null;
             if (nextDueDate) {
               const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -136,7 +136,7 @@ const Dashboard: React.FC = () => {
               if (daysUntilDue <= 30 || (daysUntilDue < 0 && daysUntilDue > -30)) {
                 dueDates.push({
                   lote,
-                  customer: lote.owner,
+                  customer: lote.current_owner,
                   dueDate: nextDueDate.toISOString().split('T')[0],
                   daysUntilDue,
                   amount: loteData.monthly_payment.toString()
@@ -333,10 +333,10 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                       Mz. {payment.lote.block} - Lt. {payment.lote.lot_number}
+                       Mz. {payment.lote_info?.block} - Lt. {payment.lote_info?.lot_number}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {payment.lote.owner?.full_name  || 'Cliente no especificado'}
+                        {payment.customer_info?.full_name  || 'Cliente no especificado'}
                       </p>
                     </div>
                   </div>
@@ -369,10 +369,10 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {item.lote.block} - {item.lote.lot_number}
+                        Mz. {item.lote?.block} - Lt. {item.lote?.lot_number}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {item.customer.full_name}
+                        {item.customer?.full_name}
                       </p>
                     </div>
                   </div>
