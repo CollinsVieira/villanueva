@@ -294,3 +294,75 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
         """Monto restante"""
         remaining = obj.scheduled_amount - (obj.paid_amount or 0)
         return str(max(remaining, 0))
+
+class PaymentPlanSerializer(serializers.ModelSerializer):
+    """
+    Serializador para el modelo PaymentPlan.
+    """
+    venta_info = serializers.SerializerMethodField()
+    lote_info = serializers.SerializerMethodField()
+    customer_info = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
+    schedules_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PaymentPlan
+        fields = [
+            'id',
+            'venta',
+            'start_date',
+            'payment_day',
+            'created_at',
+            'updated_at',
+            'venta_info',
+            'lote_info',
+            'customer_info',
+            'payment_status',
+            'schedules_count'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_venta_info(self, obj):
+        """Información de la venta asociada"""
+        if obj.venta:
+            return {
+                'id': obj.venta.id,
+                'status': obj.venta.status,
+                'sale_price': str(obj.venta.sale_price),
+                'initial_payment': str(obj.venta.initial_payment) if obj.venta.initial_payment else None,
+                'sale_date': obj.venta.sale_date.isoformat() if obj.venta.sale_date else None
+            }
+        return None
+
+    def get_lote_info(self, obj):
+        """Información del lote asociado a través de la venta"""
+        if obj.venta and obj.venta.lote:
+            return {
+                'id': obj.venta.lote.id,
+                'block': obj.venta.lote.block,
+                'lot_number': obj.venta.lote.lot_number,
+                'area': str(obj.venta.lote.area),
+                'display': f"Mz. {obj.venta.lote.block}, Lote {obj.venta.lote.lot_number}"
+            }
+        return None
+
+    def get_customer_info(self, obj):
+        """Información del cliente asociado a través de la venta"""
+        if obj.venta and obj.venta.customer:
+            return {
+                'id': obj.venta.customer.id,
+                'first_name': obj.venta.customer.first_name,
+                'last_name': obj.venta.customer.last_name,
+                'full_name': obj.venta.customer.full_name,
+                'document_number': obj.venta.customer.document_number,
+                'phone': obj.venta.customer.phone
+            }
+        return None
+
+    def get_payment_status(self, obj):
+        """Estado del plan de pagos"""
+        return obj.get_payment_status()
+
+    def get_schedules_count(self, obj):
+        """Número de cronogramas de pago"""
+        return obj.venta.payment_schedules.count()

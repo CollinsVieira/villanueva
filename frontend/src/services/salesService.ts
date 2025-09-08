@@ -28,6 +28,7 @@ export interface Venta {
     last_name: string;
     full_name: string;
     document_number: string;
+    phone?: string;
   };
 }
 

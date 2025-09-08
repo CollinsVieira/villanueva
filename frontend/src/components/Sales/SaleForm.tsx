@@ -34,9 +34,9 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     
     if (sale) {
       setFormData({
-        lote: sale.lote,
-        customer: sale.customer,
-        sale_price: sale.sale_price,
+        lote: sale.lote || 0,
+        customer: sale.customer || 0,
+        sale_price: sale.sale_price || '',
         initial_payment: sale.initial_payment || '',
         contract_date: sale.contract_date || '',
         notes: sale.notes || '',
@@ -124,7 +124,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
               <label htmlFor="lote" className="block text-sm font-medium text-gray-700 mb-1">Lote *</label>
               <select
                 id="lote"
-                value={formData.lote.toString()}
+                value={formData.lote?.toString() || ''}
                 onChange={(e: any) => handleLoteChange(e.target.value)}
                 disabled={!!sale}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"

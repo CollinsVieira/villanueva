@@ -169,6 +169,19 @@ class PaymentPlan(models.Model):
         overdue_payments = schedules.filter(status='overdue').count()
         partial_payments = schedules.filter(status='partial').count()
         
+        # Calcular montos totales
+        from django.db.models import Sum
+        total_scheduled_amount = schedules.aggregate(
+            total=Sum('scheduled_amount')
+        )['total'] or Decimal('0.00')
+        
+        total_paid_amount = schedules.aggregate(
+            total=Sum('paid_amount')
+        )['total'] or Decimal('0.00')
+        
+        # Calcular monto restante
+        remaining_amount = total_scheduled_amount - total_paid_amount
+        
         # Las cuotas absueltas cuentan como "completadas" para el porcentaje
         completed_payments = paid_payments + forgiven_payments
         
@@ -179,7 +192,10 @@ class PaymentPlan(models.Model):
             'overdue': overdue_payments,
             'partial': partial_payments,
             'forgiven': forgiven_payments,
-            'completion_percentage': (completed_payments / total_payments * 100) if total_payments > 0 else 0
+            'completion_percentage': (completed_payments / total_payments * 100) if total_payments > 0 else 0,
+            'total_installments': total_payments,
+            'remaining_amount': str(remaining_amount),
+            'paid_amount': str(total_paid_amount)
         }
     
     @property

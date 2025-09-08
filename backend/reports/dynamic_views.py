@@ -155,7 +155,7 @@ def payments_history_live(request):
         end_date = request.query_params.get('end_date')
         method_filter = request.query_params.get('method')
         
-        queryset = Payment.objects.select_related('venta', 'venta__lote', 'venta__customer').all()
+        queryset = Payment.objects.select_related('venta', 'venta__lote', 'venta__customer', 'payment_schedule').all()
         
         if start_date:
             queryset = queryset.filter(payment_date__gte=start_date)
@@ -210,7 +210,7 @@ def payments_history_live(request):
                     'receipt_number': payment.receipt_number,
                     'lote': str(payment.venta.lote),
                     'customer': payment.venta.customer.full_name if payment.venta.customer else 'Sin propietario',
-                    'installment_number': payment.installment_number,
+                    'installment_number': payment.payment_schedule.installment_number if payment.payment_schedule else None,
                     'notes': payment.notes
                 } for payment in payments[:500]  # Limitar para performance
             ],
@@ -584,7 +584,7 @@ def financial_overview_live(request):
             'sales': {
                 'total_lots_sold': sales_queryset.count(),
                 'total_sales_value': float(sales_queryset.aggregate(Sum('price'))['price__sum'] or 0),
-                'total_initial_payments': float(sales_queryset.aggregate(Sum('initial_payment'))['initial_payment__sum'] or 0)
+                'total_initial_payments': sum(float(active_sale.initial_payment) if active_sale and active_sale.initial_payment else 0.0 for lote in sales_queryset for active_sale in [lote.active_sale()])
             },
             'payments': {
                 'total_payments': payments_queryset.count(),
@@ -601,7 +601,7 @@ def financial_overview_live(request):
             },
             'kpis': {
                 'conversion_rate': round((sales_queryset.count() / (sales_queryset.count() + available_lots.count())) * 100, 2) if (sales_queryset.count() + available_lots.count()) > 0 else 0,
-                'average_payment': float(payments_queryset.aggregate(Sum('amount'))['amount__sum'] or 0) / payments_queryset.count() if payments_queryset.count() > 0 else 0,
+                'average_payment': float(payments_queryset.aggregate(Sum('amount'))['amount__sum'] or 0) / payments_queryset.count() if payments_queryset.count() > 0 else 0.0,
                 'collection_efficiency': round((float(payments_queryset.aggregate(Sum('amount'))['amount__sum'] or 0) / float(total_debt)) * 100, 2) if total_debt > 0 else 100
             },
             'period': {

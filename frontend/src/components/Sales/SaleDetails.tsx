@@ -175,6 +175,10 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
                     <span className="text-gray-600">Documento:</span>
                     <span className="font-medium">{sale.customer_info?.document_number}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Teléfono:</span>
+                    <span className="font-medium">{sale.customer_info?.phone || 'No especificado'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -287,6 +291,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
             </div>
             <div className="p-6">
               {paymentPlan ? (
+                console.log(paymentPlan),
                 <div className="space-y-4">
                   <div className="grid grid-cols-4 gap-4">
                     <div className="text-center">
@@ -297,19 +302,19 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold">
-                        {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.paid_amount))}
+                        {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.paid_amount || '0'))}
                       </div>
                       <div className="text-sm text-gray-600">Pagado</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold">
-                        {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.remaining_amount))}
+                        {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.remaining_amount || '0'))}
                       </div>
                       <div className="text-sm text-gray-600">Pendiente</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold">
-                        {paymentPlan.payment_status.paid_installments}/{paymentPlan.payment_status.total_installments}
+                        {paymentPlan.payment_status.paid_installments || 0}/{paymentPlan.payment_status.total_installments || 0}
                       </div>
                       <div className="text-sm text-gray-600">Cuotas</div>
                     </div>
@@ -318,7 +323,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
                   <div className="bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${paymentPlan.payment_status.completion_percentage}%` }}
+                      style={{ width: `${paymentPlan.payment_status.completion_percentage || 0}%` }}
                     />
                   </div>
 

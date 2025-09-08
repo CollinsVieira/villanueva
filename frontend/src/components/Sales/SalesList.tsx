@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import salesService, { Venta } from '../../services/salesService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Search, Plus, Eye, Edit, X, CheckCircle } from 'lucide-react';
+import { Search, Plus, Eye, Edit } from 'lucide-react';
 
 interface SalesListProps {
   onCreateSale?: () => void;
@@ -154,7 +154,6 @@ const SalesList: React.FC<SalesListProps> = ({
               </div>
             ) : (
               filteredSales.map((sale) => (
-                console.log(sale),
                 <div key={sale.id} className="bg-white border border-gray-200 rounded-lg p-4 border-l-4 border-l-blue-500">
                     <div className="flex justify-between items-start">
                       <div className="space-y-2">
@@ -222,7 +221,7 @@ const SalesList: React.FC<SalesListProps> = ({
                           </button>
                         )}
                         
-                        {sale.status === 'active' && (
+                        {/* {sale.status === 'active' && (
                           <>
                             <button
                               onClick={() => handleCompleteSale(sale)}
@@ -237,7 +236,7 @@ const SalesList: React.FC<SalesListProps> = ({
                               <X className="h-4 w-4" />
                             </button>
                           </>
-                        )}
+                        )} */}
                       </div>
                     </div>
                 </div>
