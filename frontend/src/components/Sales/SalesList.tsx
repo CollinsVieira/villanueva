@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import salesService, { Venta } from '../../services/salesService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Search, Plus, Eye, Edit } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 
 interface SalesListProps {
   onCreateSale?: () => void;
@@ -11,8 +11,7 @@ interface SalesListProps {
 
 const SalesList: React.FC<SalesListProps> = ({
   onCreateSale,
-  onViewSale,
-  onEditSale
+  onViewSale
 }) => {
   const [sales, setSales] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,29 +40,6 @@ const SalesList: React.FC<SalesListProps> = ({
     }
   };
 
-  const handleCancelSale = async (sale: Venta) => {
-    if (!confirm(`¿Está seguro de cancelar la venta #${sale.id}?`)) return;
-    
-    try {
-      await salesService.cancelVenta(sale.id, 'Cancelada desde la interfaz');
-      loadSales();
-    } catch (err) {
-      setError('Error al cancelar la venta');
-      console.error('Error canceling sale:', err);
-    }
-  };
-
-  const handleCompleteSale = async (sale: Venta) => {
-    if (!confirm(`¿Está seguro de completar la venta #${sale.id}?`)) return;
-    
-    try {
-      await salesService.completeVenta(sale.id);
-      loadSales();
-    } catch (err) {
-      setError('Error al completar la venta');
-      console.error('Error completing sale:', err);
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {

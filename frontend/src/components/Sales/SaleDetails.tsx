@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import salesService, { Venta, PaymentPlan } from '../../services/salesService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Edit, DollarSign, FileText, CheckCircle, X, Download, Eye } from 'lucide-react';
+import { Edit, DollarSign, FileText, CheckCircle, X, Download, Eye, Calendar, FileDown } from 'lucide-react';
 import InitialPaymentForm from './InitialPaymentForm';
+import PaymentSchedule from '../Payments/PaymentSchedule';
+import { handleDownloadCronogramaPDF } from '../../utils/PdfCronogramaPagos';
+import { handleDownloadHistorialPagosPDF } from '../../utils/PdfResumenPagos';
 
 interface SaleDetailsProps {
   saleId: number;
@@ -16,6 +19,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInitialPaymentForm, setShowInitialPaymentForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'plan' | 'schedule'>('plan');
 
   useEffect(() => {
     loadSaleDetails();
@@ -148,8 +152,21 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
               </>
             )}
             
-            {/* Botones de acciones */}
-            
+            {/* Botones de PDF de pagos */}
+            <button
+              onClick={() => handleDownloadCronogramaPDF(sale.id, setError)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Descargar Cronograma
+            </button>
+            <button
+              onClick={() => handleDownloadHistorialPagosPDF(sale.id, setError)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Descargar Historial de Pagos
+            </button>        
             
             {!sale.initial_payment && sale.status === 'active' && (
               <button
@@ -262,7 +279,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Saldo pendiente:</span>
-                    <span className="font-medium">{dynamicReportsService.formatCurrency(Number(sale.sale_price || 0) - Number(sale.initial_payment || 0))}</span>
+                    <span className="font-medium">{dynamicReportsService.formatCurrency(Number(sale.remaining_balance || 0))}</span>
                   </div>
                 </div>
               </div>
@@ -313,69 +330,105 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
       <div className="mt-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            <button className="py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">
+            <button 
+              onClick={() => setActiveTab('plan')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === 'plan' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <DollarSign size={16} />
               Plan de Pagos
             </button>
-            <button className="py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+            <button 
+              onClick={() => setActiveTab('schedule')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === 'schedule' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Calendar size={16} />
               Cronograma
             </button>
           </nav>
         </div>
 
         <div className="mt-6">
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold">Plan de Pagos</h3>
-            </div>
-            <div className="p-6">
-              {paymentPlan ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {paymentPlan.payment_status.completion_percentage}%
+          {activeTab === 'plan' ? (
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold">Plan de Pagos</h3>
+              </div>
+              <div className="p-6">
+                {paymentPlan ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {paymentPlan.payment_status.completion_percentage}%
+                        </div>
+                        <div className="text-sm text-gray-600">Completado</div>
                       </div>
-                      <div className="text-sm text-gray-600">Completado</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold">
-                        {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.paid_amount || '0'))}
+                      <div className="text-center">
+                        <div className="text-lg font-semibold">
+                          {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.paid_amount.toString() || '0'))}
+                        </div>
+                        <div className="text-sm text-gray-600">Pagado</div>
                       </div>
-                      <div className="text-sm text-gray-600">Pagado</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold">
-                        {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.remaining_amount || '0'))}
+                      <div className="text-center">
+                        <div className="text-lg font-semibold">
+                          {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.remaining_amount.toString() || '0'))}
+                        </div>
+                        <div className="text-sm text-gray-600">Pendiente</div>
                       </div>
-                      <div className="text-sm text-gray-600">Pendiente</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold">
-                        {paymentPlan.payment_status.paid_installments || 0}/{paymentPlan.payment_status.total_installments || 0}
+                      <div className="text-center">
+                        <div className="text-lg font-semibold">
+                          {paymentPlan.payment_status.paid || 0}/{paymentPlan.payment_status.total_installments || 0}
+                        </div>
+                        <div className="text-sm text-gray-600">Cuotas</div>
                       </div>
-                      <div className="text-sm text-gray-600">Cuotas</div>
                     </div>
-                  </div>
 
-                  <div className="bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${paymentPlan.payment_status.completion_percentage || 0}%` }}
-                    />
-                  </div>
+                    <div className="bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${paymentPlan.payment_status.completion_percentage || 0}%` }}
+                      />
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div><span className="font-medium">Fecha inicio:</span> {dynamicReportsService.formatDate(paymentPlan.start_date)}</div>
-                    <div><span className="font-medium">Día de pago:</span> {paymentPlan.payment_day}</div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div><span className="font-medium">Fecha inicio:</span> {dynamicReportsService.formatDate(paymentPlan.start_date)}</div>
+                      <div><span className="font-medium">Día de pago:</span> {paymentPlan.payment_day}</div>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No hay plan de pagos disponible
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No hay plan de pagos disponible
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Calendar size={20} />
+                  Cronograma de Pagos - Venta #{sale.id}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Cronograma detallado de cuotas para Mz. {sale.lote_info?.block} - Lt. {sale.lote_info?.lot_number} - {sale.customer_info?.full_name}
+                </p>
+              </div>
+              <div className="p-6">
+                <PaymentSchedule 
+                  loteId={sale.lote} 
+                  showLoteFilter={false}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

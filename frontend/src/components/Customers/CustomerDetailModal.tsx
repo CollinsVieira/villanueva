@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { X, Download } from "lucide-react";
+import { X } from "lucide-react";
 import { Customer } from "../../types";
 import customerService from "../../services/customerService";
 import LoadingSpinner from "../UI/LoadingSpinner";
-import { handleDownloadPDF } from "./PdfResumenPagos";
-import { handleDownloadCronogramaPDF } from "../Payments/PdfCronogramaPagos";
 
 interface CustomerDetailModalProps {
   customerId: number;
   onClose: () => void;
-  setError: (error: string | null) => void;
+  onDataChange?: () => Promise<void>;
+  setError?: (error: string | null) => void;
 }
 
 const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
   customerId,
   onClose,
+  onDataChange,
   setError,
 }) => {
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -27,7 +27,11 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
       setCustomer(customerData);
     } catch (error) {
       console.error("Error al cargar datos del cliente", error);
-      alert("No se pudieron cargar los datos del cliente.");
+      if (setError) {
+        setError("No se pudieron cargar los datos del cliente.");
+      } else {
+        alert("No se pudieron cargar los datos del cliente.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -36,30 +40,6 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
   useEffect(() => {
     loadModalData();
   }, [customerId]);
-
-
-  const handleDownloadCronograma = async (customerId: number, setError: (error: string | null) => void) => {
-    try {
-      // Get customer's ventas activas
-      const customerData = await customerService.getCustomerById(customerId);
-      const activeVentas = customerData.ventas?.filter(venta => venta.status === 'active');
-      
-      if (!activeVentas || activeVentas.length === 0) {
-        setError("Este cliente no tiene ventas activas para generar cronograma.");
-        return;
-      }
-      
-      // If customer has multiple ventas activas, use the first one or let user choose
-      // For now, we'll use the first venta
-      const ventaId = activeVentas[0].id;
-      
-      // Call the PDF generation function with venta ID instead of lote ID
-      await handleDownloadCronogramaPDF(ventaId, setError);
-    } catch (error) {
-      console.error("Error getting customer ventas:", error);
-      setError("Error al obtener las ventas del cliente.");
-    }
-  };
 
   if (isLoading || !customer) {
     return (
@@ -77,33 +57,15 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
             <div className="flex  flex-col gap-2">
               <p className="text-sm text-gray-600 mt-1">Detalles del cliente</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownloadPDF(customer.id, setError);
-                }}
-                className="p-2 text-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-lg flex items-center gap-2 bg-blue-400"
-                title="Descargar Historial de Pagos"
-              >
-                <Download size={16} />
-                <span>Historial de Pagos</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownloadCronograma(customer.id, setError);
-                }}
-                className="p-2 text-white hover:bg-slate-200 hover:text-slate-900 rounded-lg flex items-center gap-2 bg-emerald-500"
-                title="Descargar Cronograma de Pagos"
-              >
-                <Download size={16} />
-                <span>Cronograma de Pagos</span>
-              </button>
-            </div>
+            
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (onDataChange) {
+                onDataChange();
+              }
+              onClose();
+            }}
             className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
             title="Cerrar"
           >

@@ -172,6 +172,9 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
     payments_count = serializers.SerializerMethodField()
     total_paid = serializers.SerializerMethodField()
     remaining_amount = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
+    receipt_number = serializers.SerializerMethodField()
+    receipt_image = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentSchedule
@@ -203,7 +206,7 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'venta', 'paid_amount', 'payment_date', 'payment_method',
             'receipt_number', 'receipt_date', 'receipt_image', 'recorded_by',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'payment_method', 'receipt_number', 'receipt_image'
         ]
 
     def get_lote_info(self, obj):
@@ -244,6 +247,27 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
         remaining = obj.scheduled_amount - (obj.paid_amount or 0)
         return str(max(remaining, 0))
 
+    def get_payment_method(self, obj):
+        """Método de pago del último pago registrado"""
+        if obj.payments.exists():
+            last_payment = obj.payments.order_by('-created_at').first()
+            return last_payment.method
+        return None
+
+    def get_receipt_number(self, obj):
+        """Número de recibo del último pago registrado"""
+        if obj.payments.exists():
+            last_payment = obj.payments.order_by('-created_at').first()
+            return last_payment.receipt_number
+        return None
+
+    def get_receipt_image(self, obj):
+        """Imagen de recibo del último pago registrado"""
+        if obj.payments.exists():
+            last_payment = obj.payments.order_by('-created_at').first()
+            return last_payment.receipt_image.url if last_payment.receipt_image else None
+        return None
+
     def validate(self, attrs):
         """Validar que se proporcione venta_id"""
         venta_id = attrs.get('venta_id')
@@ -278,6 +302,9 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
     payments_count = serializers.SerializerMethodField()
     total_paid = serializers.SerializerMethodField()
     remaining_amount = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
+    receipt_number = serializers.SerializerMethodField()
+    receipt_image = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentSchedule
@@ -294,7 +321,10 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
             'customer_display',
             'payments_count',
             'total_paid',
-            'remaining_amount'
+            'remaining_amount',
+            'payment_method',
+            'receipt_number',
+            'receipt_image'
         ]
 
     def get_lote_display(self, obj):
@@ -321,6 +351,27 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
         """Monto restante"""
         remaining = obj.scheduled_amount - (obj.paid_amount or 0)
         return str(max(remaining, 0))
+
+    def get_payment_method(self, obj):
+        """Método de pago del último pago registrado"""
+        if obj.payments.exists():
+            last_payment = obj.payments.order_by('-created_at').first()
+            return last_payment.method
+        return None
+
+    def get_receipt_number(self, obj):
+        """Número de recibo del último pago registrado"""
+        if obj.payments.exists():
+            last_payment = obj.payments.order_by('-created_at').first()
+            return last_payment.receipt_number
+        return None
+
+    def get_receipt_image(self, obj):
+        """Imagen de recibo del último pago registrado"""
+        if obj.payments.exists():
+            last_payment = obj.payments.order_by('-created_at').first()
+            return last_payment.receipt_image.url if last_payment.receipt_image else None
+        return None
 
 class PaymentPlanSerializer(serializers.ModelSerializer):
     """

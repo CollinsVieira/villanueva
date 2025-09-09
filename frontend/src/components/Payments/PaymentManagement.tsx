@@ -367,7 +367,7 @@ const PaymentManagement: React.FC = () => {
                               #{(payment.payment_schedule?.installment_number || payment.payment_schedule_info?.installment_number)}
                             </span>
                           ) : (
-                            <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs">No especificado</span>
+                            <span className="bg-orange-100 text-orange-500 px-3 py-1 rounded-full text-xs">Inicial</span>
                           )}
                         </td>
                         <td className="p-4">

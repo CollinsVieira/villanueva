@@ -4,7 +4,7 @@ import loteService from '../../services/loteService';
 import customerService from '../../services/customerService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import { Lote, Customer } from '../../types';
-import { Eye, Download, X, FileText } from 'lucide-react';
+import { Eye, Download, FileText } from 'lucide-react';
 
 interface SaleFormProps {
   sale?: Venta;

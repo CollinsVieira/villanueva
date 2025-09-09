@@ -186,7 +186,11 @@ class Venta(models.Model):
     @property
     def remaining_balance(self):
         """Saldo pendiente de la venta"""
-        return self.sale_price - self.initial_payment
+        from django.db.models import Sum
+        # Restar todos los pagos registrados (inicial y cuotas)
+        total_paid = self.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        remaining = self.sale_price - total_paid
+        return remaining if remaining > 0 else Decimal('0.00')
     
     @property
     def is_active(self):
@@ -324,11 +328,7 @@ class Venta(models.Model):
             notes=notes,
             recorded_by=recorded_by
         )
-        
-        # Actualizar el pago inicial en la venta
-        self.initial_payment = amount
-        self.save()
-        
+
         return payment
     
     @classmethod

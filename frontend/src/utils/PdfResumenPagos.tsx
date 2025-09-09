@@ -1,19 +1,28 @@
-import customerService from "../../services/customerService";
+import salesService from "../services/salesService";
+import paymentService from "../services/paymentService";
 
-export const handleDownloadPDF = async (
-  id: number,
+export const handleDownloadHistorialPagosPDF = async (
+  ventaId: number,
   setError: (error: string | null) => void
 ) => {
+  const toastId = "pdf-historial-export";
+  
   try {
     setError(null);
-    const toastId = "pdf-export";
 
     // Mostrar toast de carga
     const { toast } = await import("react-hot-toast");
-    toast.loading("Generando PDF del cliente...", { id: toastId });
+    toast.loading("Generando PDF del historial de pagos...", { id: toastId });
 
-    const data = await customerService.getCustomerById(id);
-    console.log(data);
+    // Obtener datos de la venta y sus pagos
+    const ventaData = await salesService.getVenta(ventaId);
+    const paymentSchedules = await paymentService.getPaymentScheduleByVenta(ventaId);
+    
+    if (!ventaData) {
+      toast.error("No se encontró la venta especificada", { id: toastId });
+      return;
+    }
+
     const { jsPDF } = await import("jspdf");
     const { autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
@@ -43,7 +52,7 @@ export const handleDownloadPDF = async (
     doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("REPORTE DE CLIENTE", 105, yPosition, { align: "center" });
+    doc.text("HISTORIAL DE PAGOS", 105, yPosition, { align: "center" });
 
     yPosition += 15;
 
@@ -51,7 +60,7 @@ export const handleDownloadPDF = async (
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 100, 0); // Verde para el logo
-    doc.text("VILLANUEVA PROJECTS", 105, yPosition, { align: "center" });
+    doc.text("GRUPO SERFER & ASOCIADOS", 105, yPosition, { align: "center" });
     yPosition += 20;
 
     // Restaurar color
@@ -68,14 +77,16 @@ export const handleDownloadPDF = async (
     );
     yPosition += 10;
 
-    const tableDataInfoCustomer = [
-      ["Cliente", data.full_name || "N/A"],
-      ["DNI", data.document_number || "N/A"],
-      ["Teléfono", data.phone || "Sin teléfono"],
-      ["Email", data.email || "Sin email"],
+    const tableDataInfoVenta = [
+      ["Venta ID", ventaData.id.toString()],
+      ["Cliente", ventaData.customer_info?.full_name || "N/A"],
+      ["DNI", ventaData.customer_info?.document_number || "N/A"],
+      ["Lote", `Mz. ${ventaData.lote_info?.block} - Lt. ${ventaData.lote_info?.lot_number}`],
+      ["Precio Total", `S/ ${parseFloat(ventaData.sale_price).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
+      ["Saldo Pendiente", `S/ ${parseFloat(ventaData.remaining_balance || '0').toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
     ];
     autoTable(doc, {
-      body: tableDataInfoCustomer,
+      body: tableDataInfoVenta,
       startY: yPosition,
       theme: "grid",
       styles: {
@@ -96,36 +107,58 @@ export const handleDownloadPDF = async (
     // Título de la tabla de pagos
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    doc.text("RESUMEN DE PAGOS", 20, yPosition);
+    doc.text("HISTORIAL DE PAGOS", 20, yPosition);
     yPosition += 15;
 
     // Preparar datos de la tabla
     const tableHeaders = [
       "Cuota N°",
-      "Monto (S/)",
+      "Monto Prog.",
+      "Monto Pagado",
       "Fecha Pago",
       "Método",
       "N° Recibo",
       "Estado",
     ];
 
-    const tableData = data.payments?.map((payment) => {
-      const installmentInfo =
-        payment.payment_type === "initial"
-          ? "Inicial"
-          : `${payment.installment_number || "-"}`;
-      const amount = `S/ ${parseFloat(payment.amount).toLocaleString("es-PE", {
+    const tableData = paymentSchedules?.map((schedule) => {
+      const installmentInfo = schedule.installment_number.toString();
+      const scheduledAmount = `S/ ${parseFloat(schedule.scheduled_amount).toLocaleString("es-PE", {
         minimumFractionDigits: 2,
       })}`;
-      const paymentDate = payment.payment_date_display || "-";
-      const method =
-        payment.method === "transferencia" ? "Transferencia" : payment.method;
-      const receiptNumber = payment.receipt_number || "-";
-      const status = payment.is_overdue ? "VENCIDO" : "CANCELADO";
+      const paidAmount = `S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", {
+        minimumFractionDigits: 2,
+      })}`;
+      const paymentDate = schedule.payment_date ? new Date(schedule.payment_date).toLocaleDateString("es-ES") : "-";
+      const method = schedule.payment_method ? schedule.payment_method.toUpperCase() : "-";
+      const receiptNumber = schedule.receipt_number || "-";
+      console.log(schedule);
+      console.log(schedule.payment_method);
+      console.log(schedule.status);
+      console.log(schedule.receipt_number);
+      
+      let status = "";
+      switch (schedule.status) {
+        case 'paid':
+          status = "PAGADO";
+          break;
+        case 'pending':
+          status = "PENDIENTE";
+          break;
+        case 'overdue':
+          status = "VENCIDO";
+          break;
+        case 'partial':
+          status = schedule.is_forgiven ? "PERDONADO" : "PARCIAL";
+          break;
+        default:
+          status = "DESCONOCIDO";
+      }
 
       return [
         installmentInfo,
-        amount,
+        scheduledAmount,
+        paidAmount,
         paymentDate,
         method,
         receiptNumber,
@@ -154,24 +187,34 @@ export const handleDownloadPDF = async (
         fillColor: [250, 250, 250],
       },
       columnStyles: {
-        0: { halign: "center", cellWidth: 20 }, // Cuota N°
-        1: { halign: "center", cellWidth: 30 }, // Monto
-        2: { halign: "center", cellWidth: 35 }, // Fecha
-        3: { halign: "center", cellWidth: 25 }, // Método
-        4: { halign: "center", cellWidth: 20 }, // N° Recibo
-        5: { halign: "center", cellWidth: 35 }, // Estado
+        0: { halign: "center", cellWidth: 15 }, // Cuota N°
+        1: { halign: "right", cellWidth: 25 }, // Monto Prog.
+        2: { halign: "right", cellWidth: 25 }, // Monto Pagado
+        3: { halign: "center", cellWidth: 25 }, // Fecha Pago
+        4: { halign: "center", cellWidth: 20 }, // Método
+        5: { halign: "center", cellWidth: 20 }, // N° Recibo
+        6: { halign: "center", cellWidth: 25 }, // Estado
       },
       didParseCell: function (data: any) {
-        // Colorear filas vencidas
-        if (data.section === "body" && data.column.index === 5) {
+        // Colorear filas según el estado
+        if (data.section === "body" && data.column.index === 6) {
           const status = data.cell.text[0];
           if (status === "VENCIDO") {
             data.cell.styles.fillColor = [231, 76, 60]; // Rojo
             data.cell.styles.fontStyle = "bold";
             data.cell.styles.textColor = [255, 255, 255];
-          } else if (status === "CANCELADO") {
+          } else if (status === "PAGADO") {
             data.cell.styles.fillColor = [46, 204, 113]; // Verde
             data.cell.styles.fontStyle = "bold";
+            data.cell.styles.textColor = [255, 255, 255];
+          } else if (status === "PARCIAL") {
+            data.cell.styles.fillColor = [241, 196, 15]; // Amarillo
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.textColor = [0, 0, 0];
+          } else if (status === "PERDONADO") {
+            data.cell.styles.fillColor = [149, 165, 166]; // Gris
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.textColor = [255, 255, 255];
           }
         }
       },
@@ -193,8 +236,8 @@ export const handleDownloadPDF = async (
     // Obtiene el ancho total de la página del PDF
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    for (const payment of data.payments || []) {
-      if (payment.receipt_image) {
+    for (const schedule of paymentSchedules || []) {
+      if (schedule.receipt_image) {
         // Si la imagen se sale de la página, crea una nueva
         if (imageY + 120 > doc.internal.pageSize.getHeight()) {
           // Aumenta el espacio para la imagen
@@ -214,14 +257,14 @@ export const handleDownloadPDF = async (
         // --- FIN DE LA LÓGICA PARA CENTRAR ---
 
         // URL corregida para usar con el proxy
-        const imageUrl = payment.receipt_image.replace(
+        const imageUrl = schedule.receipt_image.replace(
           "http://192.168.100.4:8000",
           ""
         );
 
         // Centra el texto usando el punto medio de la página
         doc.text(
-          `Recibo del pago de S/ ${payment.amount} | N°. Operación: ${payment.receipt_number}`,
+          `Cuota ${schedule.installment_number} - S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${schedule.receipt_number || "N/A"}`,
           pageWidth / 2, // Posición x en el centro
           imageY - 10,
           { align: "center" } // Opción de alineación
@@ -243,14 +286,12 @@ export const handleDownloadPDF = async (
     }
 
     doc.save(
-      `${data.full_name}${" - "}${
-        data.document_number
-      }${" - Resumen de pagos"}.pdf`
+      `Historial_Pagos_Venta${ventaData.id}_${ventaData.customer_info?.full_name?.replace(/\s+/g, '_') || 'Cliente'}.pdf`
     );
-    toast.success("PDF generado exitosamente", { id: toastId });
+    toast.success("PDF del historial de pagos generado exitosamente", { id: toastId });
   } catch (err: any) {
     const { toast } = await import("react-hot-toast");
-    toast.error("Error al generar el PDF", { id: "pdf-export" });
-    setError(err.response?.data?.detail || "Error al generar el PDF.");
+    toast.error("Error al generar el PDF del historial", { id: toastId });
+    setError(err.response?.data?.detail || "Error al generar el PDF del historial.");
   }
 };

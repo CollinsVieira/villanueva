@@ -255,7 +255,6 @@ const CustomerManagement: React.FC = () => {
           customerId={viewingCustomerId}
           onClose={() => setViewingCustomerId(null)}
           onDataChange={() => loadCustomers(searchTerm)}
-          setError={setError}
         />
       )}
     </div>

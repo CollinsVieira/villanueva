@@ -149,11 +149,14 @@ export interface PaymentPlan {
   start_date: string;
   payment_day: number;
   payment_status: {
+    completion_percentage: number;
+    total_installments: number;
+    remaining_amount: number;
+    paid_amount: number;
     total: number;
     paid: number;
     pending: number;
     overdue: number;
-    completion_percentage: number;
   };
   payments: Payment[];
   created_at: string;

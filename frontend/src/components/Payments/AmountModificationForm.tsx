@@ -53,10 +53,10 @@ const AmountModificationForm: React.FC<AmountModificationFormProps> = ({
       <div className="bg-gray-50 p-4 rounded-lg">
         <h4 className="font-medium text-gray-900 mb-2">Información Actual</h4>
         <div className="text-sm text-gray-600 space-y-1">
-          <p>Monto Original: S/. {parseFloat(schedule.original_amount).toFixed(2)}</p>
+          <p>Monto Original: S/. {parseFloat(schedule.scheduled_amount).toFixed(2)}</p>
           <p>Monto Programado: S/. {parseFloat(schedule.scheduled_amount).toFixed(2)}</p>
           <p>Monto Pagado: S/. {parseFloat(schedule.paid_amount).toFixed(2)}</p>
-          <p>Pendiente: S/. {parseFloat(schedule.remaining_amount).toFixed(2)}</p>
+          <p>Pendiente: S/. {parseFloat(schedule.remaining_amount || '0').toFixed(2)}</p>
         </div>
       </div>
 

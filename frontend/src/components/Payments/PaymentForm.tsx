@@ -129,12 +129,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
         // Pago inicial a través de la venta
         await salesService.registerInitialPayment(activeVenta.id, {
           amount: paymentAmount,
-          payment_date: DateService.localDateToUTCSafe(paymentDate),
+          // El backend no espera payment_date para pago inicial
           method: (e.currentTarget.elements.namedItem('method') as HTMLSelectElement)?.value || 'transferencia',
-          receipt_number: e.currentTarget.receipt_number.value,
-          receipt_date: e.currentTarget.receipt_date.value,
+          receipt_number: (e.currentTarget.elements.namedItem('receipt_number') as HTMLInputElement)?.value,
+          receipt_date: (e.currentTarget.elements.namedItem('receipt_date') as HTMLInputElement)?.value,
           receipt_image: selectedFile || undefined,
-          notes: e.currentTarget.notes.value,
+          notes: (e.currentTarget.elements.namedItem('notes') as HTMLTextAreaElement)?.value,
         });
       } else {
         // Pago de cuota a través del cronograma

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, AlertTriangle, CircleDot, RefreshCw, DollarSign, Plus } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, AlertTriangle, CircleDot, Plus } from 'lucide-react';
 import { PaymentSchedule as PaymentScheduleType, Lote } from '../../types';
 import paymentService from '../../services/paymentService';
 import loteService from '../../services/loteService';
 import PaymentRegistrationForm from './PaymentRegistrationForm';
 import AmountModificationForm from './AmountModificationForm';
+import DateService from '../../services/dateService';
 
 interface PaymentScheduleProps {
   loteId?: number;
@@ -169,32 +170,6 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
     }
   };
 
-  // Estadísticas del cronograma
-  const scheduleStats = React.useMemo(() => {
-    const total = schedules.length;
-    const paid = schedules.filter(s => s.status === 'paid').length;
-    const overdue = schedules.filter(s => s.status === 'overdue').length;
-    const pending = schedules.filter(s => s.status === 'pending').length;
-    const totalScheduled = schedules.reduce((sum, s) => sum + parseFloat(s.scheduled_amount), 0);
-    const totalPaid = schedules.reduce((sum, s) => sum + parseFloat(s.paid_amount), 0);
-    
-    // Calcular el saldo restante total de todos los lotes únicos
-    
-    const totalRemainingBalance = schedules.reduce((sum, schedule) => 
-      sum + parseFloat(schedule.remaining_amount || '0'), 0
-    );
-    
-    return {
-      total,
-      paid,
-      overdue,
-      pending,
-      totalScheduled,
-      totalPaid,
-      totalRemainingBalance,
-      completionPercentage: total > 0 ? (paid / total) * 100 : 0
-    };
-  }, [schedules]);
   
   if (isLoading && schedules.length === 0) {
     return (
@@ -331,7 +306,6 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                     <td className="p-4">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">
-                          {/* Mz. {schedule.lote_info?.block || 'N/A'} - Lt. {schedule.lote_info?.lot_number || 'N/A'} */}
                           {schedule.lote_display || 'N/A'}
                         </div>
                         <div className="text-gray-500">{schedule.customer_display || 'N/A'}</div>
@@ -342,7 +316,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                         <Calendar size={16} className="text-gray-400 mr-2" />
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {new Date(schedule.due_date).toLocaleDateString('es-ES')}
+                          {DateService.utcToLocalDateOnly(schedule.due_date)}
                           </div>
                           {schedule.status === 'overdue' && (
                             <div className="text-xs text-red-600">

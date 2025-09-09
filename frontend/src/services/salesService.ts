@@ -16,6 +16,7 @@ export interface Venta {
   financing_months?: number;
   created_at: string;
   updated_at: string;
+  remaining_balance?: string;
   lote_info?: {
     id: number;
     block: string;
@@ -77,14 +78,14 @@ export interface PaymentPlan {
   start_date: string;
   payment_day: number;
   payment_status: {
-    total_amount: string;
-    paid_amount: string;
-    remaining_amount: string;
     completion_percentage: number;
     total_installments: number;
-    paid_installments: number;
-    pending_installments: number;
-    overdue_installments: number;
+    remaining_amount: number;
+    paid_amount: number;
+    total: number;
+    paid: number;
+    pending: number;
+    overdue: number;
   };
   created_at: string;
   updated_at: string;
@@ -210,7 +211,40 @@ class SalesService {
   }
 
   async registerInitialPayment(id: number, data: VentaInitialPayment): Promise<any> {
-    const response = await api.post(`/sales/ventas/${id}/register_initial_payment/`, data);
+    // Si hay imagen, usar FormData para cumplir con el backend
+    if (data.receipt_image) {
+      const formData = new FormData();
+      formData.append('amount', data.amount);
+      if (data.method) {
+        formData.append('payment_method', data.method);
+      }
+      if (data.receipt_number) {
+        formData.append('receipt_number', data.receipt_number);
+      }
+      if (data.receipt_date) {
+        formData.append('receipt_date', data.receipt_date);
+      }
+      if (data.notes) {
+        formData.append('notes', data.notes);
+      }
+      formData.append('receipt_image', data.receipt_image);
+
+      const response = await api.post(`/sales/ventas/${id}/register_initial_payment/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
+
+    // Sin imagen, enviar JSON normal mapeando las claves esperadas por el backend
+    const payload: any = {
+      amount: data.amount,
+      payment_method: data.method || 'transferencia',
+    };
+    if (data.receipt_number) payload.receipt_number = data.receipt_number;
+    if (data.receipt_date) payload.receipt_date = data.receipt_date;
+    if (data.notes) payload.notes = data.notes;
+
+    const response = await api.post(`/sales/ventas/${id}/register_initial_payment/`, payload);
     return response.data;
   }
 

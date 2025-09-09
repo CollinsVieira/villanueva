@@ -78,6 +78,20 @@ export class DateService {
    * @returns String de fecha local formateada
    */
   static utcToLocalDateOnly(utcDateString: string): string {
+    // Si la fecha viene en formato YYYY-MM-DD (sin hora), tratarla como fecha local
+    if (/^\d{4}-\d{2}-\d{2}$/.test(utcDateString)) {
+      // Parsear directamente la fecha sin conversión de zona horaria
+      const [year, month, day] = utcDateString.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      
+      return localDate.toLocaleDateString('es-PE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+    }
+    
+    // Si viene con información de hora, usar la conversión normal
     const utcDate = new Date(utcDateString);
     
     // Usar zona horaria específica de América/Lima para asegurar consistencia
