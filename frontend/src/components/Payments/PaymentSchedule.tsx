@@ -179,33 +179,9 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
     const totalPaid = schedules.reduce((sum, s) => sum + parseFloat(s.paid_amount), 0);
     
     // Calcular el saldo restante total de todos los lotes únicos
-    const uniqueLotes = schedules.reduce((acc, schedule) => {
-      if (!acc.find(lote => lote.id === schedule.lote_info?.id)) {
-        acc.push({
-          id: schedule.lote_info?.id || 0,
-          block: schedule.lote_info?.block || '',
-          lot_number: schedule.lote_info?.lot_number || '',
-          area: schedule.lote_info?.area || '',
-          price: '0',
-          initial_payment: '0',
-          financing_months: 0,
-          payment_day: 0,
-          remaining_balance: '0',
-          status: 'vendido' as const,
-          installments_paid: 0,
-          monthly_installment: '0',
-          has_initial_payment: false,
-          initial_payment_amount: '0',
-          history: [],
-          created_at: '',
-          updated_at: ''
-        });
-      }
-      return acc;
-    }, [] as Lote[]);
     
-    const totalRemainingBalance = uniqueLotes.reduce((sum, lote) => 
-      sum + parseFloat(lote.remaining_balance), 0
+    const totalRemainingBalance = schedules.reduce((sum, schedule) => 
+      sum + parseFloat(schedule.remaining_amount || '0'), 0
     );
     
     return {
@@ -236,15 +212,6 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
           <h1 className="text-3xl font-bold text-gray-900">Cronograma de Pagos</h1>
           <p className="text-gray-600 mt-1">Gestione el cronograma detallado de cuotas y vencimientos.</p>
         </div>
-        {selectedLoteId && (
-          <button
-            onClick={generateSchedule}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl flex items-center space-x-2 shadow-lg transition-all duration-200 transform hover:scale-105"
-          >
-            <RefreshCw size={20} />
-            <span>Regenerar Cronograma</span>
-          </button>
-        )}
       </div>
 
       {error && (
@@ -262,59 +229,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       )}
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-sm font-medium">Total Cuotas</p>
-              <p className="text-2xl font-bold">{scheduleStats.total}</p>
-              <p className="text-blue-100 text-xs">{scheduleStats.completionPercentage.toFixed(1)}% completado</p>
-            </div>
-            <div className="bg-white/20 p-3 rounded-lg">
-              <Calendar size={24} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-sm font-medium">Pagado</p>
-              <p className="text-2xl font-bold">S/. {scheduleStats.totalPaid.toFixed(2)}</p>
-              <p className="text-green-100 text-xs">{scheduleStats.paid} cuotas</p>
-            </div>
-            <div className="bg-white/20 p-3 rounded-lg">
-              <CheckCircle size={24} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-red-100 text-sm font-medium">Vencidas</p>
-              <p className="text-2xl font-bold">{scheduleStats.overdue}</p>
-              <p className="text-red-100 text-xs">Cuotas atrasadas</p>
-            </div>
-            <div className="bg-white/20 p-3 rounded-lg">
-              <AlertTriangle size={24} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-sm font-medium">Por Cobrar</p>
-              <p className="text-2xl font-bold">S/. {scheduleStats.totalRemainingBalance.toFixed(2)}</p>
-              <p className="text-purple-100 text-xs">{scheduleStats.pending} pendientes</p>
-            </div>
-            <div className="bg-white/20 p-3 rounded-lg">
-              <DollarSign size={24} />
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
       {/* Filtros */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -332,7 +247,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                 <option value="">Todos los lotes</option>
                 {allLotes.map(lote => (
                   <option key={lote.id} value={lote.id}>
-                    Mz. {lote.block} - Lt. {lote.lot_number} ({lote.owner?.full_name})
+                    Mz. {lote.block} - Lt. {lote.lot_number} ({lote.current_owner?.full_name})
                   </option>
                 ))}
               </select>
@@ -416,9 +331,10 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                     <td className="p-4">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">
-                          Mz. {schedule.lote_info?.block || 'N/A'} - Lt. {schedule.lote_info?.lot_number || 'N/A'}
+                          {/* Mz. {schedule.lote_info?.block || 'N/A'} - Lt. {schedule.lote_info?.lot_number || 'N/A'} */}
+                          {schedule.lote_display || 'N/A'}
                         </div>
-                        <div className="text-gray-500">{schedule.customer_info?.full_name || 'N/A'}</div>
+                        <div className="text-gray-500">{schedule.customer_display || 'N/A'}</div>
                       </div>
                     </td>
                     <td className="p-4">

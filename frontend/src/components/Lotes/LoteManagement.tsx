@@ -6,6 +6,7 @@ import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import LoteForm from './LoteForm';
 import LoteDetailModal from './LoteDetailModal';
+import dynamicReportsService from '../../services/dynamicReportsService';
 
 const LoteManagement: React.FC = () => {
   const [lotes, setLotes] = useState<Lote[]>([]);
@@ -318,15 +319,8 @@ const LoteManagement: React.FC = () => {
               <p className="text-lg font-semibold text-gray-900 ml-6">
                 {lote.current_owner ? lote.current_owner.full_name : 'Sin propietario'}
               </p>
-              <div className="flex items-center space-x-2 mb-4 mt-4">
-                <Calendar className="text-gray-500" size={16} />
-                <span className="text-sm text-gray-600">Día de pago:</span>
-              </div>
-              <p className="text-lg font-semibold text-gray-900 ml-6">
-                {lote.payment_day ? lote.payment_day + ' de cada mes' : 'Sin día de pago'}
-              </p>
             </div>
-
+                
             {/* Información financiera */}
             <div className="px-6 pb-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -335,7 +329,7 @@ const LoteManagement: React.FC = () => {
                   <span className="text-sm text-gray-600">Precio:</span>
                 </div>
                 <span className="font-bold text-lg text-gray-900">
-                  S/.{parseFloat(lote.price).toFixed(2)}
+                  {dynamicReportsService.formatCurrency(parseFloat(lote.price))}
                 </span>
               </div>
             </div>

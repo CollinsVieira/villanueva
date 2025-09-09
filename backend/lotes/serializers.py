@@ -21,7 +21,7 @@ class LoteSerializer(serializers.ModelSerializer):
     is_available = serializers.BooleanField(read_only=True)
     is_sold = serializers.BooleanField(read_only=True)
     current_owner = serializers.SerializerMethodField()
-    payment_day = serializers.SerializerMethodField()
+    active_sale = serializers.SerializerMethodField()
 
     class Meta:
         model = Lote
@@ -39,7 +39,7 @@ class LoteSerializer(serializers.ModelSerializer):
             'history',
             'created_at',
             'updated_at',
-            'payment_day'
+            'active_sale'
         ]
         read_only_fields = [
             'id', 
@@ -50,7 +50,7 @@ class LoteSerializer(serializers.ModelSerializer):
             'is_available',
             'is_sold',
             'current_owner',
-            'payment_day',
+            'active_sale',
         ]
 
     def create(self, validated_data):
@@ -82,11 +82,19 @@ class LoteSerializer(serializers.ModelSerializer):
             }
         return None
 
-    def get_payment_day(self, obj):
-        """Obtiene el día de pago del plan de pagos asociado"""
+    def get_active_sale(self, obj):
+        """Obtiene la información de la venta activa del lote"""
         try:
-            if hasattr(obj, 'plan_pagos'):
-                return obj.plan_pagos.payment_day
-            return 15  # Valor por defecto
+            active_sale = obj.active_sale
+            if active_sale:
+                return {
+                    'id': active_sale.id,
+                    'payment_day': active_sale.payment_day,
+                    'financing_months': active_sale.financing_months,
+                    'sale_price': str(active_sale.sale_price),
+                    'initial_payment': str(active_sale.initial_payment) if active_sale.initial_payment else None,
+                    'status': active_sale.status
+                }
+            return None
         except:
-            return 15  # Valor por defecto
+            return None

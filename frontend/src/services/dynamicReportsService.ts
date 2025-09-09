@@ -87,6 +87,7 @@ export const dynamicReportsService = {
   formatCurrency: (amount: number): string => {
     return new Intl.NumberFormat('es-PE', {
       style: 'currency',
+      minimumFractionDigits: 2,
       currency: 'PEN'
     }).format(amount);
   },

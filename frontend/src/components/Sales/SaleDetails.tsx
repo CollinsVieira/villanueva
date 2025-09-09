@@ -291,7 +291,6 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
             </div>
             <div className="p-6">
               {paymentPlan ? (
-                console.log(paymentPlan),
                 <div className="space-y-4">
                   <div className="grid grid-cols-4 gap-4">
                     <div className="text-center">

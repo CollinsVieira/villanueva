@@ -19,7 +19,8 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     initial_payment: '',
     contract_date: '',
     notes: '',
-    payment_day: 15
+    payment_day: 15,
+    financing_months: 12
   });
   
   const [lotes, setLotes] = useState<Lote[]>([]);
@@ -40,7 +41,8 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
         initial_payment: sale.initial_payment || '',
         contract_date: sale.contract_date || '',
         notes: sale.notes || '',
-        payment_day: 15 // Valor por defecto para ventas existentes
+        payment_day: 15, // Valor por defecto para ventas existentes
+        financing_months: 12 // Valor por defecto para ventas existentes
       });
     }
   }, [sale]);
@@ -48,8 +50,8 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
   const loadLotes = async () => {
     try {
       const data = await loteService.getLotes();
-      // Filter available lotes (not sold or with cancelled sales)
-      const filteredLotes = data.filter((lote: any) => !lote.customer_id);
+      // Filter available lotes (status = 'disponible')
+      const filteredLotes = data.filter((lote: any) => lote.status === 'disponible');
       setLotes(filteredLotes as any);
     } catch (err) {
       console.error('Error loading lotes:', err);
@@ -71,7 +73,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     setFormData(prev => ({
       ...prev,
       lote: parseInt(loteId),
-      sale_price: lote ? (lote as any).total_price?.toString() || '' : ''
+      sale_price: lote ? lote.price || '' : ''
     }));
   };
 
@@ -175,17 +177,41 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="sale_price" className="block text-sm font-medium text-gray-700 mb-1">Precio de Venta *</label>
-              <input
-                id="sale_price"
-                type="number"
-                step="0.01"
-                value={formData.sale_price}
-                onChange={(e: any) => setFormData(prev => ({ ...prev, sale_price: e.target.value }))}
-                placeholder="0.00"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <label htmlFor="sale_price" className="block text-sm font-medium text-gray-700 mb-1">
+                Precio de Venta *
+                {selectedLote && formData.sale_price === selectedLote.price && (
+                  <span className="ml-2 text-xs text-green-600 font-normal">
+                    (llenado automáticamente)
+                  </span>
+                )}
+              </label>
+              <div className="relative">
+                <input
+                  id="sale_price"
+                  type="number"
+                  step="0.01"
+                  value={formData.sale_price}
+                  onChange={(e: any) => setFormData(prev => ({ ...prev, sale_price: e.target.value }))}
+                  placeholder="0.00"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {selectedLote && formData.sale_price !== selectedLote.price && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, sale_price: selectedLote.price }))}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    title="Restaurar precio original del lote"
+                  >
+                    Restaurar
+                  </button>
+                )}
+              </div>
+              {selectedLote && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Precio del lote: {dynamicReportsService.formatCurrency(parseFloat(selectedLote.price))}
+                </p>
+              )}
             </div>
 
             <div>
@@ -213,22 +239,42 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
             />
           </div>
 
-          <div>
-            <label htmlFor="payment_day" className="block text-sm font-medium text-gray-700 mb-1">Día de Vencimiento Mensual *</label>
-            <input
-              id="payment_day"
-              type="number"
-              min="1"
-              max="31"
-              value={formData.payment_day}
-              onChange={(e: any) => setFormData(prev => ({ ...prev, payment_day: parseInt(e.target.value) }))}
-              placeholder="15"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Día del mes en que vencen las cuotas (1-31)
-            </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="payment_day" className="block text-sm font-medium text-gray-700 mb-1">Día de Vencimiento Mensual *</label>
+              <input
+                id="payment_day"
+                type="number"
+                min="1"
+                max="31"
+                value={formData.payment_day}
+                onChange={(e: any) => setFormData(prev => ({ ...prev, payment_day: parseInt(e.target.value) }))}
+                placeholder="15"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Día del mes en que vencen las cuotas (1-31)
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="financing_months" className="block text-sm font-medium text-gray-700 mb-1">Meses de Financiamiento *</label>
+              <input
+                id="financing_months"
+                type="number"
+                min="1"
+                max="120"
+                value={formData.financing_months}
+                onChange={(e: any) => setFormData(prev => ({ ...prev, financing_months: parseInt(e.target.value) }))}
+                placeholder="12"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Número de meses para el financiamiento
+              </p>
+            </div>
           </div>
 
           <div>

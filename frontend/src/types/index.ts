@@ -42,10 +42,44 @@ export interface Lote {
   is_available: boolean;
   is_sold: boolean;
   current_owner?: Customer;
+  customer_info?: { // Added to match usage
+    id: number;
+    full_name: string;
+    document_number: string;
+  };
   history: LoteHistory[];
   created_at: string;
   updated_at: string;
-  payment_day?: number;
+  active_sale?: {
+    id: number;
+    payment_day: number;
+    financing_months: number;
+    sale_price: string;
+    initial_payment?: string;
+    status: string;
+  };
+  // From serializer
+  monthly_installment?: string;
+  has_initial_payment?: boolean;
+  initial_payment_amount?: string;
+  financing_months?: number;
+}
+
+export interface Venta {
+  id: number;
+  lote: number;
+  customer: number;
+  status: 'active' | 'cancelled' | 'completed';
+  status_display: string;
+  sale_price: string;
+  initial_payment: string;
+  sale_date: string;
+  remaining_balance: string;
+  customer_info?: {
+    id: number;
+    full_name: string;
+    document_number: string;
+  };
 }
 
 export interface Payment {
@@ -60,6 +94,15 @@ export interface Payment {
   payment_schedule?: {
     id: number;
     installment_number: number;
+  };
+  payment_schedule_info?: {
+    id: number;
+    installment_number: number;
+    scheduled_amount: string;
+    paid_amount: string;
+    due_date?: string;
+    status: string;
+    is_forgiven: boolean;
   };
   amount: string;
   payment_date: string;
@@ -321,25 +364,11 @@ export interface HistoryEvent {
     recorded_by?: number;
     created_at: string;
     updated_at: string;
-    // Información contextual del serializer
-    lote_info?: {
-      id: number;
-      block: string;
-      lot_number: string;
-      area: string;
-      display: string;
-    };
-    customer_info?: {
-      id: number;
-      first_name: string;
-      last_name: string;
-      full_name: string;
-      document_number: string;
-      phone?: string;
-    };
     payments_count?: number;
     total_paid?: string;
     remaining_amount?: string;
+    lote_display?: string;
+    customer_display?: string;
   }
 
   export interface PaymentScheduleSummary {

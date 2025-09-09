@@ -40,6 +40,7 @@ export interface VentaCreate {
   contract_date?: string;
   notes?: string;
   payment_day: number;
+  financing_months: number;
 }
 
 export interface VentaInitialPayment {

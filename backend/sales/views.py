@@ -1,8 +1,12 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from django.core.exceptions import ValidationError
+from .models import Venta
+from .serializers import VentaSerializer, VentaSummarySerializer
+from users.permissions import IsWorkerOrAdmin
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 
@@ -18,7 +22,7 @@ class VentaViewSet(viewsets.ModelViewSet):
     ViewSet para manejar las operaciones CRUD de Ventas y acciones del ciclo de vida.
     """
     queryset = Venta.objects.all().select_related('lote', 'customer')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'lote__block', 'customer']
     
@@ -209,3 +213,38 @@ class VentaViewSet(viewsets.ModelViewSet):
         sales = self.get_queryset().filter(lote_id=lote_id).order_by('-sale_date')
         serializer = VentaSummarySerializer(sales, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def regenerate_payment_schedule(self, request, pk=None):
+        """Regenera el cronograma de pagos cuando cambia el payment_day"""
+        venta = self.get_object()
+        
+        if venta.status != 'active':
+            return Response(
+                {'error': _('Solo se puede regenerar el cronograma para ventas activas')},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            schedules = venta.regenerate_payment_schedule()
+            
+            # Importar aquí para evitar imports circulares
+            from payments.serializers import PaymentScheduleSummarySerializer
+            
+            serializer = PaymentScheduleSummarySerializer(schedules, many=True)
+            
+            return Response({
+                'message': _('Cronograma de pagos regenerado exitosamente'),
+                'schedules': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except ValidationError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': _('Error al regenerar el cronograma de pagos')},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

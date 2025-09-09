@@ -8,6 +8,7 @@ import PaymentForm from './PaymentForm';
 import PaymentSchedule from './PaymentSchedule';
 import { useDebounce } from '../../hooks/useDebounce';
 import DateService from '../../services/dateService';
+import { dynamicReportsService } from '../../services';
 
 const PaymentManagement: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -185,6 +186,7 @@ const PaymentManagement: React.FC = () => {
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
+        
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="flex border-b">
@@ -217,12 +219,13 @@ const PaymentManagement: React.FC = () => {
       {activeTab === 'payments' ? (
         <>
           {/* Payment Statistics */}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-sm font-medium">Total Recaudado</p>
-                  <p className="text-2xl font-bold">S/. {paymentStats.totalAmount.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{dynamicReportsService.formatCurrency(paymentStats.totalAmount)}</p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-lg">
                   <DollarSign size={24} />
@@ -260,7 +263,7 @@ const PaymentManagement: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100 text-sm font-medium">Este Mes</p>
-                  <p className="text-2xl font-bold">S/. {paymentStats.thisMonthAmount.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{dynamicReportsService.formatCurrency(paymentStats.thisMonthAmount)}</p>
                   <p className="text-orange-100 text-xs">{paymentStats.thisMonthPayments} pagos</p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-lg">
@@ -359,9 +362,9 @@ const PaymentManagement: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4 text-center">
-                          {payment.payment_schedule?.installment_number ? (
+                          {(payment.payment_schedule?.installment_number || payment.payment_schedule_info?.installment_number) ? (
                             <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                              #{payment.payment_schedule.installment_number}
+                              #{(payment.payment_schedule?.installment_number || payment.payment_schedule_info?.installment_number)}
                             </span>
                           ) : (
                             <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs">No especificado</span>
@@ -377,7 +380,7 @@ const PaymentManagement: React.FC = () => {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center">
-                            <span className="font-bold text-lg text-green-600">S/. {parseFloat(payment.amount).toFixed(2)}</span>
+                            <span className="font-bold text-lg text-green-600">{dynamicReportsService.formatCurrency(parseFloat(payment.amount))}</span>
                           </div>
                           <div className="text-xs text-gray-500 capitalize">
                             {payment.method}

@@ -370,12 +370,9 @@ class PaymentSchedule(models.Model):
         # Calcular paid_amount desde los pagos asociados si ya existe en la BD
         if self.pk:
             from django.db.models import Sum
-            payment_count = self.payments.count()
-            print(f"DEBUG: PaymentSchedule {self.pk} has {payment_count} payments")
             total_paid = self.payments.aggregate(
                 total=Sum('amount')
             )['total'] or Decimal('0.00')
-            print(f"DEBUG: Calculated total_paid: {total_paid}")
             self.paid_amount = total_paid
         
         # Actualizar estado automáticamente
@@ -415,7 +412,7 @@ class PaymentSchedule(models.Model):
         Genera el cronograma completo de pagos para una venta específica.
         """
         lote = venta.lote
-        if not venta.customer or lote.financing_months <= 0:
+        if not venta.customer or venta.financing_months <= 0:
             return []
 
         # No eliminar cronogramas existentes - cada venta tiene su propio cronograma
@@ -424,13 +421,17 @@ class PaymentSchedule(models.Model):
         if existing:
             return cls.objects.filter(venta=venta).order_by('installment_number')
 
-        monthly_amount = lote.monthly_installment
-        payment_day = lote.payment_day
+        # Calcular el monto mensual basado en el precio de venta y meses de financiamiento
+        remaining_amount = venta.sale_price - venta.initial_payment
+        monthly_amount = remaining_amount / venta.financing_months
+        
+        # Usar payment_day de la venta o un valor por defecto
+        payment_day = getattr(venta, 'payment_day', 15)
         start_date = venta.sale_date.date()
 
         schedules = []
         
-        for i in range(1, lote.financing_months + 1):
+        for i in range(1, venta.financing_months + 1):
             # Calcular fecha de vencimiento para cada cuota
             due_date = cls._calculate_due_date(start_date, i, payment_day)
             
@@ -479,28 +480,9 @@ class PaymentSchedule(models.Model):
         
         if payment_date is None:
             payment_date = timezone.now()
-            
-        # Actualizar campos de pago
-        if self.paid_amount is None:
-            self.paid_amount = Decimal('0')
-        self.paid_amount += Decimal(str(amount))
-        self.payment_date = payment_date
-        self.payment_method = payment_method
-        self.receipt_number = receipt_number
-        self.receipt_date = receipt_date
-        self.receipt_image = receipt_image
-        self.recorded_by = recorded_by
-        
-        if notes:
-            if self.notes:
-                self.notes += f"\n{notes}"
-            else:
-                self.notes = notes
-                
-        self.save()
         
         # Crear el objeto Payment correspondiente
-        Payment.objects.create(
+        payment = Payment.objects.create(
             venta=self.venta,
             payment_schedule=self,
             amount=Decimal(str(amount)),
@@ -513,6 +495,9 @@ class PaymentSchedule(models.Model):
             recorded_by=recorded_by,
             payment_type='installment'
         )
+        
+        # Asociar el pago a esta cuota del cronograma usando el método add_payment
+        self.add_payment(payment)
         
         return self
     
@@ -585,13 +570,9 @@ class PaymentSchedule(models.Model):
         """
         Asocia un pago a esta cuota del cronograma.
         """
-        print(f"DEBUG: Adding payment {payment.id} (amount: {payment.amount}) to schedule {self.id}")
         self.payments.add(payment)
-        print(f"DEBUG: Payment added to ManyToMany. Total payments now: {self.payments.count()}")
         self.sync_payment_info()
-        print(f"DEBUG: Before save - paid_amount: {self.paid_amount}, status: {self.status}")
         self.save()  # Esto actualizará automáticamente el estado y monto pagado
-        print(f"DEBUG: After save - paid_amount: {self.paid_amount}, status: {self.status}")
     
     def sync_payment_info(self):
         """

@@ -138,7 +138,7 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
         schedule = self.get_object()
         
         amount = request.data.get('amount')
-        payment_method = request.data.get('payment_method', 'transferencia')
+        payment_method = request.data.get('method', 'transferencia')  # Frontend sends 'method', not 'payment_method'
         receipt_number = request.data.get('receipt_number')
         receipt_date = request.data.get('receipt_date')
         receipt_image = request.data.get('receipt_image')
@@ -152,8 +152,23 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
         
         try:
             amount = float(amount)
+            
+            # Get payment_date from request or use current time
+            from django.utils import timezone
+            payment_date = request.data.get('payment_date')
+            if payment_date:
+                # Parse the date string if provided
+                try:
+                    from datetime import datetime
+                    payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
+                except:
+                    payment_date = timezone.now()
+            else:
+                payment_date = timezone.now()
+            
             schedule.register_payment(
                 amount=amount,
+                payment_date=payment_date,
                 payment_method=payment_method,
                 receipt_number=receipt_number,
                 receipt_date=receipt_date,

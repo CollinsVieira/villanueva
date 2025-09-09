@@ -47,11 +47,18 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         help_text=_("Día del mes en que vencen las cuotas (1-31)")
     )
     
+    financing_months = serializers.IntegerField(
+        min_value=1,
+        max_value=120,
+        required=True,
+        help_text=_("Número de meses para el financiamiento")
+    )
+    
     class Meta:
         model = Venta
         fields = [
             'lote', 'customer', 'sale_price', 'initial_payment', 
-            'contract_date', 'notes', 'payment_day'
+            'contract_date', 'notes', 'payment_day', 'financing_months'
         ]
     
     def validate_lote(self, value):
@@ -81,7 +88,8 @@ class VentaCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Crear una nueva venta con plan de pagos automático"""
         payment_day = validated_data.pop('payment_day')
-        return Venta.create_sale(payment_day=payment_day, **validated_data)
+        financing_months = validated_data.pop('financing_months')
+        return Venta.create_sale(payment_day=payment_day, financing_months=financing_months, **validated_data)
 
 
 class VentaSummarySerializer(serializers.ModelSerializer):

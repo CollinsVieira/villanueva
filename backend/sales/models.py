@@ -59,6 +59,18 @@ class Venta(models.Model):
         help_text=_("Monto del pago inicial realizado")
     )
     
+    financing_months = models.PositiveIntegerField(
+        default=12,
+        verbose_name=_("Meses de Financiamiento"),
+        help_text=_("Número de meses para el financiamiento del lote")
+    )
+    
+    payment_day = models.PositiveIntegerField(
+        default=15,
+        verbose_name=_("Día de Pago"),
+        help_text=_("Día del mes en que vencen las cuotas (1-31)")
+    )
+    
     # Fechas importantes
     sale_date = models.DateTimeField(
         auto_now_add=True,
@@ -213,7 +225,7 @@ class Venta(models.Model):
         return True
     
     @classmethod
-    def create_sale(cls, lote, customer, sale_price, payment_day, initial_payment=None, contract_date=None, **kwargs):
+    def create_sale(cls, lote, customer, sale_price, payment_day, financing_months, initial_payment=None, contract_date=None, **kwargs):
         """Crea una nueva venta y configura el plan de pagos"""
         
         # Verificar que el lote esté disponible
@@ -227,11 +239,13 @@ class Venta(models.Model):
             sale_price=sale_price,
             initial_payment=initial_payment or Decimal('0.00'),
             contract_date=contract_date,
+            payment_day=payment_day,
+            financing_months=financing_months,
             **kwargs
         )
         
-        # Crear el plan de pagos automáticamente con el payment_day especificado
-        venta.create_payment_plan(payment_day=payment_day)
+        # Crear el plan de pagos automáticamente
+        venta.create_payment_plan()
         
         return venta
     
@@ -243,9 +257,9 @@ class Venta(models.Model):
         if hasattr(self, 'plan_pagos'):
             return self.plan_pagos
         
-        # Usar el payment_day proporcionado o un valor por defecto
+        # Usar el payment_day de la venta, el proporcionado, o un valor por defecto
         if payment_day is None:
-            payment_day = 15  # Valor por defecto
+            payment_day = self.payment_day  # Usar el payment_day de la venta
         
         # Crear el plan de pagos
         plan = PaymentPlan.objects.create(
@@ -258,6 +272,25 @@ class Venta(models.Model):
         PaymentSchedule.generate_schedule_for_venta(self)
         
         return plan
+    
+    def regenerate_payment_schedule(self):
+        """Regenera el cronograma de pagos cuando cambia el payment_day"""
+        from payments.models import PaymentSchedule
+        
+        # Solo regenerar si no hay pagos realizados
+        existing_schedules = self.payment_schedules.all()
+        has_payments = existing_schedules.filter(paid_amount__gt=0).exists()
+        
+        if has_payments:
+            raise ValidationError(_("No se puede regenerar el cronograma porque ya existen pagos realizados"))
+        
+        # Eliminar cronograma existente
+        existing_schedules.delete()
+        
+        # Generar nuevo cronograma con el payment_day actual
+        PaymentSchedule.generate_schedule_for_venta(self)
+        
+        return self.payment_schedules.all()
     
     def register_initial_payment(self, amount, payment_date=None, payment_method='transferencia', 
                                 receipt_number=None, receipt_date=None, receipt_image=None, 

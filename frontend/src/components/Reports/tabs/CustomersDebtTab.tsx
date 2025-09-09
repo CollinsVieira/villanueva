@@ -45,7 +45,7 @@ interface LoteDebtItem {
   total_payments_made: number;
   financing_months: number;
   pending_installments: number;
-  payment_day: number;
+  payment_day: number; // Este viene de la venta, no del lote
   days_until_next_payment?: number;
 }
 

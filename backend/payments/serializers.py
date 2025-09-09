@@ -14,6 +14,7 @@ class PaymentSerializer(serializers.ModelSerializer):
     venta_info = serializers.SerializerMethodField()
     lote_info = serializers.SerializerMethodField()
     customer_info = serializers.SerializerMethodField()
+    payment_schedule_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
@@ -38,7 +39,8 @@ class PaymentSerializer(serializers.ModelSerializer):
             'updated_at',
             'venta_info',
             'lote_info',
-            'customer_info'
+            'customer_info',
+            'payment_schedule_info'
         ]
         read_only_fields = [
             'id', 'venta', 'payment_schedule', 'recorded_by', 'created_at', 'updated_at'
@@ -99,6 +101,20 @@ class PaymentSerializer(serializers.ModelSerializer):
             }
         return None
 
+    def get_payment_schedule_info(self, obj):
+        """Información del cronograma de pagos asociado"""
+        if obj.payment_schedule:
+            return {
+                'id': obj.payment_schedule.id,
+                'installment_number': obj.payment_schedule.installment_number,
+                'scheduled_amount': str(obj.payment_schedule.scheduled_amount),
+                'paid_amount': str(obj.payment_schedule.paid_amount),
+                'due_date': obj.payment_schedule.due_date.isoformat() if obj.payment_schedule.due_date else None,
+                'status': obj.payment_schedule.status,
+                'is_forgiven': obj.payment_schedule.is_forgiven
+            }
+        return None
+
     def validate(self, attrs):
         """Validar que se proporcione venta_id"""
         venta_id = attrs.get('venta_id')
@@ -127,13 +143,24 @@ class PaymentSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        """Crear un nuevo pago"""
+        """Crear un nuevo pago y actualizar el cronograma si es necesario."""
         # Asignar el usuario que registra el pago
         request = self.context.get('request')
-        if request and hasattr(request, 'user'):
+        if request and hasattr(request, 'user') and not validated_data.get('recorded_by'):
             validated_data['recorded_by'] = request.user
+
+        # Extraer el cronograma de pago antes de crear el pago
+        schedule = validated_data.pop('payment_schedule', None)
+
+        # Crear la instancia de pago
+        payment = Payment.objects.create(**validated_data)
+
+        # Si el pago es una cuota y tiene un cronograma asociado, actualizarlo
+        if payment.payment_type == 'installment' and schedule:
+            # Usar el método del modelo que maneja la lógica de actualización
+            schedule.add_payment(payment)
         
-        return super().create(validated_data)
+        return payment
 
 class PaymentScheduleSerializer(serializers.ModelSerializer):
     """

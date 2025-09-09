@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CreditCard, X, Upload } from "lucide-react";
-import { paymentService, loteService, salesService } from "../../services";
+import { paymentService, loteService, salesService, dynamicReportsService } from "../../services";
 import { Lote } from "../../types";
 import { Alert } from "../UI";
 import { SearchableSelect } from "../UI";
@@ -41,7 +41,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
     if (activeVenta) {
       if (paymentType === "initial") {
         // Para pago inicial, usar el monto de la venta
-        setPaymentAmount(activeVenta.sale_price?.toString() || "0");
+        setPaymentAmount(activeVenta.initial_payment?.toString() || "0");
         setInstallmentNumber(0);
       } else {
         // Para cuotas, buscar la próxima cuota pendiente
@@ -106,7 +106,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
 
   const loteOptions = allLotes.map((lote) => ({
     value: lote.id,
-    label: `Mz. ${lote.block} - Lt. ${lote.lot_number} (${lote.owner?.full_name})`,
+    label: `Mz. ${lote.block} - Lt. ${lote.lot_number} (${lote.current_owner?.full_name})`,
   }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,11 +224,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
                       Cliente
                     </p>
-                    <p className="font-semibold text-gray-900">
-                      {activeVenta.customer_info?.full_name || selectedLote.owner?.full_name}
+                    <p className="font-semibold text-gray-900 ">
+                      {activeVenta.customer_info?.full_name || selectedLote.current_owner?.full_name}
                     </p>
                     <p className="text-xs text-gray-600">
-                      {activeVenta.customer_info?.document_number || selectedLote.owner?.document_number}
+                      {activeVenta.customer_info?.document_number || selectedLote.current_owner?.document_number}
                     </p>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
@@ -247,7 +247,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       Precio de Venta
                     </p>
                     <p className="font-semibold text-gray-900">
-                      S/.{parseFloat(activeVenta.sale_price || "0").toFixed(2)}
+                      {dynamicReportsService.formatCurrency(parseFloat(activeVenta.sale_price || "0"))}
                     </p>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
@@ -255,7 +255,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       Pago Inicial
                     </p>
                     <p className="font-semibold text-gray-900">
-                      S/.{parseFloat(activeVenta.initial_payment || "0").toFixed(2)}
+                      {dynamicReportsService.formatCurrency(parseFloat(activeVenta.initial_payment || "0"))}
                     </p>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
@@ -263,7 +263,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       Saldo Pendiente
                     </p>
                     <p className="font-bold text-2xl text-red-600">
-                      S/.{parseFloat(activeVenta.remaining_balance || "0").toFixed(2)}
+                      {dynamicReportsService.formatCurrency(parseFloat(activeVenta.remaining_balance || "0"))}
                     </p>
                   </div>
                   <div className="bg-white/60 rounded-lg p-3">
@@ -318,7 +318,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   </div>
                   {selectedLote && (
                     <p className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-1 rounded">
-                      💡 Cuota sugerida: S/.
+                      💡 Cuota sugerida: {dynamicReportsService.formatCurrency(parseFloat(selectedLote.monthly_installment || "0"))}
                       {parseFloat(
                         selectedLote.monthly_installment || "0"
                       ).toFixed(2)}
