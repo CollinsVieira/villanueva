@@ -9,9 +9,11 @@ export interface Venta {
   sale_price: string;
   initial_payment?: string;
   contract_date?: string;
+  contract_pdf?: string;
   status: 'active' | 'cancelled' | 'completed';
   notes?: string;
   payment_day?: number;
+  financing_months?: number;
   created_at: string;
   updated_at: string;
   lote_info?: {
@@ -38,6 +40,7 @@ export interface VentaCreate {
   sale_price: string;
   initial_payment?: string;
   contract_date?: string;
+  contract_pdf?: File;
   notes?: string;
   payment_day: number;
   financing_months: number;
@@ -132,13 +135,63 @@ class SalesService {
   }
 
   async createVenta(data: VentaCreate): Promise<Venta> {
-    const response = await api.post('/sales/ventas/', data);
+    const formData = new FormData();
+    
+    // Agregar campos de texto
+    formData.append('lote', data.lote.toString());
+    formData.append('customer', data.customer.toString());
+    formData.append('sale_price', data.sale_price);
+    formData.append('payment_day', data.payment_day.toString());
+    formData.append('financing_months', data.financing_months.toString());
+    
+    if (data.initial_payment) {
+      formData.append('initial_payment', data.initial_payment);
+    }
+    if (data.contract_date) {
+      formData.append('contract_date', data.contract_date);
+    }
+    if (data.notes) {
+      formData.append('notes', data.notes);
+    }
+    if (data.contract_pdf) {
+      formData.append('contract_pdf', data.contract_pdf);
+    }
+    
+    const response = await api.post('/sales/ventas/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 
   async updateVenta(id: number, data: Partial<VentaCreate>): Promise<Venta> {
-    const response = await api.patch(`/sales/ventas/${id}/`, data);
-    return response.data;
+    // Si hay un archivo PDF, usar FormData
+    if (data.contract_pdf) {
+      const formData = new FormData();
+      
+      // Agregar solo los campos que están presentes
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (key === 'contract_pdf' && value instanceof File) {
+            formData.append(key, value);
+          } else if (typeof value === 'string' || typeof value === 'number') {
+            formData.append(key, value.toString());
+          }
+        }
+      });
+      
+      const response = await api.patch(`/sales/ventas/${id}/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } else {
+      // Si no hay archivo, usar JSON normal
+      const response = await api.patch(`/sales/ventas/${id}/`, data);
+      return response.data;
+    }
   }
 
   async deleteVenta(id: number): Promise<void> {

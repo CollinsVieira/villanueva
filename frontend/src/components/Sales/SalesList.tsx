@@ -154,7 +154,11 @@ const SalesList: React.FC<SalesListProps> = ({
               </div>
             ) : (
               filteredSales.map((sale) => (
-                <div key={sale.id} className="bg-white border border-gray-200 rounded-lg p-4 border-l-4 border-l-blue-500">
+                <div 
+                  key={sale.id} 
+                  className="bg-white border border-gray-200 rounded-lg p-4 border-l-4 border-l-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => onViewSale?.(sale)}
+                >
                     <div className="flex justify-between items-start">
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
@@ -203,23 +207,23 @@ const SalesList: React.FC<SalesListProps> = ({
                       </div>
 
                       <div className="flex gap-2">
-                        {onViewSale && (
+                        {/* {onViewSale && (
                           <button
                             onClick={() => onViewSale(sale)}
                             className="p-2 border border-gray-300 rounded hover:bg-gray-50"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                        )}
+                        )} */}
                         
-                        {onEditSale && sale.status === 'active' && (
+                        {/* {onEditSale && sale.status === 'active' && (
                           <button
                             onClick={() => onEditSale(sale)}
                             className="p-2 border border-gray-300 rounded hover:bg-gray-50"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
-                        )}
+                        )} */}
                         
                         {/* {sale.status === 'active' && (
                           <>

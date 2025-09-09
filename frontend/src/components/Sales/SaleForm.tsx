@@ -4,6 +4,7 @@ import loteService from '../../services/loteService';
 import customerService from '../../services/customerService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import { Lote, Customer } from '../../types';
+import { Eye, Download, X, FileText } from 'lucide-react';
 
 interface SaleFormProps {
   sale?: Venta;
@@ -18,6 +19,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     sale_price: '',
     initial_payment: '',
     contract_date: '',
+    contract_pdf: undefined,
     notes: '',
     payment_day: 15,
     financing_months: 12
@@ -28,11 +30,14 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingPdf, setExistingPdf] = useState<string | null>(null);
 
   useEffect(() => {
     loadLotes();
     loadCustomers();
-    
+  }, []);
+
+  useEffect(() => {
     if (sale) {
       setFormData({
         lote: sale.lote || 0,
@@ -40,19 +45,36 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
         sale_price: sale.sale_price || '',
         initial_payment: sale.initial_payment || '',
         contract_date: sale.contract_date || '',
+        contract_pdf: undefined, // No se puede editar el PDF existente
         notes: sale.notes || '',
-        payment_day: 15, // Valor por defecto para ventas existentes
-        financing_months: 12 // Valor por defecto para ventas existentes
+        payment_day: sale.payment_day || 15, // Usar el valor existente
+        financing_months: sale.financing_months || 12 // Usar el valor existente
       });
+      setExistingPdf(sale.contract_pdf || null);
     }
   }, [sale]);
+
+  // Establecer el lote seleccionado cuando se cargan los lotes y hay una venta existente
+  useEffect(() => {
+    if (sale && lotes.length > 0) {
+      const lote = lotes.find(l => l.id === sale.lote);
+      if (lote) {
+        setSelectedLote(lote);
+      }
+    }
+  }, [sale, lotes]);
 
   const loadLotes = async () => {
     try {
       const data = await loteService.getLotes();
-      // Filter available lotes (status = 'disponible')
-      const filteredLotes = data.filter((lote: any) => lote.status === 'disponible');
-      setLotes(filteredLotes as any);
+      // Si estamos editando una venta, incluir todos los lotes (incluyendo el vendido)
+      // Si estamos creando una nueva venta, solo mostrar lotes disponibles
+      if (sale) {
+        setLotes(data as any);
+      } else {
+        const filteredLotes = data.filter((lote: any) => lote.status === 'disponible');
+        setLotes(filteredLotes as any);
+      }
     } catch (err) {
       console.error('Error loading lotes:', err);
     }
@@ -80,7 +102,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.lote || !formData.customer || !formData.sale_price || !formData.payment_day) {
+    if (formData.lote <= 0 || formData.customer <= 0 || !formData.sale_price || !formData.payment_day) {
       setError('Por favor complete todos los campos requeridos');
       return;
     }
@@ -126,7 +148,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
               <label htmlFor="lote" className="block text-sm font-medium text-gray-700 mb-1">Lote *</label>
               <select
                 id="lote"
-                value={formData.lote?.toString() || ''}
+                value={formData.lote > 0 ? formData.lote.toString() : ''}
                 onChange={(e: any) => handleLoteChange(e.target.value)}
                 disabled={!!sale}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -145,7 +167,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
               <label htmlFor="customer" className="block text-sm font-medium text-gray-700 mb-1">Cliente *</label>
               <select
                 id="customer"
-                value={formData.customer.toString()}
+                value={formData.customer > 0 ? formData.customer.toString() : ''}
                 onChange={(e: any) => setFormData(prev => ({ ...prev, customer: parseInt(e.target.value) }))}
                 disabled={!!sale}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -237,6 +259,66 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
               onChange={(e: any) => setFormData(prev => ({ ...prev, contract_date: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+
+          <div>
+            <label htmlFor="contract_pdf" className="block text-sm text-black mb-1 font-bold">
+              Contrato en PDF
+            </label>
+            
+            {sale && existingPdf ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <FileText className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-700">Contrato cargado</span>
+                  <div className="flex gap-1 ml-auto">
+                    <button
+                      type="button"
+                      onClick={() => window.open(existingPdf, '_blank')}
+                      className="p-1 text-blue-600 hover:text-blue-800"
+                      title="Ver PDF"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = existingPdf;
+                        link.download = `contrato_venta_${sale.id}.pdf`;
+                        link.click();
+                      }}
+                      className="p-1 text-gray-600 hover:text-gray-800"
+                      title="Descargar PDF"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Para cambiar el PDF, selecciona un nuevo archivo
+                </p>
+              </div>
+            ) : null}
+            
+            <input
+              id="contract_pdf"
+              type="file"
+              accept=".pdf"
+              onChange={(e: any) => {
+                const file = e.target.files?.[0];
+                setFormData(prev => ({ ...prev, contract_pdf: file }));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {formData.contract_pdf && (
+              <p className="text-xs text-green-600 mt-1">
+                Nuevo archivo: {formData.contract_pdf.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Solo archivos PDF. Tamaño máximo: 10MB
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

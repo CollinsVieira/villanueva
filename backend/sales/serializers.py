@@ -13,15 +13,16 @@ class VentaSerializer(serializers.ModelSerializer):
     remaining_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_day = serializers.SerializerMethodField()
+    financing_months = serializers.SerializerMethodField()
     
     class Meta:
         model = Venta
         fields = [
             'id', 'lote', 'customer', 'status', 'sale_price', 'initial_payment',
-            'sale_date', 'contract_date', 'cancellation_date', 'completion_date',
+            'sale_date', 'contract_date', 'contract_pdf', 'cancellation_date', 'completion_date',
             'notes', 'cancellation_reason', 'created_at', 'updated_at',
             # Campos calculados
-            'remaining_balance', 'status_display', 'payment_day',
+            'remaining_balance', 'status_display', 'payment_day', 'financing_months',
             # Información relacionada
             'lote_info', 'customer_info'
         ]
@@ -32,9 +33,13 @@ class VentaSerializer(serializers.ModelSerializer):
         try:
             if hasattr(obj, 'plan_pagos'):
                 return obj.plan_pagos.payment_day
-            return 15  # Valor por defecto
+            return obj.payment_day  # Usar el valor del modelo
         except:
-            return 15  # Valor por defecto
+            return obj.payment_day  # Usar el valor del modelo
+    
+    def get_financing_months(self, obj):
+        """Obtiene los meses de financiamiento de la venta"""
+        return obj.financing_months
 
 
 class VentaCreateSerializer(serializers.ModelSerializer):
@@ -54,11 +59,17 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         help_text=_("Número de meses para el financiamiento")
     )
     
+    contract_pdf = serializers.FileField(
+        required=False,
+        allow_null=True,
+        help_text=_("Archivo PDF del contrato (opcional)")
+    )
+    
     class Meta:
         model = Venta
         fields = [
             'lote', 'customer', 'sale_price', 'initial_payment', 
-            'contract_date', 'notes', 'payment_day', 'financing_months'
+            'contract_date', 'contract_pdf', 'notes', 'payment_day', 'financing_months'
         ]
     
     def validate_lote(self, value):
@@ -70,6 +81,18 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         active_sale = Venta.get_active_sale_for_lote(value)
         if active_sale:
             raise serializers.ValidationError(_("Ya existe una venta activa para este lote"))
+        
+        return value
+    
+    def validate_contract_pdf(self, value):
+        """Validar que el archivo sea un PDF"""
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError(_("El archivo debe ser un PDF"))
+            
+            # Validar tamaño del archivo (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(_("El archivo PDF no puede ser mayor a 10MB"))
         
         return value
     
@@ -100,12 +123,13 @@ class VentaSummarySerializer(serializers.ModelSerializer):
     remaining_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_day = serializers.SerializerMethodField()
+    financing_months = serializers.SerializerMethodField()
     class Meta:
         model = Venta
         fields = [
             'id', 'lote_display', 'customer_display', 'sale_price', 
             'initial_payment', 'remaining_balance', 'status', 'status_display',
-            'sale_date', 'contract_date','payment_day'
+            'sale_date', 'contract_date', 'contract_pdf', 'payment_day', 'financing_months'
         ]
     
     def get_lote_display(self, obj):
@@ -119,9 +143,13 @@ class VentaSummarySerializer(serializers.ModelSerializer):
         try:
             if hasattr(obj, 'plan_pagos'):
                 return obj.plan_pagos.payment_day
-            return 15  # Valor por defecto
+            return obj.payment_day  # Usar el valor del modelo
         except:
-            return 15  # Valor por defecto
+            return obj.payment_day  # Usar el valor del modelo
+    
+    def get_financing_months(self, obj):
+        """Obtiene los meses de financiamiento de la venta"""
+        return obj.financing_months
 
 
 class VentaCancelSerializer(serializers.Serializer):

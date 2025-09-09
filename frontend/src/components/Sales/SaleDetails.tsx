@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import salesService, { Venta, PaymentPlan } from '../../services/salesService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Edit, DollarSign, FileText, CheckCircle, X } from 'lucide-react';
+import { Edit, DollarSign, FileText, CheckCircle, X, Download, Eye } from 'lucide-react';
 import InitialPaymentForm from './InitialPaymentForm';
 
 interface SaleDetailsProps {
@@ -103,12 +103,12 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-lg shadow-md">
-        <div className="px-6 py-4 border-b flex flex-row items-center justify-between">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Venta #{sale.id}
-          </h2>
-          <div className="flex items-center gap-2">
+        <div className="px-6 py-4 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Venta #{sale.id}
+            </h2>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
               sale.status === 'active' ? 'bg-green-100 text-green-800' :
               sale.status === 'completed' ? 'bg-blue-100 text-blue-800' :
@@ -117,21 +117,86 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
             }`}>
               {getStatusLabel(sale.status)}
             </span>
+          </div>
+        </div>
+        
+        {/* Sección de botones unificada */}
+        <div className="px-6 py-4 border-b bg-gray-50">
+          <div className="flex justify-end gap-3">
+            {/* Botones de PDF */}
+            {sale.contract_pdf && (
+              <>
+                <button
+                  onClick={() => window.open(sale.contract_pdf, '_blank')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  Ver Contrato
+                </button>
+                <button
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = sale.contract_pdf!;
+                    link.download = `contrato_venta_${sale.id}.pdf`;
+                    link.click();
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Descargar Contrato
+                </button>
+              </>
+            )}
+            
+            {/* Botones de acciones */}
+            
+            
+            {!sale.initial_payment && sale.status === 'active' && (
+              <button
+                onClick={() => setShowInitialPaymentForm(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <DollarSign className="h-4 w-4" />
+                Registrar Pago Inicial
+              </button>
+            )}
+            
+            {sale.status === 'active' && (
+              <>
+                <button
+                  onClick={handleCompleteSale}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Completar Venta
+                </button>
+                <button
+                  onClick={handleCancelSale}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Cancelar Venta
+                </button>
+              </>
+            )}
+            
             {onEdit && (
               <button 
                 onClick={() => onEdit(sale)}
-                className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
               >
                 <Edit className="h-4 w-4" />
                 Editar
               </button>
             )}
+            
             {onClose && (
               <button 
                 onClick={onClose}
-                className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
               >
                 <X className="h-4 w-4" />
+                Cerrar
               </button>
             )}
           </div>
@@ -204,6 +269,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
 
               {/* Contract Information */}
               <div className="mt-6 pt-6 border-t">
+                <h3 className="text-lg font-semibold mb-4">Información del Contrato</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-gray-600">Fecha de Contrato:</span>
@@ -225,47 +291,19 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose }) =>
                   </div>
                 </div>
                 
+                {sale.contract_pdf && (
+                  <div className="mt-4">
+                    <span className="text-gray-600">Contrato PDF:</span>
+                    <span className="ml-2 font-medium text-green-600">Disponible</span>
+                  </div>
+                )}
+                
                 {sale.notes && (
                   <div className="mt-4">
                     <span className="text-gray-600">Notas:</span>
                     <p className="mt-1 text-gray-800">{sale.notes}</p>
                   </div>
                 )}
-              </div>
-            </div>
-            <div className="mt-6 grid grid-cols-3 gap-4">
-              <div>
-                <h3 className="font-semibold mb-3">Acciones</h3>
-                <div className="space-y-2">
-                  {!sale.initial_payment && sale.status === 'active' && (
-                    <button
-                      onClick={() => setShowInitialPaymentForm(true)}
-                      className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center"
-                    >
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Registrar Pago Inicial
-                    </button>
-                  )}
-                  
-                  {sale.status === 'active' && (
-                    <>
-                      <button
-                        onClick={handleCompleteSale}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-green-600 hover:bg-green-50 flex items-center justify-center"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Completar Venta
-                      </button>
-                      <button
-                        onClick={handleCancelSale}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-red-600 hover:bg-red-50 flex items-center justify-center"
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Cancelar Venta
-                      </button>
-                    </>
-                  )}
-                </div>
               </div>
             </div>
           </div>

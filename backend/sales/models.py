@@ -85,6 +85,14 @@ class Venta(models.Model):
         help_text=_("Fecha oficial del contrato firmado")
     )
     
+    contract_pdf = models.FileField(
+        upload_to='contracts/',
+        null=True,
+        blank=True,
+        verbose_name=_("PDF del Contrato"),
+        help_text=_("Archivo PDF del contrato firmado")
+    )
+    
     cancellation_date = models.DateTimeField(
         null=True,
         blank=True,
@@ -225,7 +233,7 @@ class Venta(models.Model):
         return True
     
     @classmethod
-    def create_sale(cls, lote, customer, sale_price, payment_day, financing_months, initial_payment=None, contract_date=None, **kwargs):
+    def create_sale(cls, lote, customer, sale_price, payment_day, financing_months, initial_payment=None, contract_date=None, contract_pdf=None, **kwargs):
         """Crea una nueva venta y configura el plan de pagos"""
         
         # Verificar que el lote esté disponible
@@ -239,6 +247,7 @@ class Venta(models.Model):
             sale_price=sale_price,
             initial_payment=initial_payment or Decimal('0.00'),
             contract_date=contract_date,
+            contract_pdf=contract_pdf,
             payment_day=payment_day,
             financing_months=financing_months,
             **kwargs
