@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from .models import Customer
 from users.serializers import UserSerializer
+from payments.serializers import PaymentSerializer
 
 class NestedVentaSerializer(serializers.Serializer):
     """Serializer simplificado para mostrar información básica de ventas"""
@@ -31,18 +32,19 @@ class CustomerSerializer(serializers.ModelSerializer):
     total_ventas_value = serializers.SerializerMethodField()
     payment_completion_percentage = serializers.SerializerMethodField()
     payment_summary = serializers.SerializerMethodField()
+    payments = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
         fields = [
             'id', 'first_name', 'last_name', 'full_name', 'email', 'phone', 
             'address', 'document_type', 'document_number', 'created_at', 
-            'updated_at', 'created_by', 'ventas',
+            'updated_at', 'created_by', 'ventas', 'payments',
             'total_payments', 'total_pending_balance', 'total_active_ventas',
             'total_ventas_value', 'payment_completion_percentage', 'payment_summary'
         ]
         read_only_fields = [
-            'id', 'created_at', 'updated_at', 'created_by', 
+            'id', 'created_at', 'updated_at', 'created_by', 'payments',
             'total_payments', 'total_pending_balance', 'total_active_ventas',
             'total_ventas_value', 'payment_completion_percentage', 'payment_summary'
         ]
@@ -76,6 +78,14 @@ class CustomerSerializer(serializers.ModelSerializer):
     def get_payment_summary(self, obj):
         """Retorna un resumen detallado de los pagos del cliente."""
         return obj.payment_summary
+    
+    def get_payments(self, obj):
+        """Retorna todos los pagos del cliente a través de sus ventas."""
+        from payments.models import Payment
+        payments = Payment.objects.filter(venta__customer=obj).select_related(
+            'venta', 'venta__lote', 'recorded_by', 'payment_schedule'
+        ).order_by('-payment_date')
+        return PaymentSerializer(payments, many=True, context=self.context).data
         
     def validate_email(self, value):
         """

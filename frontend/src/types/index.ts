@@ -69,12 +69,13 @@ export interface Venta {
   id: number;
   lote: number;
   customer: number;
-  status: 'active' | 'cancelled' | 'completed';
+  status: 'active' | 'cancelled' | 'completed' | 'suspended';
   status_display: string;
   sale_price: string;
   initial_payment: string;
   sale_date: string;
   remaining_balance: string;
+  lote_display?: string;
   customer_info?: {
     id: number;
     full_name: string;
@@ -172,10 +173,15 @@ export interface Customer {
   created_at: string;
   updated_at: string;
   created_by: User;
-  lotes: Lote[];
+  lotes?: Lote[]; // Deprecated - usar ventas en su lugar
+  ventas?: Venta[];
   payments?: Payment[];
   total_payments?: number;
   total_pending_balance?: number;
+  total_active_ventas?: number;
+  total_ventas_value?: number;
+  payment_completion_percentage?: number;
+  payment_summary?: any;
 }
 
 export interface HistoryEvent {

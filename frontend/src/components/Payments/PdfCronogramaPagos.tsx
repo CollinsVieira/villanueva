@@ -1,7 +1,7 @@
 import paymentService from "../../services/paymentService";
 
 export const handleDownloadCronogramaPDF = async (
-  loteId: number,
+  ventaId: number,
   setError: (error: string | null) => void
 ) => {
   try {
@@ -12,11 +12,11 @@ export const handleDownloadCronogramaPDF = async (
     const { toast } = await import("react-hot-toast");
     toast.loading("Generando PDF del cronograma de pagos...", { id: toastId });
 
-    // Obtener datos del cronograma de pagos
-    const schedules = await paymentService.getPaymentScheduleByLote(loteId);
+    // Obtener datos del cronograma de pagos por venta
+    const schedules = await paymentService.getPaymentScheduleByVenta(ventaId);
     
     if (!schedules || schedules.length === 0) {
-      toast.error("No se encontró cronograma de pagos para este lote", { id: toastId });
+      toast.error("No se encontró cronograma de pagos para esta venta", { id: toastId });
       return;
     }
 
@@ -78,18 +78,19 @@ export const handleDownloadCronogramaPDF = async (
     );
     yPosition += 15;
 
-    // Información del lote y cliente
-    const loteInfo = schedules[0].lote;
-    const customerInfo = schedules[0].customer;
+    // Información del lote y cliente desde la venta
+    const ventaInfo = schedules[0].venta;
+    const loteInfo = schedules[0].lote_display || "N/A";
+    const customerInfo = schedules[0].customer_display || "N/A";
 
     const tableDataInfoLote = [
-      ["Lote", `Mz. ${loteInfo.block} - Lt. ${loteInfo.lot_number}`],
-      ["Cliente", customerInfo.full_name || "N/A"],
-      ["DNI", customerInfo.document_number || "N/A"],
-      ["Área", `${loteInfo.area} m²`],
-      ["Precio Total", `S/ ${parseFloat(loteInfo.price).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
-      ["Cuota Mensual", `S/ ${parseFloat(loteInfo.monthly_installment).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
-      ["Plazo", `${loteInfo.financing_months} meses`],
+      ["Lote", loteInfo],
+      ["Cliente", customerInfo],
+      ["Estado de Venta", ventaInfo.status === 'active' ? 'Activa' : ventaInfo.status],
+      ["Precio Total", `S/ ${parseFloat(ventaInfo.sale_price).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
+      ["Pago Inicial", `S/ ${parseFloat(ventaInfo.initial_payment || '0').toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
+      ["Saldo Pendiente", `S/ ${parseFloat(ventaInfo.remaining_balance).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
+      ["Fecha de Venta", new Date(ventaInfo.sale_date).toLocaleDateString("es-ES")],
     ];
 
     autoTable(doc, {
@@ -348,7 +349,7 @@ export const handleDownloadCronogramaPDF = async (
     }
 
     // Generar nombre del archivo
-    const fileName = `Cronograma_Pagos_Mz${loteInfo.block}_Lt${loteInfo.lot_number}_${customerInfo.full_name.replace(/\s+/g, '_')}.pdf`;
+    const fileName = `Cronograma_Pagos_Venta${ventaInfo.id}_${customerInfo.replace(/\s+/g, '_')}.pdf`;
     
     doc.save(fileName);
     toast.success("PDF del cronograma generado exitosamente", { id: toastId });

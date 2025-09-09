@@ -1,38 +1,30 @@
 import React, { useState, useEffect } from "react";
-import { X, Trash2, Download } from "lucide-react";
-import { Customer, HistoryEvent } from "../../types";
+import { X, Download } from "lucide-react";
+import { Customer } from "../../types";
 import customerService from "../../services/customerService";
 import LoadingSpinner from "../UI/LoadingSpinner";
-import loteService from "../../services/loteService";
 import { handleDownloadPDF } from "./PdfResumenPagos";
 import { handleDownloadCronogramaPDF } from "../Payments/PdfCronogramaPagos";
 
 interface CustomerDetailModalProps {
   customerId: number;
   onClose: () => void;
-  onDataChange: () => void;
   setError: (error: string | null) => void;
 }
 
 const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
   customerId,
   onClose,
-  onDataChange,
   setError,
 }) => {
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadModalData = async () => {
     setIsLoading(true);
     try {
-      const [customerData, historyData] = await Promise.all([
-        customerService.getCustomerById(customerId),
-        customerService.getCustomerHistory(customerId),
-      ]);
+      const customerData = await customerService.getCustomerById(customerId);
       setCustomer(customerData);
-      setHistory(historyData);
     } catch (error) {
       console.error("Error al cargar datos del cliente", error);
       alert("No se pudieron cargar los datos del cliente.");
@@ -45,43 +37,27 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
     loadModalData();
   }, [customerId]);
 
-  const handleUnassignLote = async (loteId: number) => {
-    if (
-      window.confirm(
-        "¿Está seguro de que desea quitar este lote del cliente? El lote volverá a estar disponible."
-      )
-    ) {
-      try {
-        await loteService.updateLote(loteId, { owner_id: null });
-        onDataChange();
-        loadModalData();
-      } catch (error) {
-        alert("Error al quitar el lote del cliente.");
-        console.error("Error en handleUnassignLote:", error);
-      }
-    }
-  };
 
   const handleDownloadCronograma = async (customerId: number, setError: (error: string | null) => void) => {
     try {
-      // Get customer's lotes
+      // Get customer's ventas activas
       const customerData = await customerService.getCustomerById(customerId);
-      const customerLotes = customerData.lotes;
+      const activeVentas = customerData.ventas?.filter(venta => venta.status === 'active');
       
-      if (!customerLotes || customerLotes.length === 0) {
-        setError("Este cliente no tiene lotes asignados para generar cronograma.");
+      if (!activeVentas || activeVentas.length === 0) {
+        setError("Este cliente no tiene ventas activas para generar cronograma.");
         return;
       }
       
-      // If customer has multiple lotes, use the first one or let user choose
-      // For now, we'll use the first lote
-      const loteId = customerLotes[0].id;
+      // If customer has multiple ventas activas, use the first one or let user choose
+      // For now, we'll use the first venta
+      const ventaId = activeVentas[0].id;
       
-      // Call the PDF generation function
-      await handleDownloadCronogramaPDF(loteId, setError);
+      // Call the PDF generation function with venta ID instead of lote ID
+      await handleDownloadCronogramaPDF(ventaId, setError);
     } catch (error) {
-      console.error("Error getting customer lotes:", error);
-      setError("Error al obtener los lotes del cliente.");
+      console.error("Error getting customer ventas:", error);
+      setError("Error al obtener las ventas del cliente.");
     }
   };
 
@@ -134,8 +110,8 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
             <X size={24} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto space-y-6">
             <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
                 Información del Cliente
@@ -172,92 +148,57 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
 
             <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                Lotes Asignados
+                Ventas Activas
               </h3>
-              {customer.lotes && customer.lotes.length > 0 ? (
+              {customer.ventas && customer.ventas.length > 0 ? (
                 <div className="space-y-3">
-                  {customer.lotes.map((lote) => (
+                  {customer.ventas.map((venta) => (
                     <div
-                      key={lote.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      key={venta.id}
+                      className="p-4 bg-gray-50 rounded-lg border-l-4 border-green-500"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        <span className="font-medium">
-                          Mz. {lote.block} - Lt. {lote.lot_number}
-                        </span>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span className="font-medium text-gray-800">
+                              {venta.lote_display}
+                            </span>
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              {venta.status === 'active' ? 'Activa' : venta.status}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                            <div>
+                              <span className="font-medium">Precio de Venta:</span>
+                              <span className="ml-2">S/ {parseFloat(venta.sale_price).toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Pago Inicial:</span>
+                              <span className="ml-2">S/ {parseFloat(venta.initial_payment).toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Saldo Pendiente:</span>
+                              <span className="ml-2 text-red-600 font-medium">S/ {parseFloat(venta.remaining_balance).toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Fecha de Venta:</span>
+                              <span className="ml-2">{new Date(venta.sale_date).toLocaleDateString('es-ES')}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleUnassignLote(lote.id)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Quitar lote"
-                      >
-                        <Trash2 size={16} />
-                      </button>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-6 text-gray-500">
-                  <p>Este cliente no tiene lotes asignados</p>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-              Historial de Cambios
-            </h3>
-            <div className="space-y-3">
-              {history.length > 0 ? (
-                history.map((item, index) => (
-                  <div
-                    key={index}
-                    className="p-4 rounded-lg border-l-4 border-blue-500 bg-blue-50"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-sm font-medium text-blue-700 bg-blue-200 px-3 py-1 rounded-full">
-                            {item.lote_name}
-                          </span>
-                          <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded border">
-                            {new Date(item.timestamp).toLocaleDateString(
-                              "es-ES",
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </span>
-                        </div>
-                        <p className="font-semibold text-gray-800 mb-2">
-                          {item.action}
-                        </p>
-                        <p className="text-sm text-gray-700 mb-3 leading-relaxed">
-                          {item.details}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                          <span>Realizado por:</span>
-                          <span className="font-medium bg-gray-100 px-2 py-1 rounded">
-                            {item.user}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-12 text-gray-500">
                   <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">📋</span>
+                    <span className="text-2xl">🏠</span>
                   </div>
-                  <p className="text-lg">No hay historial de cambios</p>
+                  <p className="text-lg">No tiene ventas activas</p>
                   <p className="text-sm">
-                    Este cliente aún no tiene registros de actividad
+                    Este cliente aún no tiene lotes asignados a través de ventas
                   </p>
                 </div>
               )}
