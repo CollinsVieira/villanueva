@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import salesService, { Venta } from '../../services/salesService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Users } from 'lucide-react';
 
 interface SalesListProps {
   onCreateSale?: () => void;
@@ -19,9 +19,18 @@ const SalesList: React.FC<SalesListProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
 
+  // Estados de paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
+
   useEffect(() => {
     loadSales();
+    setCurrentPage(1); // Reiniciar a la primera página cuando cambie el filtro
   }, [statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reiniciar a la primera página cuando cambie la búsqueda
+  }, [searchTerm]);
 
   const loadSales = async () => {
     try {
@@ -66,6 +75,16 @@ const SalesList: React.FC<SalesListProps> = ({
     );
   });
 
+  // Cálculos de paginación
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentSales = filteredSales.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
@@ -75,61 +94,78 @@ const SalesList: React.FC<SalesListProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Gestión de Ventas</h2>
-            {onCreateSale && (
-              <button 
-                onClick={onCreateSale} 
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4" />
-                Nueva Venta
-              </button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Gestión de Ventas</h1>
+          <p className="text-gray-600 mt-1">Haga clic en una venta para ver sus detalles y historial.</p>
+        </div>
+        {onCreateSale && (
+          <button 
+            onClick={onCreateSale} 
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+          >
+            <Plus size={20} />
+            <span>Nueva Venta</span>
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      {/* Barra de búsqueda */}
+      <div className="bg-white p-4 rounded-lg shadow-sm flex items-center space-x-4">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Buscar por ID, lote, cliente o documento..."
+            value={searchTerm}
+            onChange={(e: any) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg"
+          />
+        </div>
+        <select 
+          value={statusFilter} 
+          onChange={(e: any) => setStatusFilter(e.target.value)}
+          className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="all">Todos los estados</option>
+          <option value="active">Activas</option>
+          <option value="cancelled">Canceladas</option>
+          <option value="completed">Completadas</option>
+        </select>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 bg-gray-50 border-b flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Users className="mr-2 text-green-600" size={20} />
+            Lista de Ventas
+            {!loading && (
+              <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                {filteredSales.length} registros
+              </span>
             )}
-          </div>
+            {totalPages > 1 && (
+              <span className="ml-2 text-sm text-gray-600">
+                Página {currentPage} de {totalPages}
+              </span>
+            )}
+          </h2>
         </div>
         <div className="p-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
-            </div>
-          )}
-          
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Buscar por ID, lote, cliente o documento..."
-                  value={searchTerm}
-                  onChange={(e: any) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-            <select 
-              value={statusFilter} 
-              onChange={(e: any) => setStatusFilter(e.target.value)}
-              className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="active">Activas</option>
-              <option value="cancelled">Canceladas</option>
-              <option value="completed">Completadas</option>
-            </select>
-          </div>
-
           <div className="space-y-4">
-            {filteredSales.length === 0 ? (
+            {currentSales.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No se encontraron ventas
               </div>
             ) : (
-              filteredSales.map((sale) => (
+              currentSales.map((sale) => (
                 <div 
                   key={sale.id} 
                   className="bg-white border border-gray-200 rounded-lg p-4 border-l-4 border-l-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -224,6 +260,46 @@ const SalesList: React.FC<SalesListProps> = ({
             )}
           </div>
         </div>
+        
+        {/* Paginación */}
+        {!loading && totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredSales.length)} de {filteredSales.length} registros
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                    currentPage === page
+                      ? 'bg-green-600 text-white'
+                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

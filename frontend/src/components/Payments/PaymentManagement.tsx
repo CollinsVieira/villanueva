@@ -221,52 +221,56 @@ const PaymentManagement: React.FC = () => {
           {/* Payment Statistics */}
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30">
+            {/* <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg"> */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">Total Recaudado</p>
-                  <p className="text-2xl font-bold">{dynamicReportsService.formatCurrency(paymentStats.totalAmount)}</p>
+                  <p className="text-green-100 text-sm font-medium text-left">Total Recaudado</p>
+                  <p className="text-2xl font-bold text-white">{dynamicReportsService.formatCurrency(paymentStats.totalAmount)}</p>
                 </div>
-                <div className="bg-white/20 p-3 rounded-lg">
+                <div className="bg-white p-3 rounded-lg">
                   <DollarSign size={24} />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30">
+            {/* <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg"> */}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Total de Pagos</p>
-                  <p className="text-2xl font-bold">{paymentStats.totalPayments}</p>
+                  <p className="text-2xl font-bold text-white text-left">{paymentStats.totalPayments}</p>
                   <p className="text-blue-100 text-xs">Pagos registrados</p>
                 </div>
-                <div className="bg-white/20 p-3 rounded-lg">
+                <div className="bg-white p-3 rounded-lg">
                   <CreditCard size={24} />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30">
+            {/* <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg"> */}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm font-medium">Clientes Activos</p>
-                  <p className="text-2xl font-bold">{paymentStats.uniqueCustomers}</p>
-                  <p className="text-purple-100 text-xs">Con pagos</p>
+                  <p className="text-2xl font-bold text-white text-left">{paymentStats.uniqueCustomers}</p>
+                  <p className="text-purple-100 text-xs text-left">Con pagos</p>
                 </div>
-                <div className="bg-white/20 p-3 rounded-lg">
+                <div className="bg-white p-3 rounded-lg">
                   <Users size={24} />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30">
+            {/* <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg"> */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-orange-100 text-sm font-medium">Este Mes</p>
-                  <p className="text-2xl font-bold">{dynamicReportsService.formatCurrency(paymentStats.thisMonthAmount)}</p>
-                  <p className="text-orange-100 text-xs">{paymentStats.thisMonthPayments} pagos</p>
+                  <p className="text-orange-100 text-sm font-medium text-left">Este Mes</p>
+                  <p className="text-2xl font-bold text-white">{dynamicReportsService.formatCurrency(paymentStats.thisMonthAmount)}</p>
+                  <p className="text-orange-100 text-xs text-left">{paymentStats.thisMonthPayments} pagos</p>
                 </div>
-                <div className="bg-white/20 p-3 rounded-lg">
+                <div className="bg-white p-3 rounded-lg">
                   <TrendingUp size={24} />
                 </div>
               </div>

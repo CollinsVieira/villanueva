@@ -584,7 +584,7 @@ def financial_overview_live(request):
             'sales': {
                 'total_lots_sold': sales_queryset.count(),
                 'total_sales_value': float(sales_queryset.aggregate(Sum('price'))['price__sum'] or 0),
-                'total_initial_payments': sum(float(active_sale.initial_payment) if active_sale and active_sale.initial_payment else 0.0 for lote in sales_queryset for active_sale in [lote.active_sale()])
+                'total_initial_payments': sum(float(active_sale.initial_payment) if active_sale and active_sale.initial_payment else 0.0 for lote in sales_queryset for active_sale in [lote.active_sale])
             },
             'payments': {
                 'total_payments': payments_queryset.count(),
