@@ -9,11 +9,16 @@ export interface Venta {
   sale_price: string;
   initial_payment?: string;
   contract_date?: string;
+  schedule_start_date?: string;
   contract_pdf?: string;
-  status: 'active' | 'cancelled' | 'completed';
+  status: 'active' | 'cancelled' | 'completed' | 'suspended';
   notes?: string;
   payment_day?: number;
   financing_months?: number;
+  sale_date: string;
+  cancellation_date?: string;
+  completion_date?: string;
+  cancellation_reason?: string;
   created_at: string;
   updated_at: string;
   remaining_balance?: string;
@@ -42,6 +47,7 @@ export interface VentaCreate {
   sale_price: string;
   initial_payment?: string;
   contract_date?: string;
+  schedule_start_date?: string;
   contract_pdf?: File;
   notes?: string;
   payment_day: number;
@@ -153,6 +159,9 @@ class SalesService {
     }
     if (data.contract_date) {
       formData.append('contract_date', data.contract_date);
+    }
+    if (data.schedule_start_date) {
+      formData.append('schedule_start_date', data.schedule_start_date);
     }
     if (data.notes) {
       formData.append('notes', data.notes);
@@ -266,6 +275,13 @@ class SalesService {
   async getVentasByLote(loteId: number): Promise<Venta[]> {
     const response = await api.get('/sales/ventas/', { params: { lote: loteId } });
     return response.data.results || response.data;
+  }
+
+  async getVentasHistoryByLote(loteId: number): Promise<Venta[]> {
+    const response = await api.get('/sales/ventas/sales_by_lote/', { 
+      params: { lote_id: loteId } 
+    });
+    return response.data;
   }
 
   async getVentasByCustomer(customerId: number): Promise<Venta[]> {

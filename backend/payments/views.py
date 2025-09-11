@@ -83,6 +83,7 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
     def by_lote(self, request):
         """
         Obtiene el cronograma de pagos de un lote específico.
+        Solo muestra cronogramas de ventas activas.
         """
         lote_id = request.query_params.get('lote_id')
         if not lote_id:
@@ -91,7 +92,28 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Buscar por venta activa del lote
+        # Buscar solo por ventas activas del lote
+        schedules = self.get_queryset().filter(
+            venta__lote_id=lote_id,
+            venta__status='active'
+        )
+        serializer = PaymentScheduleSummarySerializer(schedules, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def history_by_lote(self, request):
+        """
+        Obtiene el historial completo de cronogramas de pagos de un lote específico.
+        Incluye cronogramas de todas las ventas (activas, canceladas, completadas).
+        """
+        lote_id = request.query_params.get('lote_id')
+        if not lote_id:
+            return Response(
+                {'error': 'lote_id parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Buscar por todas las ventas del lote (incluyendo canceladas y completadas)
         schedules = self.get_queryset().filter(venta__lote_id=lote_id)
         serializer = PaymentScheduleSummarySerializer(schedules, many=True)
         return Response(serializer.data)

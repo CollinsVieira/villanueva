@@ -19,7 +19,7 @@ class VentaSerializer(serializers.ModelSerializer):
         model = Venta
         fields = [
             'id', 'lote', 'customer', 'status', 'sale_price', 'initial_payment',
-            'sale_date', 'contract_date', 'contract_pdf', 'cancellation_date', 'completion_date',
+            'sale_date', 'contract_date', 'schedule_start_date', 'contract_pdf', 'cancellation_date', 'completion_date',
             'notes', 'cancellation_reason', 'created_at', 'updated_at',
             # Campos calculados
             'remaining_balance', 'status_display', 'payment_day', 'financing_months',
@@ -65,11 +65,18 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         help_text=_("Archivo PDF del contrato (opcional)")
     )
     
+    schedule_start_date = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text=_("Fecha de inicio del cronograma en formato YYYY-MM (opcional)")
+    )
+    
     class Meta:
         model = Venta
         fields = [
             'lote', 'customer', 'sale_price', 'initial_payment', 
-            'contract_date', 'contract_pdf', 'notes', 'payment_day', 'financing_months'
+            'contract_date', 'schedule_start_date', 'contract_pdf', 'notes', 'payment_day', 'financing_months'
         ]
     
     def validate_lote(self, value):
@@ -112,6 +119,19 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         """Crear una nueva venta con plan de pagos automático"""
         payment_day = validated_data.pop('payment_day')
         financing_months = validated_data.pop('financing_months')
+        
+        # Convertir schedule_start_date de YYYY-MM a Date si está presente
+        if 'schedule_start_date' in validated_data and validated_data['schedule_start_date']:
+            try:
+                from datetime import datetime
+                date_str = validated_data['schedule_start_date']
+                # Convertir YYYY-MM a YYYY-MM-01 (primer día del mes)
+                date_obj = datetime.strptime(date_str, '%Y-%m').date().replace(day=1)
+                validated_data['schedule_start_date'] = date_obj
+            except ValueError:
+                # Si el formato es incorrecto, eliminar el campo
+                del validated_data['schedule_start_date']
+        
         return Venta.create_sale(payment_day=payment_day, financing_months=financing_months, **validated_data)
 
 
@@ -120,16 +140,19 @@ class VentaSummarySerializer(serializers.ModelSerializer):
     
     lote_display = serializers.SerializerMethodField()
     customer_display = serializers.SerializerMethodField()
+    customer_info = CustomerSerializer(source='customer', read_only=True)
     remaining_balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_day = serializers.SerializerMethodField()
     financing_months = serializers.SerializerMethodField()
+    
     class Meta:
         model = Venta
         fields = [
-            'id', 'lote_display', 'customer_display', 'sale_price', 
+            'id', 'lote_display', 'customer_display', 'customer_info', 'sale_price', 
             'initial_payment', 'remaining_balance', 'status', 'status_display',
-            'sale_date', 'contract_date', 'contract_pdf', 'payment_day', 'financing_months'
+            'sale_date', 'contract_date', 'contract_pdf', 'payment_day', 'financing_months',
+            'cancellation_reason', 'notes'
         ]
     
     def get_lote_display(self, obj):

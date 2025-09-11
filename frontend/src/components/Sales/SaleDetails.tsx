@@ -6,6 +6,9 @@ import InitialPaymentForm from './InitialPaymentForm';
 import PaymentSchedule from '../Payments/PaymentSchedule';
 import { handleDownloadCronogramaPDF } from '../../utils/PdfCronogramaPagos';
 import { handleDownloadHistorialPagosPDF } from '../../utils/PdfResumenPagos';
+import ConfirmationModal from '../../utils/ConfirmationModal';
+import { useConfirmation } from '../../hooks/useConfirmation';
+import toastService from '../../services/toastService';
 
 interface SaleDetailsProps {
   saleId: number;
@@ -21,6 +24,9 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
   const [error, setError] = useState<string | null>(null);
   const [showInitialPaymentForm, setShowInitialPaymentForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'plan' | 'schedule'>('plan');
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const { isOpen, options, confirm, onConfirm, onCancel } = useConfirmation();
 
   useEffect(() => {
     loadSaleDetails();
@@ -43,31 +49,56 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
       setLoading(false);
     }
   };
-
-  console.log(sale);
-  console.log(paymentPlan);
   
   const handleCancelSale = async () => {
-    if (!sale || !confirm(`¿Está seguro de cancelar la venta #${sale.id}?`)) return;
+    if (!sale) return;
     
+    const confirmed = await confirm({
+      title: 'Cancelar Venta',
+      message: `¿Está seguro de cancelar la venta #${sale.id}? Esta acción no se puede deshacer.`,
+      type: 'danger',
+      confirmText: 'Sí, Cancelar',
+      cancelText: 'No, Mantener'
+    });
+    
+    if (!confirmed) return;
+    
+    setIsProcessing(true);
     try {
       await salesService.cancelVenta(sale.id, 'Cancelada desde detalles');
+      toastService.success('Venta cancelada exitosamente');
       loadSaleDetails();
     } catch (err) {
-      setError('Error al cancelar la venta');
+      toastService.error('Error al cancelar la venta');
       console.error('Error canceling sale:', err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleCompleteSale = async () => {
-    if (!sale || !confirm(`¿Está seguro de completar la venta #${sale.id}?`)) return;
+    if (!sale) return;
     
+    const confirmed = await confirm({
+      title: 'Completar Venta',
+      message: `¿Está seguro de completar la venta #${sale.id}? Una vez completada, no se podrán realizar más modificaciones.`,
+      type: 'success',
+      confirmText: 'Sí, Completar',
+      cancelText: 'Cancelar'
+    });
+    
+    if (!confirmed) return;
+    
+    setIsProcessing(true);
     try {
       await salesService.completeVenta(sale.id);
+      toastService.success('Venta completada exitosamente');
       loadSaleDetails();
     } catch (err) {
-      setError('Error al completar la venta');
+      toastService.error('Error al completar la venta');
       console.error('Error completing sale:', err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -471,6 +502,19 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
           onCancel={() => setShowInitialPaymentForm(false)}
         />
       )}
+
+      {/* Modal de confirmación */}
+      <ConfirmationModal
+        isOpen={isOpen}
+        onClose={onCancel}
+        onConfirm={onConfirm}
+        title={options?.title || ''}
+        message={options?.message || ''}
+        type={options?.type}
+        confirmText={options?.confirmText}
+        cancelText={options?.cancelText}
+        isLoading={isProcessing}
+      />
     </div>
   );
 };

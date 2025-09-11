@@ -36,6 +36,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
     loteService.getLotes({ status: "vendido" }).then(setAllLotes);
   }, []);
 
+  // Función para encontrar una cuota específica por número
+  const findScheduleByInstallmentNumber = (installmentNum: number) => {
+    return paymentSchedules.find(s => s.installment_number === installmentNum && s.status !== 'paid');
+  };
+
   // Recalcular cuando cambie el tipo de pago o la venta activa
   useEffect(() => {
     if (activeVenta) {
@@ -44,17 +49,38 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
         setPaymentAmount(activeVenta.initial_payment?.toString() || "0");
         setInstallmentNumber(0);
       } else {
-        // Para cuotas, buscar la próxima cuota pendiente
-        const pendingSchedules = paymentSchedules.filter(s => s.status === 'pending');
-        if (pendingSchedules.length > 0) {
-          const nextSchedule = pendingSchedules[0];
-          setPaymentAmount(nextSchedule.scheduled_amount?.toString() || "0");
-          setInstallmentNumber(nextSchedule.installment_number);
-          setSelectedScheduleId(nextSchedule.id);
+        // Para cuotas, solo auto-seleccionar si no hay una cuota específica seleccionada
+        // o si la cuota seleccionada ya no existe
+        const currentSchedule = findScheduleByInstallmentNumber(installmentNumber);
+        
+        if (!currentSchedule) {
+          // Solo buscar la próxima cuota pendiente si no hay una selección válida
+          const pendingSchedules = paymentSchedules.filter(s => s.status === 'pending');
+          if (pendingSchedules.length > 0) {
+            const nextSchedule = pendingSchedules[0];
+            setPaymentAmount(nextSchedule.scheduled_amount?.toString() || "0");
+            setInstallmentNumber(nextSchedule.installment_number);
+            setSelectedScheduleId(nextSchedule.id);
+          }
+        } else {
+          // Usar la cuota específica seleccionada
+          setPaymentAmount(currentSchedule.scheduled_amount?.toString() || "0");
+          setSelectedScheduleId(currentSchedule.id);
         }
       }
     }
   }, [paymentType, activeVenta, paymentSchedules]);
+
+  // Efecto separado para cuando el usuario cambia manualmente el número de cuota
+  useEffect(() => {
+    if (paymentType === "installment" && installmentNumber > 0 && paymentSchedules.length > 0) {
+      const selectedSchedule = findScheduleByInstallmentNumber(installmentNumber);
+      if (selectedSchedule) {
+        setPaymentAmount(selectedSchedule.scheduled_amount?.toString() || "0");
+        setSelectedScheduleId(selectedSchedule.id);
+      }
+    }
+  }, [installmentNumber, paymentSchedules, paymentType]);
 
   // Cuando el ID del lote seleccionado cambia, busca sus detalles completos y la venta activa
   useEffect(() => {
@@ -274,6 +300,26 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       {activeVenta.status_display || 'Activa'}
                     </p>
                   </div>
+                  <div className="bg-white/60 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                      Inicio del Cronograma
+                    </p>
+                    <p className="font-semibold text-gray-900">
+                      {activeVenta.schedule_start_date 
+                        ? new Date(activeVenta.schedule_start_date).toLocaleDateString('es-PE', { 
+                            year: 'numeric', 
+                            month: 'long' 
+                          })
+                        : new Date(activeVenta.sale_date).toLocaleDateString('es-PE', { 
+                            year: 'numeric', 
+                            month: 'long' 
+                          })
+                      }
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {activeVenta.schedule_start_date ? 'Fecha personalizada' : 'Mes de creación'}
+                    </p>
+                  </div>
                   {paymentSchedules.length > 0 && (
                     <div className="md:col-span-2 bg-gradient-to-r from-green-100 to-blue-100 rounded-lg p-4 border border-green-200">
                       <p className="text-sm text-green-700 mb-1">
@@ -316,14 +362,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       placeholder="0.00"
                     />
                   </div>
-                  {selectedLote && (
-                    <p className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-1 rounded">
-                      💡 Cuota sugerida: {dynamicReportsService.formatCurrency(parseFloat(selectedLote.monthly_installment || "0"))}
-                      {parseFloat(
-                        selectedLote.monthly_installment || "0"
-                      ).toFixed(2)}
-                    </p>
-                  )}
+                  
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

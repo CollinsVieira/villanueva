@@ -80,6 +80,13 @@ class PaymentService {
     return response.data;
   }
 
+  async getPaymentScheduleHistoryByLote(loteId: number): Promise<PaymentSchedule[]> {
+    const response = await api.get('/payments/schedules/history_by_lote/', {
+      params: { lote_id: loteId }
+    });
+    return response.data;
+  }
+
   async getPaymentScheduleByVenta(ventaId: number): Promise<PaymentSchedule[]> {
     const response = await api.get('/payments/schedules/by_venta/', {
       params: { venta_id: ventaId }

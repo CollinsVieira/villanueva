@@ -55,20 +55,16 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       setError(null);
       let data: PaymentScheduleType[] = [];
 
+      // Solo cargar datos si hay un lote seleccionado
       if (selectedLoteId) {
         data = await paymentService.getPaymentScheduleByLote(selectedLoteId);
-      } else if (statusFilter === 'overdue') {
-        data = await paymentService.getOverdueSchedules();
-      } else if (statusFilter === 'pending') {
-        data = await paymentService.getPendingSchedules();
-      } else {
-        data = await paymentService.getPaymentSchedules();
+        
+        // Aplicar filtro de estado si no es 'all'
+        if (statusFilter !== 'all') {
+          data = data.filter(schedule => schedule.status === statusFilter);
+        }
       }
-
-      // Aplicar filtro de estado si no es 'all'
-      if (statusFilter !== 'all' && statusFilter !== 'overdue' && statusFilter !== 'pending') {
-        data = data.filter(schedule => schedule.status === statusFilter);
-      }
+      // Si no hay lote seleccionado, no cargar ningún dato
 
       setSchedules(data);
     } catch (err: any) {
@@ -212,14 +208,14 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
           {showLoteFilter && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filtrar por Lote
+                Filtrar por Lote *
               </label>
               <select
                 value={selectedLoteId || ''}
                 onChange={(e) => setSelectedLoteId(e.target.value ? parseInt(e.target.value) : null)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">Todos los lotes</option>
+                <option value="">Seleccione un lote...</option>
                 {allLotes.map(lote => (
                   <option key={lote.id} value={lote.id}>
                     Mz. {lote.block} - Lt. {lote.lot_number} ({lote.current_owner?.full_name})
@@ -237,6 +233,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={!selectedLoteId}
             >
               <option value="all">Todos los estados</option>
               <option value="pending">Pendientes</option>
@@ -250,7 +247,25 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
         </div>
       </div>
 
-      {/* Tabla de cronograma */}
+      {/* Mensaje cuando no hay lote seleccionado */}
+      {!selectedLoteId && (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Calendar size={40} className="text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Seleccione un Lote
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Para ver el cronograma de pagos, por favor seleccione un lote de la lista anterior.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tabla de cronograma - Solo mostrar si hay lote seleccionado */}
+      {selectedLoteId && (
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -440,26 +455,22 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
               <Calendar size={40} className="text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {selectedLoteId ? 'No hay cronograma para este lote' : 'No hay cronogramas disponibles'}
+              No hay cronograma para este lote
             </h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {selectedLoteId 
-                ? 'Este lote no tiene un cronograma de pagos generado. Genere uno para comenzar a gestionar las cuotas.'
-                : 'No se encontraron cronogramas de pago. Seleccione un lote específico o ajuste los filtros.'
-              }
+              Este lote no tiene un cronograma de pagos generado. Genere uno para comenzar a gestionar las cuotas.
             </p>
-            {selectedLoteId && (
-              <button
-                onClick={generateSchedule}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center space-x-2 mx-auto shadow-lg transition-all duration-200 transform hover:scale-105"
-              >
-                <Plus size={20} />
-                <span>Generar Cronograma</span>
-              </button>
-            )}
+            <button
+              onClick={generateSchedule}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center space-x-2 mx-auto shadow-lg transition-all duration-200 transform hover:scale-105"
+            >
+              <Plus size={20} />
+              <span>Generar Cronograma</span>
+            </button>
           </div>
         )}
       </div>
+      )}
 
       {/* Payment Registration Modal */}
       {showPaymentModal && selectedSchedule && (

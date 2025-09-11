@@ -69,7 +69,7 @@ class Payment(models.Model):
     receipt_number = models.CharField(_("Número de Operación"), max_length=100, blank=True)
     receipt_date = models.DateField(_("Fecha de Operación"), blank=True, null=True)
     receipt_image = models.ImageField(_("Imagen del Comprobante"), upload_to='payment_receipts/', blank=True, null=True)
-    notes = models.TextField(_("Notas Adicionales"), blank=True)
+    notes = models.TextField(_("Notas Adicionales"), blank=True, null=True)
 
     # Relación con el usuario que registró el pago
     recorded_by = models.ForeignKey(
@@ -437,7 +437,12 @@ class PaymentSchedule(models.Model):
         
         # Usar payment_day de la venta o un valor por defecto
         payment_day = getattr(venta, 'payment_day', 15)
-        start_date = venta.sale_date.date()
+        
+        # Usar la fecha de inicio del cronograma si está especificada, sino usar la fecha de venta
+        if venta.schedule_start_date:
+            start_date = venta.schedule_start_date
+        else:
+            start_date = venta.sale_date.date()
 
         schedules = []
         

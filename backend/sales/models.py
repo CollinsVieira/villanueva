@@ -85,6 +85,13 @@ class Venta(models.Model):
         help_text=_("Fecha oficial del contrato firmado")
     )
     
+    schedule_start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_("Fecha de Inicio del Cronograma"),
+        help_text=_("Fecha desde la cual comenzarán a generarse las cuotas. Si no se especifica, se usa el mes actual.")
+    )
+    
     contract_pdf = models.FileField(
         upload_to='contracts/',
         null=True,

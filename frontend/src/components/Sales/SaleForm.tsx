@@ -19,6 +19,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     sale_price: '',
     initial_payment: '',
     contract_date: '',
+    schedule_start_date: '',
     contract_pdf: undefined,
     notes: '',
     payment_day: 15,
@@ -45,6 +46,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
         sale_price: sale.sale_price || '',
         initial_payment: sale.initial_payment || '',
         contract_date: sale.contract_date || '',
+        schedule_start_date: sale.schedule_start_date || '',
         contract_pdf: undefined, // No se puede editar el PDF existente
         notes: sale.notes || '',
         payment_day: sale.payment_day || 15, // Usar el valor existente
@@ -250,15 +252,35 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="contract_date" className="block text-sm font-medium text-gray-700 mb-1">Fecha de Contrato</label>
-            <input
-              id="contract_date"
-              type="date"
-              value={formData.contract_date}
-              onChange={(e: any) => setFormData(prev => ({ ...prev, contract_date: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="contract_date" className="block text-sm font-medium text-gray-700 mb-1">Fecha de Contrato</label>
+              <input
+                id="contract_date"
+                type="date"
+                value={formData.contract_date}
+                onChange={(e: any) => setFormData(prev => ({ ...prev, contract_date: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="schedule_start_date" className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha de Inicio del Cronograma
+                <span className="text-xs text-gray-500 ml-1">(Opcional)</span>
+              </label>
+              <input
+                id="schedule_start_date"
+                type="month"
+                value={formData.schedule_start_date}
+                onChange={(e: any) => setFormData(prev => ({ ...prev, schedule_start_date: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="YYYY-MM"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Si no se especifica, las cuotas comenzarán desde el mes actual
+              </p>
+            </div>
           </div>
 
           <div>
