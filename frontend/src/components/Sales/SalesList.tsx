@@ -11,7 +11,7 @@ interface SalesListProps {
 
 const SalesList: React.FC<SalesListProps> = ({
   onCreateSale,
-  onViewSale
+  onViewSale,
 }) => {
   const [sales, setSales] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,15 +100,17 @@ const SalesList: React.FC<SalesListProps> = ({
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Ventas</h1>
           <p className="text-gray-600 mt-1">Haga clic en una venta para ver sus detalles y historial.</p>
         </div>
+        <div className="flex items-center space-x-3">
         {onCreateSale && (
           <button 
-            onClick={onCreateSale} 
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+          onClick={onCreateSale} 
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
           >
             <Plus size={20} />
             <span>Nueva Venta</span>
           </button>
         )}
+        </div>
       </div>
 
       {error && (

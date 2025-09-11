@@ -88,7 +88,7 @@ export const handleDownloadCronogramaPDF = async (
 
     // Calcular totales desde los schedules
     const totalScheduled = schedules.reduce((sum, s) => {
-      const amount = parseFloat(s.scheduled_amount || '0');
+      const amount = parseFloat(ventaInfo.sale_price || '0');
       return sum + (isNaN(amount) ? 0 : amount);
     }, 0);
     

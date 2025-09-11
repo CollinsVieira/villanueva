@@ -17,6 +17,7 @@ export interface Venta {
   created_at: string;
   updated_at: string;
   remaining_balance?: string;
+  total_pending_balance?: number | string;
   lote_info?: {
     id: number;
     block: string;
@@ -86,6 +87,8 @@ export interface PaymentPlan {
     paid: number;
     pending: number;
     overdue: number;
+    forgiven?: number;
+    partial?: number;
   };
   created_at: string;
   updated_at: string;

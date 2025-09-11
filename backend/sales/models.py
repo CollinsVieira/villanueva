@@ -186,11 +186,13 @@ class Venta(models.Model):
     @property
     def remaining_balance(self):
         """Saldo pendiente de la venta"""
-        from django.db.models import Sum
-        # Restar todos los pagos registrados (inicial y cuotas)
-        total_paid = self.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        remaining = self.sale_price - total_paid
-        return remaining if remaining > 0 else Decimal('0.00')
+        # Con la nueva arquitectura, el saldo pendiente real se deriva del cronograma:
+        # suma de remaining_amount de cada cuota. Esto excluye cuotas perdonadas,
+        # ya que su remaining_amount es 0.
+        total_remaining = Decimal('0.00')
+        for schedule in self.payment_schedules.all():
+            total_remaining += schedule.remaining_amount
+        return total_remaining if total_remaining > 0 else Decimal('0.00')
     
     @property
     def is_active(self):

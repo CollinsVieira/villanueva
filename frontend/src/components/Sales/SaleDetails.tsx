@@ -44,6 +44,9 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
     }
   };
 
+  console.log(sale);
+  console.log(paymentPlan);
+  
   const handleCancelSale = async () => {
     if (!sale || !confirm(`¿Está seguro de cancelar la venta #${sale.id}?`)) return;
     
@@ -120,8 +123,8 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
             </button>
           )}
         </div>
-        <div className="flex items-center space-x-2">
-          <h1 className="text-3xl font-bold text-gray-900">Detalles de Venta</h1>
+        <div className="flex items-center   space-x-2">
+          <h1 className="text-3xl font-bold text-gray-900 flex">Detalles de Venta</h1>
           {sale && (
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
               sale.status === 'active' ? 'bg-green-100 text-green-800' :
@@ -207,7 +210,8 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Saldo pendiente:</span>
-                    <span className="font-medium">{dynamicReportsService.formatCurrency(Number(sale.remaining_balance || 0))}</span>
+                    <span className="font-medium">{
+                      dynamicReportsService.formatCurrency(sale.remaining_balance? parseFloat(sale.remaining_balance) : 0)}</span>
                   </div>
                 </div>
               </div>
@@ -402,13 +406,18 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-semibold">
-                          {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.remaining_amount.toString() || '0'))}
+                          {dynamicReportsService.formatCurrency(
+                            sale.remaining_balance ? parseFloat(sale.remaining_balance) : 0
+                          )}
                         </div>
                         <div className="text-sm text-gray-600">Pendiente</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-semibold">
-                          {paymentPlan.payment_status.paid || 0}/{paymentPlan.payment_status.total_installments || 0}
+                          {(
+                            (paymentPlan.payment_status.paid || 0) +
+                            (paymentPlan.payment_status.forgiven || 0)
+                          )}/{paymentPlan.payment_status.total_installments || 0}
                         </div>
                         <div className="text-sm text-gray-600">Cuotas</div>
                       </div>

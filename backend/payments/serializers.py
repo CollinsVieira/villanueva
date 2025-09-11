@@ -244,8 +244,7 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
 
     def get_remaining_amount(self, obj):
         """Monto restante por pagar"""
-        remaining = obj.scheduled_amount - (obj.paid_amount or 0)
-        return str(max(remaining, 0))
+        return str(obj.remaining_amount)
 
     def get_payment_method(self, obj):
         """Método de pago del último pago registrado"""
@@ -349,8 +348,7 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
 
     def get_remaining_amount(self, obj):
         """Monto restante"""
-        remaining = obj.scheduled_amount - (obj.paid_amount or 0)
-        return str(max(remaining, 0))
+        return str(obj.remaining_amount)
 
     def get_payment_method(self, obj):
         """Método de pago del último pago registrado"""

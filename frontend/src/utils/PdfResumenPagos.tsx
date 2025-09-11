@@ -152,7 +152,7 @@ export const handleDownloadHistorialPagosPDF = async (
           status = schedule.is_forgiven ? "PERDONADO" : "PARCIAL";
           break;
         default:
-          status = "DESCONOCIDO";
+          status = "ABSUELTO";
       }
 
       return [

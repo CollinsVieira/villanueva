@@ -46,7 +46,8 @@ def customers_debt_live(request):
                     if end_date:
                         payments_query = payments_query.filter(payment_date__lte=end_date)
                     
-                    total_payments = payments_query.count()
+                    # Contar pagos efectivos más cuotas perdonadas como completadas
+                    total_payments = payments_query.count() + venta.payment_schedules.filter(status='forgiven').count()
                     
                     # Obtener información del plan de pagos
                     payment_plan = getattr(venta, 'plan_pagos', None)
@@ -57,6 +58,7 @@ def customers_debt_live(request):
                         financing_months = 0
                         payment_day = 15
                     
+                    # Pendientes = total cuotas - (pagadas + perdonadas)
                     pending = max(0, financing_months - total_payments)
                     pending_installments += pending
                     
@@ -323,7 +325,11 @@ def pending_installments_live(request):
                 
                 # Obtener pagos de la venta
                 from payments.models import Payment
-                total_payments = Payment.objects.filter(venta=venta, payment_type='installment').count()
+                # Contar pagos efectivos más cuotas perdonadas como completadas
+                total_payments = (
+                    Payment.objects.filter(venta=venta, payment_type='installment').count()
+                    + venta.payment_schedules.filter(status='forgiven').count()
+                )
                 
                 # Obtener información del plan de pagos
                 payment_plan = getattr(venta, 'plan_pagos', None)
@@ -334,6 +340,7 @@ def pending_installments_live(request):
                     financing_months = 0
                     payment_day = 15
                 
+                # Pendientes = total cuotas - (pagadas + perdonadas)
                 pending = max(0, financing_months - total_payments)
                 
                 # Si el saldo pendiente es 0, el lote está completamente pagado

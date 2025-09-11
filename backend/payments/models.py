@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
@@ -179,8 +180,8 @@ class PaymentPlan(models.Model):
             total=Sum('paid_amount')
         )['total'] or Decimal('0.00')
         
-        # Calcular monto restante
-        remaining_amount = total_scheduled_amount - total_paid_amount
+        # Calcular monto restante desde la venta (excluye cuotas perdonadas)
+        remaining_amount = self.venta.remaining_balance
         
         # Las cuotas absueltas cuentan como "completadas" para el porcentaje
         completed_payments = paid_payments + forgiven_payments
@@ -192,7 +193,7 @@ class PaymentPlan(models.Model):
             'overdue': overdue_payments,
             'partial': partial_payments,
             'forgiven': forgiven_payments,
-            'completion_percentage': (completed_payments / total_payments * 100) if total_payments > 0 else 0,
+            'completion_percentage': round((completed_payments / total_payments * 100), 1) if total_payments > 0 else 0,
             'total_installments': total_payments,
             'remaining_amount': str(remaining_amount),
             'paid_amount': str(total_paid_amount)
@@ -367,13 +368,20 @@ class PaymentSchedule(models.Model):
         """
         # La venta ya maneja la consistencia entre lote y customer
             
-        # Calcular paid_amount desde los pagos asociados si ya existe en la BD
+        # Calcular paid_amount desde los pagos asociados si ya existe en la BD,
+        # excepto cuando la cuota está perdonada (se considera totalmente pagada)
         if self.pk:
-            from django.db.models import Sum
-            total_paid = self.payments.aggregate(
-                total=Sum('amount')
-            )['total'] or Decimal('0.00')
-            self.paid_amount = total_paid
+            if self.is_forgiven:
+                # Asegurar consistencia: una cuota perdonada cuenta como cancelada
+                self.paid_amount = self.scheduled_amount
+                if not self.payment_date:
+                    self.payment_date = timezone.now()
+            else:
+                from django.db.models import Sum
+                total_paid = self.payments.aggregate(
+                    total=Sum('amount')
+                )['total'] or Decimal('0.00')
+                self.paid_amount = total_paid
         
         # Actualizar estado automáticamente
         if self.is_forgiven:
@@ -392,6 +400,8 @@ class PaymentSchedule(models.Model):
     @property
     def remaining_amount(self):
         """Calcula el monto restante por pagar."""
+        if self.is_forgiven:
+            return Decimal('0.00')
         return max(0, self.scheduled_amount - self.paid_amount)
 
     @property
@@ -509,6 +519,10 @@ class PaymentSchedule(models.Model):
         self.is_forgiven = True
         self.status = 'forgiven'
         self.recorded_by = recorded_by
+        # Considerar la cuota como cancelada al 100%
+        self.paid_amount = self.scheduled_amount
+        if not self.payment_date:
+            self.payment_date = timezone.now()
         
         if notes:
             if self.notes:
