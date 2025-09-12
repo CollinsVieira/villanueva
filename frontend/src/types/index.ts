@@ -349,6 +349,21 @@ export interface HistoryEvent {
   }
 
   // PaymentSchedule interfaces
+  export interface PaymentDetail {
+    id: number;
+    amount: string;
+    payment_date?: string;
+    payment_date_display?: string;
+    method: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
+    receipt_number?: string;
+    receipt_date?: string;
+    receipt_date_display?: string;
+    receipt_image?: string;
+    notes?: string;
+    created_at?: string;
+    updated_at?: string;
+  }
+
   export interface PaymentSchedule {
     id: number;
     venta: {
@@ -378,6 +393,7 @@ export interface HistoryEvent {
     remaining_amount?: string;
     lote_display?: string;
     customer_display?: string;
+    all_payments?: PaymentDetail[];
   }
 
   export interface PaymentScheduleSummary {
@@ -395,4 +411,8 @@ export interface HistoryEvent {
     payments_count?: number;
     total_paid?: string;
     remaining_amount?: string;
+    payment_method?: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
+    receipt_number?: string;
+    receipt_image?: string;
+    all_payments?: PaymentDetail[];
   }

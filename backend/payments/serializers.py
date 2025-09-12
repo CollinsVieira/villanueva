@@ -175,6 +175,7 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
     payment_method = serializers.SerializerMethodField()
     receipt_number = serializers.SerializerMethodField()
     receipt_image = serializers.SerializerMethodField()
+    all_payments = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentSchedule
@@ -201,7 +202,8 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
             'customer_info',
             'payments_count',
             'total_paid',
-            'remaining_amount'
+            'remaining_amount',
+            'all_payments'
         ]
         read_only_fields = [
             'id', 'venta', 'paid_amount', 'payment_date', 'payment_method',
@@ -267,6 +269,27 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
             return last_payment.receipt_image.url if last_payment.receipt_image else None
         return None
 
+    def get_all_payments(self, obj):
+        """Todos los pagos asociados a esta cuota"""
+        payments = obj.payments.all().order_by('-created_at')
+        return [
+            {
+                'id': payment.id,
+                'amount': str(payment.amount),
+                'payment_date': payment.payment_date.isoformat() if payment.payment_date else None,
+                'payment_date_display': timezone.localtime(payment.payment_date).strftime('%d/%m/%Y %H:%M') if payment.payment_date else None,
+                'method': payment.method,
+                'receipt_number': payment.receipt_number,
+                'receipt_date': payment.receipt_date.isoformat() if payment.receipt_date else None,
+                'receipt_date_display': payment.receipt_date.strftime('%d/%m/%Y') if payment.receipt_date else None,
+                'receipt_image': payment.receipt_image.url if payment.receipt_image else None,
+                'notes': payment.notes,
+                'created_at': payment.created_at.isoformat() if payment.created_at else None,
+                'updated_at': payment.updated_at.isoformat() if payment.updated_at else None
+            }
+            for payment in payments
+        ]
+
     def validate(self, attrs):
         """Validar que se proporcione venta_id"""
         venta_id = attrs.get('venta_id')
@@ -304,6 +327,7 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
     payment_method = serializers.SerializerMethodField()
     receipt_number = serializers.SerializerMethodField()
     receipt_image = serializers.SerializerMethodField()
+    all_payments = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentSchedule
@@ -323,7 +347,8 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
             'remaining_amount',
             'payment_method',
             'receipt_number',
-            'receipt_image'
+            'receipt_image',
+            'all_payments'
         ]
 
     def get_lote_display(self, obj):
@@ -370,6 +395,27 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
             last_payment = obj.payments.order_by('-created_at').first()
             return last_payment.receipt_image.url if last_payment.receipt_image else None
         return None
+
+    def get_all_payments(self, obj):
+        """Todos los pagos asociados a esta cuota"""
+        payments = obj.payments.all().order_by('-created_at')
+        return [
+            {
+                'id': payment.id,
+                'amount': str(payment.amount),
+                'payment_date': payment.payment_date.isoformat() if payment.payment_date else None,
+                'payment_date_display': timezone.localtime(payment.payment_date).strftime('%d/%m/%Y %H:%M') if payment.payment_date else None,
+                'method': payment.method,
+                'receipt_number': payment.receipt_number,
+                'receipt_date': payment.receipt_date.isoformat() if payment.receipt_date else None,
+                'receipt_date_display': payment.receipt_date.strftime('%d/%m/%Y') if payment.receipt_date else None,
+                'receipt_image': payment.receipt_image.url if payment.receipt_image else None,
+                'notes': payment.notes,
+                'created_at': payment.created_at.isoformat() if payment.created_at else None,
+                'updated_at': payment.updated_at.isoformat() if payment.updated_at else None
+            }
+            for payment in payments
+        ]
 
 class PaymentPlanSerializer(serializers.ModelSerializer):
     """

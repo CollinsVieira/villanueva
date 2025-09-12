@@ -121,21 +121,13 @@ export const handleDownloadHistorialPagosPDF = async (
       "Estado",
     ];
 
-    const tableData = paymentSchedules?.map((schedule) => {
+    const tableData: any[] = [];
+    
+    paymentSchedules?.forEach((schedule) => {
       const installmentInfo = schedule.installment_number.toString();
       const scheduledAmount = `S/ ${parseFloat(schedule.scheduled_amount).toLocaleString("es-PE", {
         minimumFractionDigits: 2,
       })}`;
-      const paidAmount = `S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", {
-        minimumFractionDigits: 2,
-      })}`;
-      const paymentDate = schedule.payment_date ? new Date(schedule.payment_date).toLocaleDateString("es-ES") : "-";
-      const method = schedule.payment_method ? schedule.payment_method.toUpperCase() : "-";
-      const receiptNumber = schedule.receipt_number || "-";
-      console.log(schedule);
-      console.log(schedule.payment_method);
-      console.log(schedule.status);
-      console.log(schedule.receipt_number);
       
       let status = "";
       switch (schedule.status) {
@@ -155,15 +147,45 @@ export const handleDownloadHistorialPagosPDF = async (
           status = "ABSUELTO";
       }
 
-      return [
-        installmentInfo,
-        scheduledAmount,
-        paidAmount,
-        paymentDate,
-        method,
-        receiptNumber,
-        status,
-      ];
+      // Si hay pagos múltiples, mostrar cada uno en una fila separada
+      if (schedule.all_payments && schedule.all_payments.length > 0) {
+        schedule.all_payments.forEach((payment, index) => {
+          const paidAmount = `S/ ${parseFloat(payment.amount).toLocaleString("es-PE", {
+            minimumFractionDigits: 2,
+          })}`;
+          const paymentDate = payment.payment_date_display || "-";
+          const method = payment.method ? payment.method.toUpperCase() : "-";
+          const receiptNumber = payment.receipt_number || "-";
+          
+          tableData.push([
+            index === 0 ? installmentInfo : "", // Solo mostrar el número de cuota en la primera fila
+            index === 0 ? scheduledAmount : "", // Solo mostrar el monto programado en la primera fila
+            paidAmount,
+            paymentDate,
+            method,
+            receiptNumber,
+            index === schedule.all_payments!.length - 1 ? status : "", // Solo mostrar el estado en la última fila
+          ]);
+        });
+      } else {
+        // Si no hay pagos o solo hay un pago, usar la lógica original
+        const paidAmount = `S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", {
+          minimumFractionDigits: 2,
+        })}`;
+        const paymentDate = schedule.payment_date ? new Date(schedule.payment_date).toLocaleDateString("es-ES") : "-";
+        const method = schedule.payment_method ? schedule.payment_method.toUpperCase() : "-";
+        const receiptNumber = schedule.receipt_number || "-";
+        
+        tableData.push([
+          installmentInfo,
+          scheduledAmount,
+          paidAmount,
+          paymentDate,
+          method,
+          receiptNumber,
+          status,
+        ]);
+      }
     });
 
     // Configuración de la tabla
@@ -237,40 +259,73 @@ export const handleDownloadHistorialPagosPDF = async (
     const pageWidth = doc.internal.pageSize.getWidth();
 
     for (const schedule of paymentSchedules || []) {
-      if (schedule.receipt_image) {
-        // Si la imagen se sale de la página, crea una nueva
+      // Mostrar todas las imágenes de comprobantes para esta cuota
+      if (schedule.all_payments && schedule.all_payments.length > 0) {
+        schedule.all_payments.forEach((payment, paymentIndex) => {
+          if (payment.receipt_image) {
+            // Si la imagen se sale de la página, crea una nueva
+            if (imageY + 120 > doc.internal.pageSize.getHeight()) {
+              doc.addPage();
+              imageY = 40; // Reinicia la posición Y con más margen
+            }
+
+            // --- INICIO DE LA LÓGICA PARA CENTRAR ---
+            const imageWidth = 120; // Ancho de la imagen
+            const imageHeight = 80; // Alto de la imagen
+            const xCentered = (pageWidth - imageWidth) / 2;
+            // --- FIN DE LA LÓGICA PARA CENTRAR ---
+
+            // URL corregida para usar con el proxy
+            const imageUrl = payment.receipt_image.replace(
+              "http://192.168.100.4:8000",
+              ""
+            );
+
+            // Título del comprobante con información del pago específico
+            doc.text(
+              `Cuota ${schedule.installment_number} - Pago ${paymentIndex + 1}/${schedule.all_payments?.length || 0} - S/ ${parseFloat(payment.amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${payment.receipt_number || "N/A"}`,
+              pageWidth / 2,
+              imageY - 10,
+              { align: "center" }
+            );
+
+            // Agregar la imagen
+            doc.addImage(
+              imageUrl,
+              "PNG",
+              xCentered,
+              imageY,
+              imageWidth,
+              imageHeight
+            );
+
+            // Incrementa la posición Y para la siguiente imagen
+            imageY += imageHeight + 25;
+          }
+        });
+      } else if (schedule.receipt_image) {
+        // Lógica original para cuotas sin pagos múltiples
         if (imageY + 120 > doc.internal.pageSize.getHeight()) {
-          // Aumenta el espacio para la imagen
           doc.addPage();
-          imageY = 40; // Reinicia la posición Y con más margen
+          imageY = 40;
         }
 
-        // --- INICIO DE LA LÓGICA PARA CENTRAR ---
-
-        // 1. Define el ancho que tendrá tu imagen en el PDF
-        const imageWidth = 120; // Ancho de la imagen (ajusta si es necesario)
-        const imageHeight = 80; // Alto de la imagen (ajusta si es necesario)
-
-        // 2. Calcula la posición 'x' para que la imagen quede centrada
+        const imageWidth = 120;
+        const imageHeight = 80;
         const xCentered = (pageWidth - imageWidth) / 2;
 
-        // --- FIN DE LA LÓGICA PARA CENTRAR ---
-
-        // URL corregida para usar con el proxy
         const imageUrl = schedule.receipt_image.replace(
           "http://192.168.100.4:8000",
           ""
         );
 
-        // Centra el texto usando el punto medio de la página
         doc.text(
           `Cuota ${schedule.installment_number} - S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${schedule.receipt_number || "N/A"}`,
-          pageWidth / 2, // Posición x en el centro
+          pageWidth / 2,
           imageY - 10,
-          { align: "center" } // Opción de alineación
+          { align: "center" }
         );
 
-        // Usa la variable xCentered para la posición de la imagen
         doc.addImage(
           imageUrl,
           "PNG",
@@ -280,7 +335,6 @@ export const handleDownloadHistorialPagosPDF = async (
           imageHeight
         );
 
-        // Incrementa la posición Y para la siguiente imagen, dejando más espacio
         imageY += imageHeight + 25;
       }
     }

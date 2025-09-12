@@ -358,6 +358,55 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                             {new Date(schedule.payment_date).toLocaleDateString('es-ES')}
                           </div>
                         )}
+                        {schedule.all_payments && schedule.all_payments.length > 0 && (
+                          <div className="mt-2">
+                            <details className="group">
+                              <summary className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer font-medium">
+                                Ver {schedule.all_payments.length} pago{schedule.all_payments.length > 1 ? 's' : ''} detallado{schedule.all_payments.length > 1 ? 's' : ''}
+                              </summary>
+                              <div className="mt-2 space-y-1 pl-2 border-l-2 border-gray-200">
+                                {schedule.all_payments.map((payment) => (
+                                  <div key={payment.id} className="text-xs bg-gray-50 p-2 rounded">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <span className="font-medium text-gray-700">
+                                          S/. {parseFloat(payment.amount).toFixed(2)}
+                                        </span>
+                                        <span className="ml-2 text-gray-500 capitalize">
+                                          ({payment.method})
+                                        </span>
+                                      </div>
+                                      <div className="text-right">
+                                        {payment.payment_date_display && (
+                                          <div className="text-gray-500">
+                                            {payment.payment_date_display}
+                                          </div>
+                                        )}
+                                        {payment.receipt_number && (
+                                          <div className="text-blue-600 font-medium">
+                                            #{payment.receipt_number}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {payment.receipt_image && (
+                                      <div className="mt-1">
+                                        <a 
+                                          href={payment.receipt_image} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:text-blue-800 text-xs"
+                                        >
+                                          Ver comprobante
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="p-4">
