@@ -240,7 +240,8 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            new_amount = float(new_amount)
+            from decimal import Decimal
+            new_amount = Decimal(str(new_amount))
             schedule.modify_amount(
                 new_amount=new_amount,
                 notes=notes,

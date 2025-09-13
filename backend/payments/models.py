@@ -433,7 +433,13 @@ class PaymentSchedule(models.Model):
 
         # Calcular el monto mensual basado en el precio de venta y meses de financiamiento
         remaining_amount = venta.sale_price - venta.initial_payment
-        monthly_amount = remaining_amount / venta.financing_months
+        
+        # Calcular el monto base para las primeras cuotas (redondeado hacia abajo a números enteros)
+        monthly_amount_base = (remaining_amount / venta.financing_months).quantize(Decimal('1'), rounding='ROUND_DOWN')
+        
+        # Calcular la diferencia que debe absorber la última cuota
+        total_base_amount = monthly_amount_base * (venta.financing_months - 1)
+        last_installment_amount = remaining_amount - total_base_amount
         
         # Usar payment_day de la venta o un valor por defecto
         payment_day = getattr(venta, 'payment_day', 15)
@@ -450,11 +456,17 @@ class PaymentSchedule(models.Model):
             # Calcular fecha de vencimiento para cada cuota
             due_date = cls._calculate_due_date(start_date, i, payment_day)
             
+            # La última cuota absorbe cualquier diferencia decimal
+            if i == venta.financing_months:
+                installment_amount = last_installment_amount
+            else:
+                installment_amount = monthly_amount_base
+            
             schedule = cls.objects.create(
                 venta=venta,
                 installment_number=i,
-                original_amount=monthly_amount,
-                scheduled_amount=monthly_amount,
+                original_amount=installment_amount,
+                scheduled_amount=installment_amount,
                 due_date=due_date
             )
             schedules.append(schedule)
