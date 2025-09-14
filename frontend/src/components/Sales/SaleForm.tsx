@@ -3,8 +3,9 @@ import salesService, { VentaCreate, Venta } from '../../services/salesService';
 import loteService from '../../services/loteService';
 import customerService from '../../services/customerService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Lote, Customer } from '../../types';
+import { Lote } from '../../types';
 import { Eye, Download, FileText, Calendar } from 'lucide-react';
+import CustomerSelector from '../UI/CustomerSelector';
 
 interface SaleFormProps {
   sale?: Venta;
@@ -27,7 +28,6 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
   });
   
   const [lotes, setLotes] = useState<Lote[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,6 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
 
   useEffect(() => {
     loadLotes();
-    loadCustomers();
   }, []);
 
   useEffect(() => {
@@ -82,14 +81,6 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     }
   };
 
-  const loadCustomers = async () => {
-    try {
-      const data = await customerService.getCustomers();
-      setCustomers(data as any);
-    } catch (err) {
-      console.error('Error loading customers:', err);
-    }
-  };
 
   const handleLoteChange = (loteId: string) => {
     const lote = lotes.find(l => l.id === parseInt(loteId));
@@ -172,7 +163,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
 
-      const selectedCustomer = customers.find(c => c.id === formData.customer);
+      const selectedCustomer = await customerService.getCustomerById(formData.customer);
       const customerName = selectedCustomer ? selectedCustomer.full_name : "Cliente de Ejemplo";
       const customerDoc = selectedCustomer ? selectedCustomer.document_number : "12345678";
 
@@ -310,21 +301,13 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
 
             <div>
               <label htmlFor="customer" className="block text-sm font-medium text-gray-700 mb-1">Cliente *</label>
-              <select
-                id="customer"
-                value={formData.customer > 0 ? formData.customer.toString() : ''}
-                onChange={(e: any) => setFormData(prev => ({ ...prev, customer: parseInt(e.target.value) }))}
+              <CustomerSelector
+                value={formData.customer > 0 ? formData.customer : null}
+                onChange={(customerId) => setFormData(prev => ({ ...prev, customer: customerId || 0 }))}
                 disabled={!!sale}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Buscar cliente..."
                 required
-              >
-                <option value="">Seleccionar cliente</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id.toString()}>
-                    {customer.full_name} - {customer.document_number}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           </div>
 

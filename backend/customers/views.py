@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Customer
-from .serializers import CustomerSerializer
+from .serializers import CustomerSerializer, BulkCustomerCreateSerializer
 from users.permissions import IsWorkerOrAdmin
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -143,3 +143,42 @@ class CustomerViewSet(viewsets.ModelViewSet):
         Pasa el objeto 'request' al serializador para acceder al usuario.
         """
         return {'request': self.request}
+
+    @action(detail=False, methods=['post'], url_path='bulk-create')
+    def bulk_create(self, request):
+        """
+        Endpoint para crear múltiples clientes en una sola petición.
+        
+        POST /api/v1/customers/bulk-create/
+        
+        Body:
+        {
+            "customers": [
+                {
+                    "first_name": "Juan",
+                    "last_name": "Pérez",
+                    "email": "juan@example.com",
+                    "phone": "123456789",
+                    "address": "Calle 123",
+                    "document_type": "CC",
+                    "document_number": "12345678"
+                },
+                {
+                    "first_name": "María",
+                    "last_name": "González",
+                    "email": "maria@example.com",
+                    "phone": "987654321",
+                    "address": "Avenida 456",
+                    "document_type": "CC",
+                    "document_number": "87654321"
+                }
+            ]
+        }
+        """
+        serializer = BulkCustomerCreateSerializer(data=request.data, context=self.get_serializer_context())
+        
+        if serializer.is_valid():
+            result = serializer.save()
+            return Response(result, status=201)
+        
+        return Response(serializer.errors, status=400)

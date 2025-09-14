@@ -132,11 +132,21 @@ export interface PaymentSchedule {
   updated_at: string;
 }
 
+// Helper para manejar respuestas paginadas
+const handlePaginatedResponse = (data: any): any[] => {
+  // Si la respuesta tiene estructura paginada, devolver solo los resultados
+  if (data && typeof data === 'object' && 'results' in data) {
+    return data.results;
+  }
+  // Si no tiene estructura paginada, devolver los datos tal como están
+  return Array.isArray(data) ? data : [];
+};
+
 class SalesService {
   // Venta CRUD operations
   async getVentas(params?: { lote?: number; customer?: number; status?: string }) {
     const response = await api.get('/sales/ventas/', { params });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getVenta(id: number): Promise<Venta> {
@@ -274,19 +284,19 @@ class SalesService {
   // Get ventas by lote or customer
   async getVentasByLote(loteId: number): Promise<Venta[]> {
     const response = await api.get('/sales/ventas/', { params: { lote: loteId } });
-    return response.data.results || response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getVentasHistoryByLote(loteId: number): Promise<Venta[]> {
     const response = await api.get('/sales/ventas/sales_by_lote/', { 
       params: { lote_id: loteId } 
     });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getVentasByCustomer(customerId: number): Promise<Venta[]> {
     const response = await api.get('/sales/ventas/', { params: { customer: customerId } });
-    return response.data.results || response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   // Get active sale for a lote
@@ -294,7 +304,7 @@ class SalesService {
     const response = await api.get('/sales/ventas/', { 
       params: { lote: loteId, status: 'active' } 
     });
-    const results = response.data.results || response.data;
+    const results = handlePaginatedResponse(response.data);
     return results.length > 0 ? results[0] : null;
   }
 

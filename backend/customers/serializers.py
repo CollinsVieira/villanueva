@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from .models import Customer
 from users.serializers import UserSerializer
 from payments.serializers import PaymentSerializer
+from django.db import transaction
 
 class NestedVentaSerializer(serializers.Serializer):
     """Serializer simplificado para mostrar información básica de ventas"""
@@ -111,3 +112,107 @@ class CustomerSerializer(serializers.ModelSerializer):
         if value and query.exists():
             raise serializers.ValidationError(_("Este número de documento ya está registrado."))
         return value
+
+
+class BulkCustomerCreateSerializer(serializers.Serializer):
+    """
+    Serializer para crear múltiples clientes en una sola petición.
+    """
+    customers = serializers.ListField(
+        child=serializers.DictField(),
+        min_length=1,
+        max_length=1000,  # Límite para evitar sobrecarga
+        help_text="Lista de clientes a crear (máximo 1000)"
+    )
+    
+    def validate_customers(self, value):
+        """
+        Valida cada cliente individualmente y verifica duplicados en el lote.
+        """
+        if not value:
+            raise serializers.ValidationError(_("La lista de clientes no puede estar vacía."))
+        
+        # Validar estructura básica de cada cliente
+        required_fields = ['first_name', 'last_name']
+        for i, customer_data in enumerate(value):
+            for field in required_fields:
+                if field not in customer_data or not customer_data[field]:
+                    raise serializers.ValidationError(
+                        _("El cliente en la posición {position} debe tener {field}.").format(
+                            position=i+1, field=field
+                        )
+                    )
+        
+        # Verificar duplicados dentro del lote
+        emails = []
+        document_numbers = []
+        
+        for i, customer_data in enumerate(value):
+            # Verificar email duplicado en el lote
+            if 'email' in customer_data and customer_data['email']:
+                if customer_data['email'] in emails:
+                    raise serializers.ValidationError(
+                        _("El email '{email}' está duplicado en el lote de clientes.").format(
+                            email=customer_data['email']
+                        )
+                    )
+                emails.append(customer_data['email'])
+            
+            # Verificar número de documento duplicado en el lote
+            if 'document_number' in customer_data and customer_data['document_number']:
+                if customer_data['document_number'] in document_numbers:
+                    raise serializers.ValidationError(
+                        _("El número de documento '{doc}' está duplicado en el lote de clientes.").format(
+                            doc=customer_data['document_number']
+                        )
+                    )
+                document_numbers.append(customer_data['document_number'])
+        
+        # Verificar duplicados con la base de datos
+        if emails:
+            existing_emails = Customer.objects.filter(email__in=emails).values_list('email', flat=True)
+            if existing_emails:
+                raise serializers.ValidationError(
+                    _("Los siguientes emails ya existen en la base de datos: {emails}").format(
+                        emails=', '.join(existing_emails)
+                    )
+                )
+        
+        if document_numbers:
+            existing_docs = Customer.objects.filter(document_number__in=document_numbers).values_list('document_number', flat=True)
+            if existing_docs:
+                raise serializers.ValidationError(
+                    _("Los siguientes números de documento ya existen en la base de datos: {docs}").format(
+                        docs=', '.join(existing_docs)
+                    )
+                )
+        
+        return value
+    
+    def create(self, validated_data):
+        """
+        Crea múltiples clientes en una transacción.
+        """
+        customers_data = validated_data['customers']
+        request = self.context.get('request')
+        created_by = request.user if request and hasattr(request, 'user') else None
+        
+        created_customers = []
+        
+        with transaction.atomic():
+            for customer_data in customers_data:
+                # Agregar el usuario que crea el cliente
+                if created_by:
+                    customer_data['created_by'] = created_by
+                
+                # Crear el cliente usando el serializer individual
+                serializer = CustomerSerializer(data=customer_data, context=self.context)
+                if serializer.is_valid(raise_exception=True):
+                    customer = serializer.save()
+                    created_customers.append(customer)
+        
+        return {
+            'message': _("Se crearon {count} clientes exitosamente.").format(count=len(created_customers)),
+            'created_count': len(created_customers),
+            'customers': CustomerSerializer(created_customers, many=True, context=self.context).data
+        }

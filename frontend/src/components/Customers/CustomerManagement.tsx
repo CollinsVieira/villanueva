@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Edit, Trash2, PlusCircle, Search } from 'lucide-react';
+import { Users, Edit, Trash2, PlusCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Customer } from '../../types';
-import customerService from '../../services/customerService';
+import customerService, { PaginatedResponse } from '../../services/customerService';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import CustomerForm from './CustomerForm';
@@ -18,20 +18,26 @@ const CustomerManagement: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomerId, setViewingCustomerId] = useState<number | null>(null);
 
-  // Estados de paginación
+  // Estados de paginación del backend
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
+  const itemsPerPage = 25; // Coincide con el PAGE_SIZE del backend
 
   useEffect(() => {
-    loadCustomers(searchTerm);
-  }, []);
+    loadCustomers(searchTerm, currentPage);
+  }, [currentPage]);
 
-  const loadCustomers = async (currentSearchTerm: string) => {
+  const loadCustomers = async (currentSearchTerm: string, page: number = 1) => {
     setIsLoading(true);
     try {
       setError(null);
-      const data = await customerService.getCustomers(currentSearchTerm);
-      setCustomers(data);
+      const response: PaginatedResponse<Customer> = await customerService.getCustomers(currentSearchTerm, page);
+      setCustomers(response.results);
+      setTotalCount(response.count);
+      setHasNext(!!response.next);
+      setHasPrevious(!!response.previous);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al cargar los clientes.');
     } finally {
@@ -40,18 +46,19 @@ const CustomerManagement: React.FC = () => {
   };
 
   const handleSearch = () => {
-    loadCustomers(searchTerm);
     setCurrentPage(1); // Reiniciar a la primera página cuando se busque
+    loadCustomers(searchTerm, 1);
   };
 
   // Cálculos de paginación
-  const totalPages = Math.ceil(customers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentCustomers = customers.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const startRecord = (currentPage - 1) * itemsPerPage + 1;
+  const endRecord = Math.min(currentPage * itemsPerPage, totalCount);
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
   };
   
   const handleNewCustomer = () => {
@@ -68,19 +75,17 @@ const CustomerManagement: React.FC = () => {
     if (window.confirm('¿Está seguro de que desea eliminar este cliente?')) {
       try {
         await customerService.deleteCustomer(id);
-        loadCustomers(searchTerm); // Recargar manteniendo la búsqueda actual
+        loadCustomers(searchTerm, currentPage); // Recargar manteniendo la página actual
       } catch (err: any) {
         setError(err.response?.data?.detail || 'Error al eliminar el cliente.');
       }
     }
   };
 
-  
-
   const handleSave = () => {
     setShowForm(false);
     setEditingCustomer(null);
-    loadCustomers(searchTerm);
+    loadCustomers(searchTerm, currentPage);
   };
 
   if (isLoading && customers.length === 0) return <LoadingSpinner />;
@@ -125,7 +130,7 @@ const CustomerManagement: React.FC = () => {
             Lista de Clientes
             {!isLoading && (
               <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {customers.length} registros
+                {totalCount} registros
               </span>
             )}
             {totalPages > 1 && (
@@ -146,7 +151,7 @@ const CustomerManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {currentCustomers.map((customer) => (
+                {customers.map((customer) => (
                   <tr key={customer.id} onClick={() => setViewingCustomerId(customer.id)} className="hover:bg-gray-100 cursor-pointer">
                     <td className="p-3 font-medium text-gray-900">{customer.full_name}</td>
                     <td className="p-3 text-sm text-gray-600">
@@ -175,41 +180,89 @@ const CustomerManagement: React.FC = () => {
             </table>
         </div>
         
-        {/* Paginación */}
+        {/* Paginación del Backend */}
         {!isLoading && totalPages > 1 && (
-          <div className="px-6 py-4 bg-gray-50  flex items-center justify-between">
+          <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              Mostrando {startIndex + 1} a {Math.min(endIndex, customers.length)} de {customers.length} registros
+              Mostrando {startRecord} a {endRecord} de {totalCount} registros
             </div>
+            
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!hasPrevious}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
               >
-                Anterior
+                <ChevronLeft size={16} />
+                <span>Anterior</span>
               </button>
               
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg ${
-                    currentPage === page
-                      ? 'bg-green-600 text-white'
-                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {/* Mostrar números de página con lógica inteligente */}
+              {(() => {
+                const pages = [];
+                const maxVisiblePages = 5;
+                
+                if (totalPages <= maxVisiblePages) {
+                  // Mostrar todas las páginas si son pocas
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  // Lógica para mostrar páginas con elipsis
+                  if (currentPage <= 3) {
+                    // Mostrar primeras páginas
+                    for (let i = 1; i <= 4; i++) {
+                      pages.push(i);
+                    }
+                    pages.push('...');
+                    pages.push(totalPages);
+                  } else if (currentPage >= totalPages - 2) {
+                    // Mostrar últimas páginas
+                    pages.push(1);
+                    pages.push('...');
+                    for (let i = totalPages - 3; i <= totalPages; i++) {
+                      pages.push(i);
+                    }
+                  } else {
+                    // Mostrar páginas alrededor de la actual
+                    pages.push(1);
+                    pages.push('...');
+                    for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                      pages.push(i);
+                    }
+                    pages.push('...');
+                    pages.push(totalPages);
+                  }
+                }
+                
+                return pages.map((page, index) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${index}`} className="px-3 py-2 text-sm font-medium text-gray-500">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page as number)}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                        currentPage === page
+                          ? 'bg-green-600 text-white'
+                          : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                ));
+              })()}
               
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!hasNext}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
               >
-                Siguiente
+                <span>Siguiente</span>
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
@@ -254,7 +307,7 @@ const CustomerManagement: React.FC = () => {
         <CustomerDetailModal 
           customerId={viewingCustomerId}
           onClose={() => setViewingCustomerId(null)}
-          onDataChange={() => loadCustomers(searchTerm)}
+          onDataChange={() => loadCustomers(searchTerm, currentPage)}
         />
       )}
     </div>

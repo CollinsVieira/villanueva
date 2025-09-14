@@ -55,7 +55,7 @@ const Dashboard: React.FC = () => {
         recentPayments,
         pendingInstallments
       ] = await Promise.all([
-        customerService.getCustomers(),
+        customerService.getAllCustomers(),
         loteService.getLotes(),
         paymentService.getPayments(),
         dynamicReportsService.getPendingInstallments()

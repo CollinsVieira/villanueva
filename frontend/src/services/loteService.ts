@@ -2,11 +2,21 @@
 import api from './api';
 import { Lote } from '../types';
 
+// Helper para manejar respuestas paginadas
+const handlePaginatedResponse = (data: any): any[] => {
+  // Si la respuesta tiene estructura paginada, devolver solo los resultados
+  if (data && typeof data === 'object' && 'results' in data) {
+    return data.results;
+  }
+  // Si no tiene estructura paginada, devolver los datos tal como están
+  return Array.isArray(data) ? data : [];
+};
+
 class LoteService {
   
   async getLotes(params?: { status?: string; search?: string }): Promise<Lote[]> {
     const response = await api.get('/lotes/', { params });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   

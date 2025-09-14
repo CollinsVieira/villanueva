@@ -2,12 +2,22 @@
 import api from './api';
 import { Payment, PaymentSchedule, PaymentScheduleSummary } from '../types';
 
+// Helper para manejar respuestas paginadas
+const handlePaginatedResponse = (data: any): any[] => {
+  // Si la respuesta tiene estructura paginada, devolver solo los resultados
+  if (data && typeof data === 'object' && 'results' in data) {
+    return data.results;
+  }
+  // Si no tiene estructura paginada, devolver los datos tal como están
+  return Array.isArray(data) ? data : [];
+};
+
 class PaymentService {
   // --- FUNCIÓN MODIFICADA ---
   async getPayments(searchTerm: string = ''): Promise<Payment[]> {
     const params = searchTerm ? { search: searchTerm } : {};
     const response = await api.get('/payments/payments/', { params });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async createPayment(paymentData: FormData): Promise<Payment> {
@@ -65,7 +75,7 @@ class PaymentService {
   async getPaymentSchedules(searchTerm: string = ''): Promise<PaymentSchedule[]> {
     const params = searchTerm ? { search: searchTerm } : {};
     const response = await api.get('/payments/schedules/', { params });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getPaymentSchedule(id: number): Promise<PaymentSchedule> {
@@ -77,31 +87,31 @@ class PaymentService {
     const response = await api.get('/payments/schedules/by_lote/', {
       params: { lote_id: loteId }
     });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getPaymentScheduleHistoryByLote(loteId: number): Promise<PaymentSchedule[]> {
     const response = await api.get('/payments/schedules/history_by_lote/', {
       params: { lote_id: loteId }
     });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getPaymentScheduleByVenta(ventaId: number): Promise<PaymentSchedule[]> {
     const response = await api.get('/payments/schedules/by_venta/', {
       params: { venta_id: ventaId }
     });
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getOverdueSchedules(): Promise<PaymentSchedule[]> {
     const response = await api.get('/payments/schedules/overdue/');
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async getPendingSchedules(): Promise<PaymentSchedule[]> {
     const response = await api.get('/payments/schedules/pending/');
-    return response.data;
+    return handlePaginatedResponse(response.data);
   }
 
   async generateScheduleForLote(loteId: number): Promise<{ message: string; schedules: PaymentScheduleSummary[] }> {

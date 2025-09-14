@@ -7,7 +7,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from users.permissions import IsWorkerOrAdmin
 from .models import Lote, LoteHistory
-from .serializers import LoteSerializer
+from .serializers import LoteSerializer, BulkLoteCreateSerializer
 
 
 class LoteViewSet(viewsets.ModelViewSet):
@@ -219,3 +219,38 @@ class LoteViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(lotes_with_sales, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='bulk-create')
+    def bulk_create(self, request):
+        """
+        Endpoint para crear múltiples lotes en una sola petición.
+        
+        POST /api/v1/lotes/bulk-create/
+        
+        Body:
+        {
+            "lotes": [
+                {
+                    "block": "A",
+                    "lot_number": "1",
+                    "area": "200.50",
+                    "price": "50000.00",
+                    "status": "disponible"
+                },
+                {
+                    "block": "A",
+                    "lot_number": "2",
+                    "area": "180.75",
+                    "price": "45000.00",
+                    "status": "disponible"
+                }
+            ]
+        }
+        """
+        serializer = BulkLoteCreateSerializer(data=request.data, context=self.get_serializer_context())
+        
+        if serializer.is_valid():
+            result = serializer.save()
+            return Response(result, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
