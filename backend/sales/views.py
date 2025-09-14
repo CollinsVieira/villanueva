@@ -23,8 +23,11 @@ class VentaViewSet(viewsets.ModelViewSet):
     """
     queryset = Venta.objects.all().select_related('lote', 'customer')
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'lote__block', 'customer']
+    search_fields = ['id', 'lote__block', 'lote__lot_number', 'customer__first_name', 'customer__last_name', 'customer__document_number']
+    ordering_fields = ['sale_date', 'sale_price', 'created_at']
+    ordering = ['-sale_date']
     
     def get_serializer_class(self):
         """Seleccionar el serializer apropiado según la acción"""

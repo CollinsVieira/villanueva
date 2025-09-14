@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import salesService, { Venta } from '../../services/salesService';
+import salesService, { Venta, PaginatedResponse } from '../../services/salesService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Search, Plus, Users } from 'lucide-react';
+import { Search, Plus, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import LoadingSpinner from '../UI/LoadingSpinner';
 
 interface SalesListProps {
   onCreateSale?: () => void;
@@ -19,31 +20,56 @@ const SalesList: React.FC<SalesListProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
 
-  // Estados de paginación
+  // Estados de paginación del backend
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
+  const itemsPerPage = 25; // Coincide con el PAGE_SIZE del backend
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadSales(searchTerm, statusFilter, currentPage);
+  }, []);
 
   useEffect(() => {
-    loadSales();
+    loadSales(searchTerm, statusFilter, currentPage);
+  }, [currentPage]);
+
+  const handleSearch = () => {
+    setCurrentPage(1); // Reiniciar a la primera página cuando se busque
+    loadSales(searchTerm, statusFilter, 1);
+  };
+
+  const handleStatusFilterChange = (newStatus: string) => {
+    setStatusFilter(newStatus);
     setCurrentPage(1); // Reiniciar a la primera página cuando cambie el filtro
-  }, [statusFilter]);
+    loadSales(searchTerm, newStatus, 1);
+  };
 
-  useEffect(() => {
-    setCurrentPage(1); // Reiniciar a la primera página cuando cambie la búsqueda
-  }, [searchTerm]);
-
-  const loadSales = async () => {
+  const loadSales = async (currentSearchTerm: string, currentStatusFilter: string, page: number = 1) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const params: any = {};
-      if (statusFilter !== 'all') {
-        params.status = statusFilter;
+      setError(null);
+      const params: any = {
+        page: page
+      };
+      
+      if (currentStatusFilter !== 'all') {
+        params.status = currentStatusFilter;
       }
-      const data = await salesService.getVentas(params);
-      setSales(data.results || data);
-    } catch (err) {
-      setError('Error al cargar las ventas');
-      console.error('Error loading sales:', err);
+      
+      if (currentSearchTerm.trim()) {
+        params.search = currentSearchTerm.trim();
+      }
+      
+      const response: PaginatedResponse<Venta> = await salesService.getVentas(params);
+      setSales(response.results);
+      setTotalCount(response.count);
+      setHasNext(!!response.next);
+      setHasPrevious(!!response.previous);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Error al cargar las ventas.');
     } finally {
       setLoading(false);
     }
@@ -63,35 +89,17 @@ const SalesList: React.FC<SalesListProps> = ({
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.className}`}>{config.label}</span>;
   };
 
-  const filteredSales = sales.filter(sale => {
-    if (!searchTerm) return true;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      sale.id.toString().includes(searchLower) ||
-      sale.lote_display?.toLowerCase().includes(searchLower) ||
-      sale.customer_display?.toLowerCase().includes(searchLower) ||
-      sale.customer_info?.document_number.includes(searchLower)
-    );
-  });
-
-  // Cálculos de paginación
-  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentSales = filteredSales.slice(startIndex, endIndex);
+  // Cálculos de paginación del backend
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const startRecord = (currentPage - 1) * itemsPerPage + 1;
+  const endRecord = Math.min(currentPage * itemsPerPage, totalCount);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="text-center">Cargando ventas...</div>
-      </div>
-    );
-  }
+  if (loading && sales.length === 0) return <LoadingSpinner />;
+
 
   return (
     <div className="space-y-6">
@@ -127,13 +135,17 @@ const SalesList: React.FC<SalesListProps> = ({
             type="text"
             placeholder="Buscar por ID, lote, cliente o documento..."
             value={searchTerm}
-            onChange={(e: any) => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className="w-full pl-10 pr-4 py-2 rounded-lg"
           />
         </div>
+        <button onClick={handleSearch} className="bg-gray-700 text-white px-4 py-2 rounded-lg">
+          Buscar
+        </button>
         <select 
           value={statusFilter} 
-          onChange={(e: any) => setStatusFilter(e.target.value)}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
           className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="all">Todos los estados</option>
@@ -150,7 +162,7 @@ const SalesList: React.FC<SalesListProps> = ({
             Lista de Ventas
             {!loading && (
               <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {filteredSales.length} registros
+                {totalCount} registros
               </span>
             )}
             {totalPages > 1 && (
@@ -162,12 +174,12 @@ const SalesList: React.FC<SalesListProps> = ({
         </div>
         <div className="p-6">
           <div className="space-y-4">
-            {currentSales.length === 0 ? (
+            {sales.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No se encontraron ventas
               </div>
             ) : (
-              currentSales.map((sale) => (
+              sales.map((sale) => (
                 <div 
                   key={sale.id} 
                   className="bg-white border border-gray-200 rounded-lg p-4 border-l-4 border-l-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -267,37 +279,148 @@ const SalesList: React.FC<SalesListProps> = ({
         {!loading && totalPages > 1 && (
           <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredSales.length)} de {filteredSales.length} registros
+              Mostrando {startRecord} a {endRecord} de {totalCount} registros
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!hasPrevious}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
               >
-                Anterior
+                <ChevronLeft size={16} />
+                <span>Anterior</span>
               </button>
               
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg ${
-                    currentPage === page
-                      ? 'bg-green-600 text-white'
-                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {/* Renderizar números de página con ellipsis */}
+              {(() => {
+                const pages = [];
+                const maxVisiblePages = 5;
+                
+                if (totalPages <= maxVisiblePages) {
+                  // Si hay pocas páginas, mostrar todas
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        onClick={() => handlePageChange(i)}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                          currentPage === i
+                            ? 'bg-green-600 text-white'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+                } else {
+                  // Lógica para mostrar páginas con ellipsis
+                  if (currentPage <= 3) {
+                    // Mostrar primeras páginas
+                    for (let i = 1; i <= 4; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => handlePageChange(i)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                            currentPage === i
+                              ? 'bg-green-600 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    pages.push(<span key="ellipsis1" className="px-2 text-gray-500">...</span>);
+                    pages.push(
+                      <button
+                        key={totalPages}
+                        onClick={() => handlePageChange(totalPages)}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  } else if (currentPage >= totalPages - 2) {
+                    // Mostrar últimas páginas
+                    pages.push(
+                      <button
+                        key={1}
+                        onClick={() => handlePageChange(1)}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        1
+                      </button>
+                    );
+                    pages.push(<span key="ellipsis1" className="px-2 text-gray-500">...</span>);
+                    for (let i = totalPages - 3; i <= totalPages; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => handlePageChange(i)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                            currentPage === i
+                              ? 'bg-green-600 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                  } else {
+                    // Mostrar páginas del medio
+                    pages.push(
+                      <button
+                        key={1}
+                        onClick={() => handlePageChange(1)}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        1
+                      </button>
+                    );
+                    pages.push(<span key="ellipsis1" className="px-2 text-gray-500">...</span>);
+                    
+                    for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => handlePageChange(i)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                            currentPage === i
+                              ? 'bg-green-600 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    
+                    pages.push(<span key="ellipsis2" className="px-2 text-gray-500">...</span>);
+                    pages.push(
+                      <button
+                        key={totalPages}
+                        onClick={() => handlePageChange(totalPages)}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  }
+                  
+                  return pages;
+                }
+              })()}
               
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!hasNext}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
               >
-                Siguiente
+                <span>Siguiente</span>
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>

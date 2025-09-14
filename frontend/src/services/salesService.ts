@@ -132,6 +132,13 @@ export interface PaymentSchedule {
   updated_at: string;
 }
 
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 // Helper para manejar respuestas paginadas
 const handlePaginatedResponse = (data: any): any[] => {
   // Si la respuesta tiene estructura paginada, devolver solo los resultados
@@ -144,9 +151,15 @@ const handlePaginatedResponse = (data: any): any[] => {
 
 class SalesService {
   // Venta CRUD operations
-  async getVentas(params?: { lote?: number; customer?: number; status?: string }) {
+  async getVentas(params?: { lote?: number; customer?: number; status?: string; search?: string; page?: number }): Promise<PaginatedResponse<Venta>> {
     const response = await api.get('/sales/ventas/', { params });
-    return handlePaginatedResponse(response.data);
+    return response.data;
+  }
+
+  // Método de compatibilidad para obtener todas las ventas (primera página)
+  async getAllVentas(params?: { lote?: number; customer?: number; status?: string }): Promise<Venta[]> {
+    const response = await this.getVentas(params);
+    return response.results || [];
   }
 
   async getVenta(id: number): Promise<Venta> {
