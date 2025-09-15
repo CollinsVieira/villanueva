@@ -9,8 +9,10 @@ import {
   UserPen,
   FileText,
   ShoppingCart,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import { useNavigate } from "react-router-dom";
 import logo from "/logo3.webp";
 
@@ -28,6 +30,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const { user, logout } = useAuth();
+  const { isSidebarOpen, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
 
   const adminMenuItems: MenuItem[] = [
@@ -50,20 +53,40 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const menuItems = user?.role === "admin" ? adminMenuItems : workerMenuItems;
 
   return (
-    <div className="bg-[#eff3fa] shadow-lg h-full w-64 fixed left-0 top-0 z-10">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">        
-          <div className="flex flex-col gap-4 items-center">
-            <img src={logo} alt="VillanuevaLogo" className="w-10 h-10 bg-black rounded-lg mx-auto" />
-            <p className="text-sm text-black font-bold">
-              Sistema de Gestión de Lotes
-            </p>
-            <p className="text-sm text-black font-bold text-center">
-              Grupo Serfer & Asociados
-            </p>
+    <>
+      {/* Overlay para móviles */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={toggleSidebar}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div className={`bg-[#eff3fa] shadow-lg h-full w-64 fixed left-0 top-0 z-50 transform transition-transform duration-300 ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        {/* Header con botón toggle */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 items-center flex-1">
+              <img src={logo} alt="VillanuevaLogo" className="w-10 h-10 bg-black rounded-lg mx-auto" />
+              <p className="text-sm text-black font-bold text-center">
+                Sistema de Gestión de Lotes
+              </p>
+              <p className="text-sm text-black font-bold text-center">
+                Grupo Serfer & Asociados
+              </p>
+            </div>
+            <button
+              onClick={toggleSidebar}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Ocultar sidebar"
+            >
+              <ArrowLeft size={20} />
+            </button>
           </div>
         </div>
-      </div>
 
       <nav className="p-4 flex-1">
         <ul className="space-y-2">
@@ -114,8 +137,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           <LogOut size={20} />
           <span className="font-medium">Cerrar Sesión</span>
         </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

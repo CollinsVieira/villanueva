@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import LoginForm from "./components/Auth/LoginForm";
 import Sidebar from "./components/Layout/Sidebar";
 import UserManagement from "./components/Users/UserManagement";
@@ -48,10 +49,25 @@ const ProtectedRoute: React.FC<{
 // Layout principal con sidebar
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentView, setCurrentView] = useState('dashboard');
+  const { isSidebarOpen, toggleSidebar } = useSidebar();
+  
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar currentView={currentView} onViewChange={setCurrentView} />
-      <main className="flex-1 ml-64 overflow-y-auto">
+      <main className={`flex-1 overflow-y-auto transition-all duration-300 ${
+        isSidebarOpen ? 'ml-64' : 'ml-0'
+      }`}>
+        {/* Botón toggle para abrir sidebar */}
+        {!isSidebarOpen && (
+          <button
+            onClick={toggleSidebar}
+            className="fixed top-4 left-4 z-30 p-2 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
         <div className="p-8">{children}</div>
       </main>
     </div>
@@ -212,24 +228,26 @@ const MainApp: React.FC = () => {
 function App() {
   return (
     <AuthProvider>
-      <MainApp />
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: 'green',
-              secondary: 'black',
-            }
-          },
-        }}
-      />
+      <SidebarProvider>
+        <MainApp />
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: 'green',
+                secondary: 'black',
+              }
+            },
+          }}
+        />
+      </SidebarProvider>
     </AuthProvider>
   );
 }
