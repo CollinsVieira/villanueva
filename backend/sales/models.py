@@ -173,22 +173,8 @@ class Venta(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
         
-        # Actualizar el estado del lote según el estado de la venta
-        if self.status == 'active':
-            self.lote.status = 'vendido'
-            self.lote.customer = self.customer
-        elif self.status in ['cancelled', 'completed']:
-            # Si no hay otras ventas activas, el lote queda disponible
-            other_active_sales = Venta.objects.filter(
-                lote=self.lote,
-                status='active'
-            ).exclude(pk=self.pk)
-            
-            if not other_active_sales.exists():
-                self.lote.status = 'disponible'
-                self.lote.customer = None
-        
-        self.lote.save()
+        # Actualizar el estado del lote basado en el estado de las ventas
+        self.lote.update_status_from_sales()
     
     @property
     def remaining_balance(self):

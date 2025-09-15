@@ -78,9 +78,17 @@ class Lote(models.Model):
 
     @property
     def current_owner(self):
-        """Obtiene el propietario actual del lote a través de la venta activa."""
+        """Obtiene el propietario actual del lote.
+        - Si hay venta activa: devuelve su cliente
+        - Si no hay venta activa pero hay ventas completadas: devuelve el cliente de la última completada
+        - En otro caso: None
+        """
+        from sales.models import Venta
         active_sale = self.active_sale
-        return active_sale.customer if active_sale else None
+        if active_sale:
+            return active_sale.customer
+        last_completed = Venta.objects.filter(lote=self, status='completed').order_by('-completion_date', '-created_at').first()
+        return last_completed.customer if last_completed else None
 
     @property
     def remaining_balance(self):

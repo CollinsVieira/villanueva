@@ -146,7 +146,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text("CRONOGRAMA DE PAGOS - EJEMPLO", 105, yPosition, { align: "center" });
+      doc.text("CRONOGRAMA DE PAGOS - SIMULACIÓN", 105, yPosition, { align: "center" });
 
       yPosition += 15;
 
@@ -154,7 +154,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 100, 0);
-      doc.text("VILLANUEVA", 105, yPosition, { align: "center" });
+      doc.text("GRUPO SERFER & ASOCIADOS", 105, yPosition, { align: "center" });
 
       yPosition += 10;
 
@@ -164,7 +164,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       doc.setTextColor(0, 0, 0);
 
       const selectedCustomer = await customerService.getCustomerById(formData.customer);
-      const customerName = selectedCustomer ? selectedCustomer.full_name : "Cliente de Ejemplo";
+      const customerName = selectedCustomer ? selectedCustomer.full_name : "Cliente";
       const customerDoc = selectedCustomer ? selectedCustomer.document_number : "12345678";
 
       // Información básica
@@ -198,7 +198,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
 
       // Generar cronograma de ejemplo
       doc.setFont("helvetica", "bold");
-      doc.text("CRONOGRAMA DE CUOTAS (EJEMPLO)", 20, yPosition);
+      doc.text("CRONOGRAMA DE CUOTAS (SIMULACIÓN)", 20, yPosition);
       yPosition += 10;
 
       // Preparar datos de la tabla
@@ -252,7 +252,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       const finalY = (doc as any).lastAutoTable.finalY || yPosition + 100;
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text("Este es un cronograma de ejemplo basado en los datos ingresados.", 20, finalY + 20);
+      doc.text("Este es un cronograma de simulación basado en los datos ingresados.", 20, finalY + 20);
       doc.text("Los montos y fechas pueden variar según las condiciones finales del contrato.", 20, finalY + 30);
       doc.text(`Generado el: ${new Date().toLocaleDateString('es-PE')}`, 20, finalY + 40);
 
@@ -261,8 +261,8 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       doc.save(fileName);
 
     } catch (err) {
-      console.error('Error generando PDF de ejemplo:', err);
-      setError('Error al generar el PDF de ejemplo');
+      console.error('Error generando PDF de simulación:', err);
+      setError('Error al generar el PDF de simulación');
     }
   };
 
@@ -511,7 +511,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
           <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-gray-900 mb-1">📋 Cronograma de Pagos de Ejemplo</h4>
+                <h4 className="font-medium text-gray-900 mb-1">📋 Cronograma de Pagos de Simulación</h4>
                 <p className="text-sm text-gray-600">
                   Genera un PDF de ejemplo del cronograma de pagos basado en los datos ingresados
                 </p>
@@ -523,10 +523,10 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title={!formData.sale_price || !formData.payment_day || !formData.financing_months || !selectedLote 
                   ? "Complete los campos requeridos para generar el ejemplo" 
-                  : "Generar PDF de ejemplo del cronograma"}
+                  : "Generar PDF de simulación del cronograma"}
               >
                 <Calendar className="h-4 w-4" />
-                Generar Ejemplo
+                Simular Cronograma de Pagos
               </button>
             </div>
           </div>

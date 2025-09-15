@@ -54,12 +54,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">        
           <div className="flex flex-col gap-4 items-center">
-            <img src={logo} alt="VillanuevaLogo" className="w-10 h-10 bg-blue-600 rounded-lg mx-auto" />
-            <p className="text-sm text-blue-800 font-bold">
+            <img src={logo} alt="VillanuevaLogo" className="w-10 h-10 bg-black rounded-lg mx-auto" />
+            <p className="text-sm text-black font-bold">
               Sistema de Gestión de Lotes
             </p>
-            <p className="text-sm text-blue-800 font-bold text-center">
-              Grupo Serfer y Asociados
+            <p className="text-sm text-black font-bold text-center">
+              Grupo Serfer & Asociados
             </p>
           </div>
         </div>

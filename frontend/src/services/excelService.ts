@@ -84,7 +84,11 @@ class ExcelService {
           lote.total_payments_made.toString(),
           lote.financing_months.toString(),
           lote.payment_day.toString(),
-          lote.days_until_next_payment ? lote.days_until_next_payment.toString() : 'N/A'
+          lote.days_until_next_payment ? 
+            (lote.days_until_next_payment < 0 ? 
+              `Venció hace ${Math.abs(lote.days_until_next_payment)} Días` : 
+              lote.days_until_next_payment.toString()) : 
+            'Vence hoy'
         ];
         
         console.log(`🔍 Fila del lote ${customerIndex + 1}-${loteIndex + 1}:`, loteRow);

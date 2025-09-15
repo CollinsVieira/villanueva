@@ -6,6 +6,7 @@ import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import CustomerForm from './CustomerForm';
 import CustomerDetailModal from './CustomerDetailModal';
+import ConfirmationModal from '../../utils/ConfirmationModal';
 
 const CustomerManagement: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -17,6 +18,11 @@ const CustomerManagement: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomerId, setViewingCustomerId] = useState<number | null>(null);
+
+  // Estados para el modal de confirmación
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Estados de paginación del backend
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,15 +77,30 @@ const CustomerManagement: React.FC = () => {
     setShowForm(true);
   };
   
-  const handleDeleteCustomer = async (id: number) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este cliente?')) {
-      try {
-        await customerService.deleteCustomer(id);
-        loadCustomers(searchTerm, currentPage); // Recargar manteniendo la página actual
-      } catch (err: any) {
-        setError(err.response?.data?.detail || 'Error al eliminar el cliente.');
-      }
+  const handleDeleteCustomer = async (customer: Customer) => {
+    setCustomerToDelete(customer);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await customerService.deleteCustomer(customerToDelete.id);
+      loadCustomers(searchTerm, currentPage); // Recargar manteniendo la página actual
+      setShowDeleteModal(false);
+      setCustomerToDelete(null);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Error al eliminar el cliente.');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDeleteCustomer = () => {
+    setShowDeleteModal(false);
+    setCustomerToDelete(null);
   };
 
   const handleSave = () => {
@@ -169,7 +190,7 @@ const CustomerManagement: React.FC = () => {
                         <button onClick={(e) => { e.stopPropagation(); handleEditCustomer(customer); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
                           <Edit size={16} />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(customer.id); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(customer); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -310,6 +331,19 @@ const CustomerManagement: React.FC = () => {
           onDataChange={() => loadCustomers(searchTerm, currentPage)}
         />
       )}
+
+      {/* Modal de confirmación para eliminar cliente */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={cancelDeleteCustomer}
+        onConfirm={confirmDeleteCustomer}
+        title="Eliminar Cliente"
+        message={`¿Está seguro de que desea eliminar al cliente "${customerToDelete?.full_name}"? Esta acción no se puede deshacer.`}
+        type="danger"
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

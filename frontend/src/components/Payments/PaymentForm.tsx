@@ -292,41 +292,22 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                       {dynamicReportsService.formatCurrency(parseFloat(activeVenta.remaining_balance || "0"))}
                     </p>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                      Estado
-                    </p>
-                    <p className="font-semibold text-green-600">
-                      {activeVenta.status_display || 'Activa'}
-                    </p>
-                  </div>
-                  <div className="bg-white/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                      Inicio del Cronograma
-                    </p>
-                    <p className="font-semibold text-gray-900">
-                      {activeVenta.schedule_start_date 
-                        ? new Date(activeVenta.schedule_start_date).toLocaleDateString('es-PE', { 
-                            year: 'numeric', 
-                            month: 'long' 
-                          })
-                        : new Date(activeVenta.sale_date).toLocaleDateString('es-PE', { 
-                            year: 'numeric', 
-                            month: 'long' 
-                          })
-                      }
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {activeVenta.schedule_start_date ? 'Fecha personalizada' : 'Mes de creación'}
-                    </p>
-                  </div>
                   {paymentSchedules.length > 0 && (
                     <div className="md:col-span-2 bg-gradient-to-r from-green-100 to-blue-100 rounded-lg p-4 border border-green-200">
                       <p className="text-sm text-green-700 mb-1">
                         📅 Cronograma de Pagos
                       </p>
-                      <p className="font-bold text-lg text-green-600">
-                        {paymentSchedules.filter(s => s.status === 'pending').length} cuotas pendientes
+                      <p className="font-bold text-sm text-green-600">
+                        {paymentSchedules.filter(s => s.status === 'pending').length} cuotas pendientes <br />
+                      </p>
+                      <p className="font-bold text-sm text-blue-600">
+                        {paymentSchedules.filter(s => s.status === 'paid').length} cuotas pagadas <br />
+                      </p>
+                      <p className="font-bold text-sm text-yellow-600">
+                      {paymentSchedules.filter(s => s.status === 'forgiven').length} cuotas perdonadas <br />
+                      </p>
+                      <p className="font-bold text-sm text-red-600">
+                        {paymentSchedules.filter(s => s.status === 'overdue').length} cuotas vencidas <br />
                       </p>
                     </div>
                   )}
