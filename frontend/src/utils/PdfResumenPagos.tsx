@@ -277,7 +277,7 @@ export const handleDownloadHistorialPagosPDF = async (
 
             // URL corregida para usar con el proxy
             const imageUrl = payment.receipt_image.replace(
-              "http://192.168.100.4:8000",
+              `${import.meta.env.VITE_API_BASE_URL}`,
               ""
             );
 
@@ -315,7 +315,7 @@ export const handleDownloadHistorialPagosPDF = async (
         const xCentered = (pageWidth - imageWidth) / 2;
 
         const imageUrl = schedule.receipt_image.replace(
-          "http://192.168.100.4:8000",
+          `${import.meta.env.VITE_API_BASE_URL}`,
           ""
         );
 

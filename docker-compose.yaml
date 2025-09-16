@@ -28,6 +28,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DEBUG=0
+      - IP_BASE_URL=192.168.100.4
     depends_on:
       - db
     command: gunicorn villanueva_project.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000

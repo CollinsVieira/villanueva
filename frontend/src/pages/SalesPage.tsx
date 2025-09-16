@@ -58,6 +58,7 @@ const SalesPage: React.FC = () => {
             saleId={selectedSale!.id}
             onEdit={handleEditSale}
             onClose={handleCancel}
+            onBack={handleCancel}
           />
         );
       

@@ -1,14 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import salesService, { Venta, PaymentPlan } from '../../services/salesService';
-import { dynamicReportsService } from '../../services/dynamicReportsService';
-import { Edit, DollarSign, FileText, CheckCircle, X, Download, Eye, Calendar, FileDown, ArrowLeft } from 'lucide-react';
-import InitialPaymentForm from './InitialPaymentForm';
-import PaymentSchedule from '../Payments/PaymentSchedule';
-import { handleDownloadCronogramaPDF } from '../../utils/PdfCronogramaPagos';
-import { handleDownloadHistorialPagosPDF } from '../../utils/PdfResumenPagos';
-import ConfirmationModal from '../../utils/ConfirmationModal';
-import { useConfirmation } from '../../hooks/useConfirmation';
-import toastService from '../../services/toastService';
+import React, { useState, useEffect } from "react";
+import salesService, { Venta, PaymentPlan } from "../../services/salesService";
+import { dynamicReportsService } from "../../services/dynamicReportsService";
+import {
+  Edit,
+  DollarSign,
+  FileText,
+  CheckCircle,
+  X,
+  Download,
+  Eye,
+  Calendar,
+  FileDown,
+  ArrowLeft,
+} from "lucide-react";
+import InitialPaymentForm from "./InitialPaymentForm";
+import PaymentSchedule from "../Payments/PaymentSchedule";
+import { handleDownloadCronogramaPDF } from "../../utils/PdfCronogramaPagos";
+import { handleDownloadHistorialPagosPDF } from "../../utils/PdfResumenPagos";
+import ConfirmationModal from "../../utils/ConfirmationModal";
+import { useConfirmation } from "../../hooks/useConfirmation";
+import toastService from "../../services/toastService";
 
 interface SaleDetailsProps {
   saleId: number;
@@ -17,15 +28,20 @@ interface SaleDetailsProps {
   onBack?: () => void;
 }
 
-const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBack }) => {
+const SaleDetails: React.FC<SaleDetailsProps> = ({
+  saleId,
+  onEdit,
+  onClose,
+  onBack,
+}) => {
   const [sale, setSale] = useState<Venta | null>(null);
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInitialPaymentForm, setShowInitialPaymentForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'plan' | 'schedule'>('plan');
+  const [activeTab, setActiveTab] = useState<"plan" | "schedule">("plan");
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   const { isOpen, options, confirm, onConfirm, onCancel } = useConfirmation();
 
   useEffect(() => {
@@ -37,40 +53,40 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
       setLoading(true);
       const [saleData, planData] = await Promise.all([
         salesService.getVenta(saleId),
-        salesService.getVentaPaymentPlan(saleId).catch(() => null)
+        salesService.getVentaPaymentPlan(saleId).catch(() => null),
       ]);
-      
+
       setSale(saleData);
       setPaymentPlan(planData);
     } catch (err) {
-      setError('Error al cargar los detalles de la venta');
-      console.error('Error loading sale details:', err);
+      setError("Error al cargar los detalles de la venta");
+      console.error("Error loading sale details:", err);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleCancelSale = async () => {
     if (!sale) return;
-    
+
     const confirmed = await confirm({
-      title: 'Cancelar Venta',
+      title: "Cancelar Venta",
       message: `¿Está seguro de cancelar la venta #${sale.id}? Esta acción no se puede deshacer.`,
-      type: 'danger',
-      confirmText: 'Sí, Cancelar',
-      cancelText: 'No, Mantener'
+      type: "danger",
+      confirmText: "Sí, Cancelar",
+      cancelText: "No, Mantener",
     });
-    
+
     if (!confirmed) return;
-    
+
     setIsProcessing(true);
     try {
-      await salesService.cancelVenta(sale.id, 'Cancelada desde detalles');
-      toastService.success('Venta cancelada exitosamente');
+      await salesService.cancelVenta(sale.id, "Cancelada desde detalles");
+      toastService.success("Venta cancelada exitosamente");
       loadSaleDetails();
     } catch (err) {
-      toastService.error('Error al cancelar la venta');
-      console.error('Error canceling sale:', err);
+      toastService.error("Error al cancelar la venta");
+      console.error("Error canceling sale:", err);
     } finally {
       setIsProcessing(false);
     }
@@ -78,25 +94,25 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
 
   const handleCompleteSale = async () => {
     if (!sale) return;
-    
+
     const confirmed = await confirm({
-      title: 'Completar Venta',
+      title: "Completar Venta",
       message: `¿Está seguro de completar la venta #${sale.id}? Una vez completada, no se podrán realizar más modificaciones.`,
-      type: 'success',
-      confirmText: 'Sí, Completar',
-      cancelText: 'Cancelar'
+      type: "success",
+      confirmText: "Sí, Completar",
+      cancelText: "Cancelar",
     });
-    
+
     if (!confirmed) return;
-    
+
     setIsProcessing(true);
     try {
       await salesService.completeVenta(sale.id);
-      toastService.success('Venta completada exitosamente');
+      toastService.success("Venta completada exitosamente");
       loadSaleDetails();
     } catch (err) {
-      toastService.error('Error al completar la venta');
-      console.error('Error completing sale:', err);
+      toastService.error("Error al completar la venta");
+      console.error("Error completing sale:", err);
     } finally {
       setIsProcessing(false);
     }
@@ -109,20 +125,21 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
 
   const getStatusLabel = (status: string) => {
     const statusLabels: { [key: string]: string } = {
-      'active': 'Activa',
-      'completed': 'Completada',
-      'cancelled': 'Cancelada'
+      active: "Activa",
+      completed: "Completada",
+      cancelled: "Cancelada",
     };
     return statusLabels[status] || status;
   };
-
 
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6">
           <div className="flex items-center justify-center">
-            <div className="text-gray-500">Cargando detalles de la venta...</div>
+            <div className="text-gray-500">
+              Cargando detalles de la venta...
+            </div>
           </div>
         </div>
       </div>
@@ -133,7 +150,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
     return (
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6">
-          <div className="text-red-600">{error || 'Venta no encontrada'}</div>
+          <div className="text-red-600">{error || "Venta no encontrada"}</div>
         </div>
       </div>
     );
@@ -150,22 +167,14 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft size={20} />
-              <span>Volver a Ventas</span>
+              <span>Volver</span>
             </button>
           )}
         </div>
-        <div className="flex items-center   space-x-2">
-          <h1 className="text-3xl font-bold text-gray-900 flex">Detalles de Venta</h1>
-          {sale && (
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              sale.status === 'active' ? 'bg-green-100 text-green-800' :
-              sale.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-              sale.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
-              {getStatusLabel(sale.status)}
-            </span>
-          )}
+        <div>
+          <p className="text-3xl font-bold text-gray-900 flex">
+            Detalles de Venta
+          </p>
         </div>
       </div>
 
@@ -176,10 +185,22 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
               <FileText className="h-5 w-5" />
               Venta #{sale.id}
             </h2>
+            <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  sale.status === "active"
+                    ? "bg-green-100 text-green-800"
+                    : sale.status === "completed"
+                    ? "bg-blue-100 text-blue-800"
+                    : sale.status === "cancelled"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {getStatusLabel(sale.status)}
+              </span>
           </div>
         </div>
-        
-        
+
         <div className="p-6">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
@@ -198,30 +219,42 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Número de Lote:</span>
-                    <span className="font-medium">{sale.lote_info?.lot_number}</span>
+                    <span className="font-medium">
+                      {sale.lote_info?.lot_number}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Área:</span>
-                    <span className="font-medium">{sale.lote_info?.area} m²</span>
+                    <span className="font-medium">
+                      {sale.lote_info?.area} m²
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Customer Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Información del Cliente</h3>
+                <h3 className="text-lg font-semibold">
+                  Información del Cliente
+                </h3>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Nombre:</span>
-                    <span className="font-medium">{sale.customer_info?.full_name}</span>
+                    <span className="font-medium">
+                      {sale.customer_info?.full_name}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Documento:</span>
-                    <span className="font-medium">{sale.customer_info?.document_number}</span>
+                    <span className="font-medium">
+                      {sale.customer_info?.document_number}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Teléfono:</span>
-                    <span className="font-medium">{sale.customer_info?.phone || 'No especificado'}</span>
+                    <span className="font-medium">
+                      {sale.customer_info?.phone || "No especificado"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -229,38 +262,61 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
             <div className="grid grid-cols-2 gap-6">
               {/* Financial Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Información Financiera</h3>
+                <h3 className="text-lg font-semibold">
+                  Información Financiera
+                </h3>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Precio de venta:</span>
-                    <span className="font-medium">{dynamicReportsService.formatCurrency(Number(sale.sale_price))}</span>
+                    <span className="font-medium">
+                      {dynamicReportsService.formatCurrency(
+                        Number(sale.sale_price)
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Pago inicial:</span>
-                    <span className="font-medium">{sale.initial_payment ? dynamicReportsService.formatCurrency(Number(sale.initial_payment)) : 'No registrado'}</span>
+                    <span className="font-medium">
+                      {sale.initial_payment
+                        ? dynamicReportsService.formatCurrency(
+                            Number(sale.initial_payment)
+                          )
+                        : "No registrado"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Saldo pendiente:</span>
-                    <span className="font-medium">{
-                      dynamicReportsService.formatCurrency(sale.remaining_balance? parseFloat(sale.remaining_balance) : 0)}</span>
+                    <span className="font-medium">
+                      {dynamicReportsService.formatCurrency(
+                        sale.remaining_balance
+                          ? parseFloat(sale.remaining_balance)
+                          : 0
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Contract Information */}
               <div className="mt-6 pt-6 border-t">
-                <h3 className="text-lg font-semibold mb-4">Información del Contrato</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  Información del Contrato
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-gray-600">Fecha de Contrato:</span>
                     <span className="ml-2 font-medium">
-                      {sale.contract_date ? dynamicReportsService.formatDate(sale.contract_date) : 'No especificada'}
+                      {sale.contract_date
+                        ? dynamicReportsService.formatDate(sale.contract_date)
+                        : "No especificada"}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-600">Día de Vencimiento:</span>
                     <span className="ml-2 font-medium">
-                      {sale.payment_day ? `${sale.payment_day} de cada mes` : 'No especificado'}
+                      {sale.payment_day
+                        ? `${sale.payment_day} de cada mes`
+                        : "No especificado"}
                     </span>
                   </div>
                   <div>
@@ -270,14 +326,16 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
                     </span>
                   </div>
                 </div>
-                
+
                 {sale.contract_pdf && (
                   <div className="mt-4">
                     <span className="text-gray-600">Contrato PDF:</span>
-                    <span className="ml-2 font-medium text-green-600">Disponible</span>
+                    <span className="ml-2 font-medium text-green-600">
+                      Disponible
+                    </span>
                   </div>
                 )}
-                
+
                 {sale.notes && (
                   <div className="mt-4">
                     <span className="text-gray-600">Notas:</span>
@@ -292,119 +350,109 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
 
       {/* Sección de botones unificada */}
       <div className="px-6 py-4 border-b bg-gray-50">
-          <div className="flex justify-end gap-3">
-            {/* Botones de PDF */}
-            {sale.contract_pdf && (
-              <>
-                <button
-                  onClick={() => window.open(sale.contract_pdf, '_blank')}
-                  className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
-                >
-                  <Eye className="h-4 w-4" />
-                  Ver Contrato
-                </button>
-                <button
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = sale.contract_pdf!;
-                    link.download = `contrato_venta_${sale.id}.pdf`;
-                    link.click();
-                  }}
-                  className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Descargar Contrato
-                </button>
-              </>
-            )}
-            
-            {/* Botones de PDF de pagos */}
-            <button
-              onClick={() => handleDownloadCronogramaPDF(sale.id, setError)}
-              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
-            >
-              <FileDown className="h-4 w-4" />
-              Descargar Cronograma
-            </button>
-            <button
-              onClick={() => handleDownloadHistorialPagosPDF(sale.id, setError)}
-              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
-            >
-              <FileDown className="h-4 w-4" />
-              Descargar Historial de Pagos
-            </button>        
-            
-            {!sale.initial_payment && sale.status === 'active' && (
+        <div className="flex justify-end gap-3">
+          {/* Botones de PDF */}
+          {sale.contract_pdf && (
+            <>
               <button
-                onClick={() => setShowInitialPaymentForm(true)}
+                onClick={() => window.open(sale.contract_pdf, "_blank")}
                 className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
               >
-                <DollarSign className="h-4 w-4" />
-                Registrar Pago Inicial
+                <Eye className="h-4 w-4" />
+                Ver Contrato
               </button>
-            )}
-            
-            {sale.status === 'active' && (
-              <>
-                <button
-                  onClick={handleCompleteSale}
-                  className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  Completar Venta
-                </button>
-                <button
-                  onClick={handleCancelSale}
-                  className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Cancelar Venta
-                </button>
-              </>
-            )}
-            
-            {onEdit && (
-              <button 
-                onClick={() => onEdit(sale)}
-                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 ga-2"
+              <button
+                onClick={() => {
+                  const link = document.createElement("a");
+                  link.href = sale.contract_pdf!;
+                  link.download = `contrato_venta_${sale.id}.pdf`;
+                  link.click();
+                }}
+                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
               >
-                <Edit className="h-4 w-4" />
-                Editar
+                <Download className="h-4 w-4" />
+                Descargar Contrato
               </button>
-            )}
-            
-            {onClose && (
-              <button 
-                onClick={onClose}
-                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 ga-2"
+            </>
+          )}
+
+          {/* Botones de PDF de pagos */}
+          <button
+            onClick={() => handleDownloadCronogramaPDF(sale.id, setError)}
+            className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+          >
+            <FileDown className="h-4 w-4" />
+            Descargar Cronograma
+          </button>
+          <button
+            onClick={() => handleDownloadHistorialPagosPDF(sale.id, setError)}
+            className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+          >
+            <FileDown className="h-4 w-4" />
+            Descargar Historial de Pagos
+          </button>
+
+          {!sale.initial_payment && sale.status === "active" && (
+            <button
+              onClick={() => setShowInitialPaymentForm(true)}
+              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+            >
+              <DollarSign className="h-4 w-4" />
+              Registrar Pago Inicial
+            </button>
+          )}
+
+          {sale.status === "active" && (
+            <>
+              <button
+                onClick={handleCompleteSale}
+                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Completar Venta
+              </button>
+              <button
+                onClick={handleCancelSale}
+                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
               >
                 <X className="h-4 w-4" />
-                Cerrar
+                Cancelar Venta
               </button>
-            )}
-          </div>
+            </>
+          )}
+
+          {onEdit && (
+            <button
+              onClick={() => onEdit(sale)}
+              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 ga-2"
+            >
+              <Edit className="h-4 w-4" />
+              Editar
+            </button>
+          )}
         </div>
+      </div>
 
       <div className="mt-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            <button 
-              onClick={() => setActiveTab('plan')}
+            <button
+              onClick={() => setActiveTab("plan")}
               className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                activeTab === 'plan' 
-                  ? 'border-blue-500 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                activeTab === "plan"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <DollarSign size={16} />
               Plan de Pagos
             </button>
-            <button 
-              onClick={() => setActiveTab('schedule')}
+            <button
+              onClick={() => setActiveTab("schedule")}
               className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                activeTab === 'schedule' 
-                  ? 'border-blue-500 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                activeTab === "schedule"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <Calendar size={16} />
@@ -414,7 +462,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
         </div>
 
         <div className="mt-6">
-          {activeTab === 'plan' ? (
+          {activeTab === "plan" ? (
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b">
                 <h3 className="text-lg font-semibold">Plan de Pagos</h3>
@@ -431,39 +479,58 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-semibold">
-                          {dynamicReportsService.formatCurrency(parseFloat(paymentPlan.payment_status.paid_amount.toString() || '0'))}
+                          {dynamicReportsService.formatCurrency(
+                            parseFloat(
+                              paymentPlan.payment_status.paid_amount.toString() ||
+                                "0"
+                            )
+                          )}
                         </div>
                         <div className="text-sm text-gray-600">Pagado</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-semibold">
                           {dynamicReportsService.formatCurrency(
-                            sale.remaining_balance ? parseFloat(sale.remaining_balance) : 0
+                            sale.remaining_balance
+                              ? parseFloat(sale.remaining_balance)
+                              : 0
                           )}
                         </div>
                         <div className="text-sm text-gray-600">Pendiente</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-semibold">
-                          {(
-                            (paymentPlan.payment_status.paid || 0) +
-                            (paymentPlan.payment_status.forgiven || 0)
-                          )}/{paymentPlan.payment_status.total_installments || 0}
+                          {(paymentPlan.payment_status.paid || 0) +
+                            (paymentPlan.payment_status.forgiven || 0)}
+                          /{paymentPlan.payment_status.total_installments || 0}
                         </div>
                         <div className="text-sm text-gray-600">Cuotas</div>
                       </div>
                     </div>
 
                     <div className="bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${paymentPlan.payment_status.completion_percentage || 0}%` }}
+                        style={{
+                          width: `${
+                            paymentPlan.payment_status.completion_percentage ||
+                            0
+                          }%`,
+                        }}
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div><span className="font-medium">Fecha inicio:</span> {dynamicReportsService.formatDate(paymentPlan.start_date)}</div>
-                      <div><span className="font-medium">Día de pago:</span> {paymentPlan.payment_day}</div>
+                      <div>
+                        <span className="font-medium">Fecha inicio:</span>{" "}
+                        {dynamicReportsService.formatDate(
+                          paymentPlan.start_date
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-medium">Día de pago:</span>{" "}
+                        {paymentPlan.payment_day}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -481,14 +548,13 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
                   Cronograma de Pagos - Venta #{sale.id}
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Cronograma detallado de cuotas para Mz. {sale.lote_info?.block} - Lt. {sale.lote_info?.lot_number} - {sale.customer_info?.full_name}
+                  Cronograma detallado de cuotas para Mz.{" "}
+                  {sale.lote_info?.block} - Lt. {sale.lote_info?.lot_number} -{" "}
+                  {sale.customer_info?.full_name}
                 </p>
               </div>
               <div className="p-6">
-                <PaymentSchedule 
-                  loteId={sale.lote} 
-                  showLoteFilter={false}
-                />
+                <PaymentSchedule loteId={sale.lote} showLoteFilter={false} />
               </div>
             </div>
           )}
@@ -508,8 +574,8 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({ saleId, onEdit, onClose, onBa
         isOpen={isOpen}
         onClose={onCancel}
         onConfirm={onConfirm}
-        title={options?.title || ''}
-        message={options?.message || ''}
+        title={options?.title || ""}
+        message={options?.message || ""}
         type={options?.type}
         confirmText={options?.confirmText}
         cancelText={options?.cancelText}

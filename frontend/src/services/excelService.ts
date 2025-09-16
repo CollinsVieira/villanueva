@@ -59,7 +59,7 @@ class ExcelService {
       ],
     ];
 
-    data.customers.forEach((customer, index) => {
+    data.customers.forEach((customer) => {
       const lotesInfo = customer.lotes
         .map((l) => `${l.lote_description} (S/. ${l.remaining_balance})`)
         .join("; ");
@@ -92,8 +92,8 @@ class ExcelService {
       ],
     ];
 
-    data.customers.forEach((customer, customerIndex) => {
-      customer.lotes.forEach((lote, loteIndex) => {
+    data.customers.forEach((customer) => {
+      customer.lotes.forEach((lote) => {
         const loteRow = [
           customer.customer_name,
           lote.lote_description,
@@ -169,7 +169,7 @@ class ExcelService {
       ],
     ];
 
-    data.payments.forEach((payment, index) => {
+    data.payments.forEach((payment) => {
       const paymentRow = [
         DateService.utcToLocalDateOnly(payment.payment_date),
         payment.customer,
@@ -256,7 +256,7 @@ class ExcelService {
       ],
     ];
 
-    data.lots.forEach((lot, index) => {
+    data.lots.forEach((lot) => {
       const lotRow = [
         lot.block,
         lot.lot_number,

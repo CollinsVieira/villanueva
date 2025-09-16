@@ -146,8 +146,11 @@ STATIC_LOCATION= 'static'
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+# Lee la variable de entorno IP_BASE_URL
+IP_BASE_URL = os.environ.get('IP_BASE_URL')
+
 # Media files (uploads)
-MEDIA_URL = 'http://192.168.100.4/media/'
+MEDIA_URL = f'http://{IP_BASE_URL}/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Forzar URLs relativas para archivos de media
@@ -172,10 +175,41 @@ CORS_ALLOWED_ORIGINS = [
     "http://0.0.0.0:8000",
     "http://0.0.0.0:5173",
     "http://0.0.0.0:80",
-    "http://192.168.100.4",
-    "http://192.168.100.4:8000",
-    "http://192.168.100.4:80"
 ]
+
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://frontend:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://backend:8000",
+    "http://0.0.0.0:8000",
+    "http://0.0.0.0:5173",
+    "http://0.0.0.0:80",
+]
+
+
+
+# Si la variable de entorno existe, añade las URLs correspondientes a la lista
+if IP_BASE_URL:
+    CORS_ALLOWED_ORIGINS.extend([
+        f"http://{IP_BASE_URL}",
+        f"http://{IP_BASE_URL}:8000",
+        f"http://{IP_BASE_URL}:80",
+    ])
+
+# Si la variable de entorno existe, añade las URLs correspondientes a la lista
+if IP_BASE_URL:
+    CSRF_TRUSTED_ORIGINS.extend([
+        f"http://{IP_BASE_URL}",
+        f"http://{IP_BASE_URL}:8000",
+        f"http://{IP_BASE_URL}:80",
+    ])
+
+
+
 
 # Configuraciones adicionales para CORS en Docker
 CORS_ALLOW_ALL_ORIGINS = True
@@ -200,21 +234,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# CSRF settings
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://frontend:5173",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://backend:8000",
-    "http://0.0.0.0:8000",
-    "http://0.0.0.0:5173",
-    "http://0.0.0.0:80",
-    "http://192.168.100.4",
-    "http://192.168.100.4:8000",
-    "http://192.168.100.4:80",
-]
+
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
