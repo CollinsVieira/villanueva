@@ -67,7 +67,6 @@ class PaymentService {
     const response = await api.get(`/customers/${customerId}/`, { 
       params: { customer: customerId } 
     });
-    console.log(response.data);
     return response.data;
   }
 
