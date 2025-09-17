@@ -31,7 +31,6 @@ interface SaleDetailsProps {
 const SaleDetails: React.FC<SaleDetailsProps> = ({
   saleId,
   onEdit,
-  onClose,
   onBack,
 }) => {
   const [sale, setSale] = useState<Venta | null>(null);
