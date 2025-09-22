@@ -6,6 +6,7 @@ import loteService from '../../services/loteService';
 import PaymentRegistrationForm from './PaymentRegistrationForm';
 import AmountModificationForm from './AmountModificationForm';
 import DateService from '../../services/dateService';
+import { getProxyImageUrl } from '../../utils/imageUtils';
 
 interface PaymentScheduleProps {
   loteId?: number;
@@ -392,7 +393,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                                     {payment.receipt_image && (
                                       <div className="mt-1">
                                         <a 
-                                          href={payment.receipt_image} 
+                                          href={getProxyImageUrl(payment.receipt_image) || '#'} 
                                           target="_blank" 
                                           rel="noopener noreferrer"
                                           className="text-blue-600 hover:text-blue-800 text-xs"

@@ -130,6 +130,7 @@ class PaymentService {
     receipt_number?: string;
     receipt_date?: string;
     receipt_image?: File;
+    boleta_image?: File;
     notes?: string;
   }): Promise<PaymentSchedule> {
     const formData = new FormData();
@@ -146,6 +147,9 @@ class PaymentService {
     }
     if (paymentData.receipt_image) {
       formData.append('receipt_image', paymentData.receipt_image);
+    }
+    if (paymentData.boleta_image) {
+      formData.append('boleta_image', paymentData.boleta_image);
     }
     if (paymentData.notes) {
       formData.append('notes', paymentData.notes);

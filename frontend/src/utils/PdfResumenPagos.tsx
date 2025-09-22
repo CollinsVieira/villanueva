@@ -1,5 +1,6 @@
 import salesService from "../services/salesService";
 import paymentService from "../services/paymentService";
+import { getProxyImageUrl } from "./imageUtils";
 
 export const handleDownloadHistorialPagosPDF = async (
   ventaId: number,
@@ -35,13 +36,13 @@ export const handleDownloadHistorialPagosPDF = async (
 
     // LOGO DE LA EMPRESA
     const logoUrl =
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQl5JN3aOWU7dTuFjgBd8MVkNVSN-eYxT2mFA&s"; // URL del logo - dejar vacío para configurar después
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnsU_kN9M7iqQCGOsKmYFRGoFgCNVO0DkEJg&s"; // URL del logo - dejar vacío para configurar después
     if (logoUrl) {
-      doc.addImage(logoUrl, "PNG", 20, 10, 40, 20);
+      doc.addImage(logoUrl, "PNG", 20, 10, 22.5, 40);
     } else {
       // Placeholder para el logo
       doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(20, 10, 40, 20, "F");
+      doc.rect(20, 10, 22.5, 40, "F");
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
       doc.text("LOGO EMPRESA", 40, 22, { align: "center" });
@@ -302,10 +303,7 @@ export const handleDownloadHistorialPagosPDF = async (
         // --- FIN DE LA LÓGICA PARA CENTRAR ---
 
         // URL corregida para usar con el proxy
-        const imageUrl = payment.receipt_image.replace(
-          `${import.meta.env.VITE_API_BASE_URL}`,
-          ""
-        );
+        const imageUrl = getProxyImageUrl(payment.receipt_image);
 
         // Título del comprobante del pago inicial
         doc.text(
@@ -315,15 +313,17 @@ export const handleDownloadHistorialPagosPDF = async (
           { align: "center" }
         );
 
-        // Agregar la imagen
-        doc.addImage(
-          imageUrl,
-          "PNG",
-          xCentered,
-          imageY,
-          imageWidth,
-          imageHeight
-        );
+        // Agregar la imagen si la URL es válida
+        if (imageUrl) {
+          doc.addImage(
+            imageUrl,
+            "PNG",
+            xCentered,
+            imageY,
+            imageWidth,
+            imageHeight
+          );
+        }
 
         // Incrementa la posición Y para la siguiente imagen
         imageY += imageHeight + 25;
@@ -348,10 +348,7 @@ export const handleDownloadHistorialPagosPDF = async (
             // --- FIN DE LA LÓGICA PARA CENTRAR ---
 
             // URL corregida para usar con el proxy
-            const imageUrl = payment.receipt_image.replace(
-              `${import.meta.env.VITE_API_BASE_URL}`,
-              ""
-            );
+            const imageUrl = getProxyImageUrl(payment.receipt_image);
 
             // Título del comprobante con información del pago específico
             doc.text(
@@ -361,15 +358,17 @@ export const handleDownloadHistorialPagosPDF = async (
               { align: "center" }
             );
 
-            // Agregar la imagen
-            doc.addImage(
-              imageUrl,
-              "PNG",
-              xCentered,
-              imageY,
-              imageWidth,
-              imageHeight
-            );
+            // Agregar la imagen si la URL es válida
+            if (imageUrl) {
+              doc.addImage(
+                imageUrl,
+                "PNG",
+                xCentered,
+                imageY,
+                imageWidth,
+                imageHeight
+              );
+            }
 
             // Incrementa la posición Y para la siguiente imagen
             imageY += imageHeight + 25;
@@ -386,10 +385,7 @@ export const handleDownloadHistorialPagosPDF = async (
         const imageHeight = 80;
         const xCentered = (pageWidth - imageWidth) / 2;
 
-        const imageUrl = schedule.receipt_image.replace(
-          `${import.meta.env.VITE_API_BASE_URL}`,
-          ""
-        );
+        const imageUrl = getProxyImageUrl(schedule.receipt_image);
 
         doc.text(
           `Cuota ${schedule.installment_number} - S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${schedule.receipt_number || "N/A"}`,
@@ -398,14 +394,16 @@ export const handleDownloadHistorialPagosPDF = async (
           { align: "center" }
         );
 
-        doc.addImage(
-          imageUrl,
-          "PNG",
-          xCentered,
-          imageY,
-          imageWidth,
-          imageHeight
-        );
+        if (imageUrl) {
+          doc.addImage(
+            imageUrl,
+            "PNG",
+            xCentered,
+            imageY,
+            imageWidth,
+            imageHeight
+          );
+        }
 
         imageY += imageHeight + 25;
       }

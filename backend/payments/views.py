@@ -192,6 +192,7 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
         receipt_number = request.data.get('receipt_number')
         receipt_date = request.data.get('receipt_date')
         receipt_image = request.data.get('receipt_image')
+        boleta_image = request.data.get('boleta_image')
         notes = request.data.get('notes')
         
         if not amount:
@@ -223,6 +224,7 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                 receipt_number=receipt_number,
                 receipt_date=receipt_date,
                 receipt_image=receipt_image,
+                boleta_image=boleta_image,
                 notes=notes,
                 recorded_by=request.user
             )

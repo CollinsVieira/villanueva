@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       )}
       
       {/* Sidebar */}
-      <div className={`bg-[#eff3fa] shadow-lg h-full w-64 fixed left-0 top-0 z-50 transform transition-transform duration-300 ${
+      <div className={`bg-[#eff3fa] shadow-lg h-full w-64 fixed left-0 top-0 z-50 transform transition-transform duration-300 overflow-y-auto ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Header con botón toggle */}

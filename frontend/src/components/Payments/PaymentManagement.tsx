@@ -9,6 +9,7 @@ import PaymentSchedule from './PaymentSchedule';
 import { useDebounce } from '../../hooks/useDebounce';
 import DateService from '../../services/dateService';
 import { dynamicReportsService } from '../../services';
+import { getProxyImageUrl } from '../../utils/imageUtils';
 
 const PaymentManagement: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -408,7 +409,7 @@ const PaymentManagement: React.FC = () => {
                         <td className="p-4 text-center">
                           {payment.receipt_image ? (
                             <a 
-                              href={payment.receipt_image} 
+                              href={getProxyImageUrl(payment.receipt_image) || '#'} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="inline-flex items-center bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors"

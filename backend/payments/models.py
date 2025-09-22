@@ -277,6 +277,12 @@ class PaymentSchedule(models.Model):
         blank=True,
         null=True
     )
+    boleta_image = models.ImageField(
+        _("Boleta de Pago"),
+        upload_to='boleta_pagos/',
+        blank=True,
+        null=True
+    )
     receipt_number = models.CharField(
         _("Número de Operación"),
         max_length=100,
@@ -498,7 +504,7 @@ class PaymentSchedule(models.Model):
     
     def register_payment(self, amount, payment_date=None, payment_method='transferencia', 
                         receipt_number=None, receipt_date=None, receipt_image=None, 
-                        notes=None, recorded_by=None):
+                        boleta_image=None, notes=None, recorded_by=None):
         """
         Registra un pago para esta cuota del cronograma.
         """
@@ -525,6 +531,11 @@ class PaymentSchedule(models.Model):
         
         # Asociar el pago a esta cuota del cronograma usando el método add_payment
         self.add_payment(payment)
+        
+        # Asignar boleta_image si se proporciona
+        if boleta_image:
+            self.boleta_image = boleta_image
+            self.save()
         
         return self
     
@@ -618,6 +629,7 @@ class PaymentSchedule(models.Model):
                 self.receipt_number = latest_payment.receipt_number
                 self.receipt_date = latest_payment.receipt_date
                 self.receipt_image = latest_payment.receipt_image
+                # Mantener boleta_image independiente - no se sincroniza desde Payment
                 if latest_payment.notes and not self.notes:
                     self.notes = latest_payment.notes
 

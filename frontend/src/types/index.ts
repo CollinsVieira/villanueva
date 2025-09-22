@@ -383,6 +383,7 @@ export interface HistoryEvent {
     receipt_number?: string;
     receipt_date?: string;
     receipt_image?: string;
+    boleta_image?: string;
     notes?: string;
     is_forgiven: boolean;
     recorded_by?: number;
@@ -414,5 +415,6 @@ export interface HistoryEvent {
     payment_method?: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
     receipt_number?: string;
     receipt_image?: string;
+    boleta_image?: string;
     all_payments?: PaymentDetail[];
   }

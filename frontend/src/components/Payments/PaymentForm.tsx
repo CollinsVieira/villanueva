@@ -19,9 +19,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
   const [paymentSchedules, setPaymentSchedules] = useState<any[]>([]); // Cronograma de pagos
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedBoletaFile, setSelectedBoletaFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const boletaInputRef = useRef<HTMLInputElement>(null);
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [installmentNumber, setInstallmentNumber] = useState<number>(1);
   const [paymentType, setPaymentType] = useState<"installment" | "initial">(
@@ -141,6 +143,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
     }
   };
 
+  const handleBoletaFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedBoletaFile(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedLoteId || !activeVenta) {
@@ -175,6 +183,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
           receipt_number: e.currentTarget.receipt_number.value,
           receipt_date: e.currentTarget.receipt_date.value,
           receipt_image: selectedFile || undefined,
+          boleta_image: selectedBoletaFile || undefined,
           notes: e.currentTarget.notes.value,
         });
       }
@@ -485,7 +494,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
                   <span className="text-blue-600 text-xs font-bold">4</span>
                 </div>
-                Subir Comprobante (Opcional)
+                Subir Comprobante
               </label>
               <div
                 className={`border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all ${
@@ -541,6 +550,73 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 name="receipt_image"
                 ref={fileInputRef}
                 onChange={handleFileChange}
+                className="hidden"
+                accept="image/*"
+              />
+            </div>
+
+            {/* Subir boleta de pago */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
+                  <span className="text-blue-600 text-xs font-bold">5</span>
+                </div>
+                Subir Boleta de Pago
+              </label>
+              <div
+                className={`border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all ${
+                  selectedBoletaFile
+                    ? "border-green-300 bg-green-50"
+                    : "border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50"
+                }`}
+                onClick={() => boletaInputRef.current?.click()}
+              >
+                <div className="text-center">
+                  <div
+                    className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                      selectedBoletaFile ? "bg-green-100" : "bg-gray-100"
+                    }`}
+                  >
+                    <Upload
+                      className={`h-8 w-8 ${
+                        selectedBoletaFile ? "text-green-600" : "text-gray-400"
+                      }`}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    {selectedBoletaFile ? (
+                      <>
+                        <p className="font-medium text-green-700">
+                          ✅ Boleta seleccionada
+                        </p>
+                        <p className="text-sm text-green-600">
+                          {selectedBoletaFile.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Haz clic para cambiar el archivo
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-gray-700">
+                          📄 Subir boleta de pago
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Haz clic para seleccionar una imagen
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          PNG, JPG, JPEG hasta 10MB
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <input
+                type="file"
+                name="boleta_image"
+                ref={boletaInputRef}
+                onChange={handleBoletaFileChange}
                 className="hidden"
                 accept="image/*"
               />

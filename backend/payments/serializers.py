@@ -175,6 +175,7 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
     payment_method = serializers.SerializerMethodField()
     receipt_number = serializers.SerializerMethodField()
     receipt_image = serializers.SerializerMethodField()
+    boleta_image = serializers.ImageField(read_only=True)
     all_payments = serializers.SerializerMethodField()
 
     class Meta:
@@ -193,6 +194,7 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
             'receipt_number',
             'receipt_date',
             'receipt_image',
+            'boleta_image',
             'notes',
             'is_forgiven',
             'recorded_by',
@@ -207,7 +209,7 @@ class PaymentScheduleSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'venta', 'paid_amount', 'payment_date', 'payment_method',
-            'receipt_number', 'receipt_date', 'receipt_image', 'recorded_by',
+            'receipt_number', 'receipt_date', 'receipt_image', 'boleta_image', 'recorded_by',
             'created_at', 'updated_at', 'payment_method', 'receipt_number', 'receipt_image'
         ]
 
@@ -327,6 +329,7 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
     payment_method = serializers.SerializerMethodField()
     receipt_number = serializers.SerializerMethodField()
     receipt_image = serializers.SerializerMethodField()
+    boleta_image = serializers.ImageField(read_only=True)
     all_payments = serializers.SerializerMethodField()
 
     class Meta:
@@ -348,6 +351,7 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
             'payment_method',
             'receipt_number',
             'receipt_image',
+            'boleta_image',
             'all_payments'
         ]
 

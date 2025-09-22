@@ -35,19 +35,20 @@ export const handleDownloadCronogramaPDF = async (
     const grayColor = [149, 165, 166]; // Gris
 
     // LOGO DE LA EMPRESA
-    const logoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQl5JN3aOWU7dTuFjgBd8MVkNVSN-eYxT2mFA&s";
+    const logoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnsU_kN9M7iqQCGOsKmYFRGoFgCNVO0DkEJg&s";
     
     try {
       if (logoUrl) {
-        doc.addImage(logoUrl, "PNG", 20, 10, 40, 20);
+        // Logo en formato 9:16 (altura 20, ancho 11.25)
+        doc.addImage(logoUrl, "PNG", 20, 10, 22.5, 30);
       }
     } catch (logoError) {
-      // Placeholder para el logo
+      // Placeholder para el logo en formato 9:16
       doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(20, 10, 40, 20, "F");
+      doc.rect(20, 10, 22.5, 30, "F");
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text("LOGO EMPRESA", 40, 22, { align: "center" });
+      doc.text("LOGO", 25.625, 22, { align: "center" });
     }
 
     // CABECERA DEL DOCUMENTO

@@ -17,6 +17,7 @@ import InitialPaymentForm from "./InitialPaymentForm";
 import PaymentSchedule from "../Payments/PaymentSchedule";
 import { handleDownloadCronogramaPDF } from "../../utils/PdfCronogramaPagos";
 import { handleDownloadHistorialPagosPDF } from "../../utils/PdfResumenPagos";
+import { handleDownloadBoletasPagoPDF } from "../../utils/PdfBoletasDePago";
 import ConfirmationModal from "../../utils/ConfirmationModal";
 import { useConfirmation } from "../../hooks/useConfirmation";
 import toastService from "../../services/toastService";
@@ -389,6 +390,13 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
           >
             <FileDown className="h-4 w-4" />
             Descargar Historial de Pagos
+          </button>
+          <button
+            onClick={() => handleDownloadBoletasPagoPDF(sale.id, setError)}
+            className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
+          >
+            <FileDown className="h-4 w-4" />
+            Descargar Boletas de Pago
           </button>
 
           {!sale.initial_payment && sale.status === "active" && (
