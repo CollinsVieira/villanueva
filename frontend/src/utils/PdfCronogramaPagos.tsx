@@ -14,7 +14,8 @@ export const handleDownloadCronogramaPDF = async (
     toast.loading("Generando PDF del cronograma de pagos...", { id: toastId });
 
     // Obtener datos del cronograma de pagos por venta
-    const schedules = await paymentService.getPaymentScheduleByVenta(ventaId);
+    const paymentData = await paymentService.getPaymentScheduleByVenta(ventaId);
+    const schedules = paymentData.schedules;
     
     if (!schedules || schedules.length === 0) {
       toast.error("No se encontró cronograma de pagos para esta venta", { id: toastId });

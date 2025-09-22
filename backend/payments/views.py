@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
+from django.utils import timezone
 from .models import Payment, PaymentSchedule
 from .serializers import PaymentSerializer, PaymentScheduleSerializer, PaymentScheduleSummarySerializer
 from users.permissions import IsWorkerOrAdmin
@@ -132,7 +133,34 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
         
         schedules = self.get_queryset().filter(venta_id=venta_id)
         serializer = PaymentScheduleSummarySerializer(schedules, many=True)
-        return Response(serializer.data)
+        
+        # Incluir información del pago inicial si existe
+        initial_payments = Payment.objects.filter(
+            venta_id=venta_id, 
+            payment_type='initial'
+        ).order_by('-created_at')
+        
+        initial_payment_data = []
+        for payment in initial_payments:
+            initial_payment_data.append({
+                'id': payment.id,
+                'amount': str(payment.amount),
+                'payment_date': payment.payment_date.isoformat() if payment.payment_date else None,
+                'payment_date_display': timezone.localtime(payment.payment_date).strftime('%d/%m/%Y %H:%M') if payment.payment_date else None,
+                'method': payment.method,
+                'receipt_number': payment.receipt_number,
+                'receipt_date': payment.receipt_date.isoformat() if payment.receipt_date else None,
+                'receipt_date_display': payment.receipt_date.strftime('%d/%m/%Y') if payment.receipt_date else None,
+                'receipt_image': payment.receipt_image.url if payment.receipt_image else None,
+                'notes': payment.notes,
+                'created_at': payment.created_at.isoformat() if payment.created_at else None,
+                'updated_at': payment.updated_at.isoformat() if payment.updated_at else None
+            })
+        
+        return Response({
+            'schedules': serializer.data,
+            'initial_payments': initial_payment_data
+        })
 
     @action(detail=False, methods=['get'])
     def overdue(self, request):

@@ -112,8 +112,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
         setActiveVenta(activeVenta);
         
         // Cargar cronograma de pagos
-        const schedules = await paymentService.getPaymentScheduleByVenta(activeVenta.id);
-        setPaymentSchedules(schedules);
+        const paymentData = await paymentService.getPaymentScheduleByVenta(activeVenta.id);
+        setPaymentSchedules(paymentData.schedules);
         
         // Si es pago inicial y ya existe, cambiar a cuota
         if (paymentType === "initial" && parseFloat(activeVenta.initial_payment || "0") > 0) {

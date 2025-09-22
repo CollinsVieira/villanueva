@@ -96,11 +96,14 @@ class PaymentService {
     return handlePaginatedResponse(response.data);
   }
 
-  async getPaymentScheduleByVenta(ventaId: number): Promise<PaymentSchedule[]> {
+  async getPaymentScheduleByVenta(ventaId: number): Promise<{schedules: PaymentSchedule[], initial_payments: any[]}> {
     const response = await api.get('/payments/schedules/by_venta/', {
       params: { venta_id: ventaId }
     });
-    return handlePaginatedResponse(response.data);
+    return {
+      schedules: response.data.schedules || [],
+      initial_payments: response.data.initial_payments || []
+    };
   }
 
   async getOverdueSchedules(): Promise<PaymentSchedule[]> {

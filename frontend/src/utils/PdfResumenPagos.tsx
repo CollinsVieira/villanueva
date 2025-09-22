@@ -16,7 +16,9 @@ export const handleDownloadHistorialPagosPDF = async (
 
     // Obtener datos de la venta y sus pagos
     const ventaData = await salesService.getVenta(ventaId);
-    const paymentSchedules = await paymentService.getPaymentScheduleByVenta(ventaId);
+    const paymentData = await paymentService.getPaymentScheduleByVenta(ventaId);
+    const paymentSchedules = paymentData.schedules;
+    const initialPayments = paymentData.initial_payments;
     
     if (!ventaData) {
       toast.error("No se encontró la venta especificada", { id: toastId });
@@ -77,12 +79,18 @@ export const handleDownloadHistorialPagosPDF = async (
     );
     yPosition += 10;
 
+    // Calcular el total de pagos iniciales
+    const totalInitialPayments = initialPayments.reduce((total, payment) => {
+      return total + parseFloat(payment.amount);
+    }, 0);
+
     const tableDataInfoVenta = [
       ["Venta ID", ventaData.id.toString()],
       ["Cliente", ventaData.customer_info?.full_name || "N/A"],
       ["DNI", ventaData.customer_info?.document_number || "N/A"],
       ["Lote", `Mz. ${ventaData.lote_info?.block} - Lt. ${ventaData.lote_info?.lot_number}`],
       ["Precio Total", `S/ ${parseFloat(ventaData.sale_price).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
+      ["Pago Inicial", `S/ ${totalInitialPayments.toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
       ["Saldo Pendiente", `S/ ${parseFloat(ventaData.remaining_balance || '0').toLocaleString("es-PE", { minimumFractionDigits: 2 })}`],
     ];
     autoTable(doc, {
@@ -122,6 +130,26 @@ export const handleDownloadHistorialPagosPDF = async (
     ];
 
     const tableData: any[] = [];
+    
+    // Agregar pagos iniciales al principio de la tabla
+    initialPayments.forEach((payment) => {
+      const paidAmount = `S/ ${parseFloat(payment.amount).toLocaleString("es-PE", {
+        minimumFractionDigits: 2,
+      })}`;
+      const paymentDate = payment.payment_date_display || "-";
+      const method = payment.method ? payment.method.toUpperCase() : "-";
+      const receiptNumber = payment.receipt_number || "-";
+      
+      tableData.push([
+        "INICIAL", // Cuota N°
+        "", // Monto Prog. (vacío para pagos iniciales)
+        paidAmount,
+        paymentDate,
+        method,
+        receiptNumber,
+        "PAGADO", // Estado
+      ]);
+    });
     
     paymentSchedules?.forEach((schedule) => {
       const installmentInfo = schedule.installment_number.toString();
@@ -257,6 +285,50 @@ export const handleDownloadHistorialPagosPDF = async (
 
     // Obtiene el ancho total de la página del PDF
     const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Mostrar comprobantes de pagos iniciales primero
+    for (const payment of initialPayments || []) {
+      if (payment.receipt_image) {
+        // Si la imagen se sale de la página, crea una nueva
+        if (imageY + 120 > doc.internal.pageSize.getHeight()) {
+          doc.addPage();
+          imageY = 40; // Reinicia la posición Y con más margen
+        }
+
+        // --- INICIO DE LA LÓGICA PARA CENTRAR ---
+        const imageWidth = 120; // Ancho de la imagen
+        const imageHeight = 80; // Alto de la imagen
+        const xCentered = (pageWidth - imageWidth) / 2;
+        // --- FIN DE LA LÓGICA PARA CENTRAR ---
+
+        // URL corregida para usar con el proxy
+        const imageUrl = payment.receipt_image.replace(
+          `${import.meta.env.VITE_API_BASE_URL}`,
+          ""
+        );
+
+        // Título del comprobante del pago inicial
+        doc.text(
+          `Pago Inicial - S/ ${parseFloat(payment.amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${payment.receipt_number || "N/A"}`,
+          pageWidth / 2,
+          imageY - 10,
+          { align: "center" }
+        );
+
+        // Agregar la imagen
+        doc.addImage(
+          imageUrl,
+          "PNG",
+          xCentered,
+          imageY,
+          imageWidth,
+          imageHeight
+        );
+
+        // Incrementa la posición Y para la siguiente imagen
+        imageY += imageHeight + 25;
+      }
+    }
 
     for (const schedule of paymentSchedules || []) {
       // Mostrar todas las imágenes de comprobantes para esta cuota

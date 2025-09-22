@@ -349,13 +349,13 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
 
       {/* Sección de botones unificada */}
       <div className="px-6 py-4 border-b bg-gray-50">
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
           {/* Botones de PDF */}
           {sale.contract_pdf && (
             <>
               <button
                 onClick={() => window.open(sale.contract_pdf, "_blank")}
-                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 gap-2"
               >
                 <Eye className="h-4 w-4" />
                 Ver Contrato
@@ -367,7 +367,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                   link.download = `contrato_venta_${sale.id}.pdf`;
                   link.click();
                 }}
-                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
               >
                 <Download className="h-4 w-4" />
                 Descargar Contrato
@@ -378,14 +378,14 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
           {/* Botones de PDF de pagos */}
           <button
             onClick={() => handleDownloadCronogramaPDF(sale.id, setError)}
-            className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+            className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
           >
             <FileDown className="h-4 w-4" />
             Descargar Cronograma
           </button>
           <button
             onClick={() => handleDownloadHistorialPagosPDF(sale.id, setError)}
-            className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+            className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
           >
             <FileDown className="h-4 w-4" />
             Descargar Historial de Pagos
@@ -394,7 +394,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
           {!sale.initial_payment && sale.status === "active" && (
             <button
               onClick={() => setShowInitialPaymentForm(true)}
-              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
             >
               <DollarSign className="h-4 w-4" />
               Registrar Pago Inicial
@@ -405,14 +405,14 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
             <>
               <button
                 onClick={handleCompleteSale}
-                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
               >
                 <CheckCircle className="h-4 w-4" />
                 Completar Venta
               </button>
               <button
                 onClick={handleCancelSale}
-                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 gap-2"
+                className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
               >
                 <X className="h-4 w-4" />
                 Cancelar Venta
@@ -423,7 +423,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
           {onEdit && (
             <button
               onClick={() => onEdit(sale)}
-              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2 ga-2"
+              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
             >
               <Edit className="h-4 w-4" />
               Editar
