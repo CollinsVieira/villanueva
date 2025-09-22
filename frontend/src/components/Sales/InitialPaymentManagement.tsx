@@ -11,6 +11,7 @@ import {
     import { Venta } from "../../services/salesService";
 import paymentService from "../../services/paymentService";
 import { dynamicReportsService } from "../../services/dynamicReportsService";
+import { getProxyImageUrl } from "../../utils/imageUtils";
 import InitialPaymentForm from "./InitialPaymentForm";
 
 interface InitialPaymentManagementProps {
@@ -219,7 +220,12 @@ const InitialPaymentManagement: React.FC<InitialPaymentManagementProps> = ({
                     <div className="flex items-center gap-2">
                       {payment.receipt_image && (
                         <button
-                          onClick={() => window.open(payment.receipt_image, '_blank')}
+                          onClick={() => {
+                            const imageUrl = getProxyImageUrl(payment.receipt_image);
+                            if (imageUrl) {
+                              window.open(imageUrl, '_blank');
+                            }
+                          }}
                           className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
                           title="Ver comprobante"
                         >
