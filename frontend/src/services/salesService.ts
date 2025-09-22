@@ -23,6 +23,9 @@ export interface Venta {
   updated_at: string;
   remaining_balance?: string;
   total_pending_balance?: number | string;
+  total_initial_payments?: number;
+  initial_payment_balance?: number;
+  is_initial_payment_complete?: boolean;
   lote_info?: {
     id: number;
     block: string;

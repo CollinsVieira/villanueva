@@ -179,12 +179,16 @@ class Venta(models.Model):
     @property
     def remaining_balance(self):
         """Saldo pendiente de la venta"""
-        # Con la nueva arquitectura, el saldo pendiente real se deriva del cronograma:
-        # suma de remaining_amount de cada cuota. Esto excluye cuotas perdonadas,
-        # ya que su remaining_amount es 0.
-        total_remaining = Decimal('0.00')
+        # Calcular saldo pendiente de cuotas mensuales
+        total_installments_remaining = Decimal('0.00')
         for schedule in self.payment_schedules.all():
-            total_remaining += schedule.remaining_amount
+            total_installments_remaining += schedule.remaining_amount
+        
+        # Agregar saldo pendiente del pago inicial
+        initial_payment_pending = self.get_initial_payment_balance()
+        
+        # Total pendiente = cuotas pendientes + pago inicial pendiente
+        total_remaining = total_installments_remaining + initial_payment_pending
         return total_remaining if total_remaining > 0 else Decimal('0.00')
     
     @property
@@ -303,14 +307,28 @@ class Venta(models.Model):
     def register_initial_payment(self, amount, payment_date=None, payment_method='transferencia', 
                                 receipt_number=None, receipt_date=None, receipt_image=None, 
                                 notes=None, recorded_by=None):
-        """Registra el pago inicial de la venta"""
+        """Registra un pago inicial parcial de la venta"""
         from payments.models import Payment
         from django.utils import timezone
+        from django.core.exceptions import ValidationError
+        from decimal import Decimal
+        
+        # Verificar que el monto sea positivo
+        if amount <= 0:
+            raise ValidationError(_("El monto del pago debe ser mayor a 0"))
+        
+        # Calcular el total de pagos iniciales ya realizados
+        total_initial_paid = self.get_total_initial_payments()
+        
+        # Verificar que no se exceda el pago inicial total de la venta
+        if total_initial_paid + Decimal(str(amount)) > self.initial_payment:
+            remaining = self.initial_payment - total_initial_paid
+            raise ValidationError(_(f"El monto excede el saldo pendiente del pago inicial. Saldo pendiente: {remaining}"))
         
         if payment_date is None:
             payment_date = timezone.now()
         
-        # Crear el pago inicial
+        # Crear el pago inicial parcial
         payment = Payment.objects.create(
             venta=self,
             amount=amount,
@@ -324,7 +342,26 @@ class Venta(models.Model):
             recorded_by=recorded_by
         )
 
+        # El cronograma no necesita regenerarse porque ya está calculado correctamente
+        # considerando el pago inicial como deuda a descontar
+
         return payment
+    
+    def get_total_initial_payments(self):
+        """Obtiene el total de pagos iniciales realizados"""
+        from decimal import Decimal
+        total = self.payments.filter(payment_type='initial').aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0.00')
+        return total
+    
+    def get_initial_payment_balance(self):
+        """Obtiene el saldo pendiente del pago inicial"""
+        return self.initial_payment - self.get_total_initial_payments()
+    
+    def is_initial_payment_complete(self):
+        """Verifica si el pago inicial está completo"""
+        return self.get_initial_payment_balance() <= Decimal('0.00')
     
     @classmethod
     def get_active_sale_for_lote(cls, lote):

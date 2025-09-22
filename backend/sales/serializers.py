@@ -14,6 +14,9 @@ class VentaSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_day = serializers.SerializerMethodField()
     financing_months = serializers.SerializerMethodField()
+    total_initial_payments = serializers.SerializerMethodField()
+    initial_payment_balance = serializers.SerializerMethodField()
+    is_initial_payment_complete = serializers.SerializerMethodField()
     
     class Meta:
         model = Venta
@@ -23,6 +26,7 @@ class VentaSerializer(serializers.ModelSerializer):
             'notes', 'cancellation_reason', 'created_at', 'updated_at',
             # Campos calculados
             'remaining_balance', 'status_display', 'payment_day', 'financing_months',
+            'total_initial_payments', 'initial_payment_balance', 'is_initial_payment_complete',
             # Información relacionada
             'lote_info', 'customer_info'
         ]
@@ -40,6 +44,18 @@ class VentaSerializer(serializers.ModelSerializer):
     def get_financing_months(self, obj):
         """Obtiene los meses de financiamiento de la venta"""
         return obj.financing_months
+    
+    def get_total_initial_payments(self, obj):
+        """Obtiene el total de pagos iniciales realizados"""
+        return float(obj.get_total_initial_payments())
+    
+    def get_initial_payment_balance(self, obj):
+        """Obtiene el saldo pendiente del pago inicial"""
+        return float(obj.get_initial_payment_balance())
+    
+    def get_is_initial_payment_complete(self, obj):
+        """Verifica si el pago inicial está completo"""
+        return obj.is_initial_payment_complete()
 
 
 class VentaCreateSerializer(serializers.ModelSerializer):

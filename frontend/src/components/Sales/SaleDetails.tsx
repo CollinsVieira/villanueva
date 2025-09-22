@@ -14,6 +14,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import InitialPaymentForm from "./InitialPaymentForm";
+import InitialPaymentManagement from "./InitialPaymentManagement";
 import PaymentSchedule from "../Payments/PaymentSchedule";
 import { handleDownloadCronogramaPDF } from "../../utils/PdfCronogramaPagos";
 import { handleDownloadHistorialPagosPDF } from "../../utils/PdfResumenPagos";
@@ -39,7 +40,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInitialPaymentForm, setShowInitialPaymentForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<"plan" | "schedule">("plan");
+  const [activeTab, setActiveTab] = useState<"plan" | "schedule" | "initial">("plan");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { isOpen, options, confirm, onConfirm, onCancel } = useConfirmation();
@@ -399,13 +400,13 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
             Descargar Boletas de Pago
           </button>
 
-          {!sale.initial_payment && sale.status === "active" && (
+          {sale.status === "active" && !sale.is_initial_payment_complete && (
             <button
-              onClick={() => setShowInitialPaymentForm(true)}
+              onClick={() => setActiveTab("initial")}
               className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
             >
               <DollarSign className="h-4 w-4" />
-              Registrar Pago Inicial
+              {(sale.total_initial_payments || 0) > 0 ? 'Completar Pago Inicial' : 'Registrar Pago Inicial'}
             </button>
           )}
 
@@ -464,6 +465,17 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
             >
               <Calendar size={16} />
               Cronograma
+            </button>
+            <button
+              onClick={() => setActiveTab("initial")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === "initial"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <CheckCircle size={16} />
+              Pago Inicial
             </button>
           </nav>
         </div>
@@ -547,7 +559,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                 )}
               </div>
             </div>
-          ) : (
+          ) : activeTab === "schedule" ? (
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -562,6 +574,27 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
               </div>
               <div className="p-6">
                 <PaymentSchedule loteId={sale.lote} showLoteFilter={false} />
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <CheckCircle size={20} />
+                  Pago Inicial - Venta #{sale.id}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Gestión de pagos iniciales parciales para Mz.{" "}
+                  {sale.lote_info?.block} - Lt. {sale.lote_info?.lot_number} -{" "}
+                  {sale.customer_info?.full_name}
+                </p>
+              </div>
+              <div className="p-6">
+                <InitialPaymentManagement 
+                  saleId={sale.id} 
+                  sale={sale}
+                  onPaymentAdded={() => loadSaleDetails()}
+                />
               </div>
             </div>
           )}

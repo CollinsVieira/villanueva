@@ -191,7 +191,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
       onSave();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al registrar el pago');
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Error al registrar el pago');
       console.error('Error saving payment:', err);
     } finally {
       setIsSubmitting(false);

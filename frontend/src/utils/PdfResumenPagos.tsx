@@ -117,7 +117,7 @@ export const handleDownloadHistorialPagosPDF = async (
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("HISTORIAL DE PAGOS", 20, yPosition);
-    yPosition += 15;
+    yPosition += 35;
 
     // Preparar datos de la tabla
     const tableHeaders = [

@@ -437,7 +437,8 @@ class PaymentSchedule(models.Model):
         if existing:
             return cls.objects.filter(venta=venta).order_by('installment_number')
 
-        # Calcular el monto mensual basado en el precio de venta y meses de financiamiento
+        # Calcular el monto mensual basado en el precio de venta menos el pago inicial (independiente de si se pagó o no)
+        # Las cuotas mensuales se calculan sobre el saldo después del pago inicial
         remaining_amount = venta.sale_price - venta.initial_payment
         
         # Calcular el monto base para las primeras cuotas (redondeado hacia abajo a números enteros)

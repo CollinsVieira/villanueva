@@ -75,6 +75,9 @@ export interface Venta {
   initial_payment: string;
   sale_date: string;
   remaining_balance: string;
+  total_initial_payments?: number;
+  initial_payment_balance?: number;
+  is_initial_payment_complete?: boolean;
   lote_display?: string;
   customer_info?: {
     id: number;

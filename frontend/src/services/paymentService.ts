@@ -20,6 +20,11 @@ class PaymentService {
     return handlePaginatedResponse(response.data);
   }
 
+  async getInitialPayments(saleId: number): Promise<any[]> {
+    const response = await api.get(`/payments/payments/?venta__id=${saleId}&payment_type=initial`);
+    return handlePaginatedResponse(response.data);
+  }
+
   async createPayment(paymentData: FormData): Promise<Payment> {
     const response = await api.post('/payments/payments/', paymentData, {
       headers: {

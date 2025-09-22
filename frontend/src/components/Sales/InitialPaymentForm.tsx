@@ -3,12 +3,14 @@ import salesService, { VentaInitialPayment } from '../../services/salesService';
 
 interface InitialPaymentFormProps {
   saleId: number;
+  maxAmount?: number;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
 const InitialPaymentForm: React.FC<InitialPaymentFormProps> = ({
   saleId,
+  maxAmount,
   onSuccess,
   onCancel
 }) => {
@@ -32,6 +34,11 @@ const InitialPaymentForm: React.FC<InitialPaymentFormProps> = ({
       return;
     }
 
+    if (maxAmount && parseFloat(formData.amount) > maxAmount) {
+      setError(`El monto no puede exceder ${maxAmount.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })}`);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -50,7 +57,9 @@ const InitialPaymentForm: React.FC<InitialPaymentFormProps> = ({
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b">
-          <h2 className="text-xl font-semibold">Registrar Pago Inicial</h2>
+          <h2 className="text-xl font-semibold">
+            {maxAmount ? 'Registrar Pago Parcial' : 'Registrar Pago Inicial'}
+          </h2>
         </div>
         <div className="p-6">
           {error && (
@@ -61,7 +70,14 @@ const InitialPaymentForm: React.FC<InitialPaymentFormProps> = ({
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Monto *</label>
+              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+                Monto * 
+                {maxAmount && (
+                  <span className="text-sm text-gray-500 ml-2">
+                    (Máximo: {maxAmount.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })})
+                  </span>
+                )}
+              </label>
               <input
                 id="amount"
                 type="number"
@@ -69,6 +85,7 @@ const InitialPaymentForm: React.FC<InitialPaymentFormProps> = ({
                 value={formData.amount}
                 onChange={(e: any) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                 placeholder="0.00"
+                max={maxAmount}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
