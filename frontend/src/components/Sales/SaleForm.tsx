@@ -67,13 +67,20 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
 
   const loadLotes = async () => {
     try {
-      const data = await loteService.getLotes();
+      let page = 1;
+      const all: Lote[] = [] as any;
+      while (true) {
+        const { next, results } = await loteService.getLotesPage({ page, page_size: 100 });
+        all.push(...results);
+        if (!next) break;
+        page += 1;
+      }
       // Si estamos editando una venta, incluir todos los lotes (incluyendo el vendido)
       // Si estamos creando una nueva venta, solo mostrar lotes disponibles
       if (sale) {
-        setLotes(data as any);
+        setLotes(all as any);
       } else {
-        const filteredLotes = data.filter((lote: any) => lote.status === 'disponible');
+        const filteredLotes = all.filter((lote: any) => lote.status === 'disponible');
         setLotes(filteredLotes as any);
       }
     } catch (err) {

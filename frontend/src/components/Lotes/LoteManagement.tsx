@@ -6,6 +6,7 @@ import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import LoteForm from './LoteForm';
 import LoteDetailModal from './LoteDetailModal';
+import ConfirmationModal from '../../utils/ConfirmationModal';
 import dynamicReportsService from '../../services/dynamicReportsService';
 
 const LoteManagement: React.FC = () => {
@@ -24,12 +25,27 @@ const LoteManagement: React.FC = () => {
   const [selectedBlock, setSelectedBlock] = useState('A');
   const [allBlocks, setAllBlocks] = useState<string[]>([]);
 
+  // Estados para el modal de confirmación
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'delete' | 'bulkDelete' | null>(null);
+  const [loteToDelete, setLoteToDelete] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Cargar todas las manzanas al inicio
   useEffect(() => {
     const loadAllBlocks = async () => {
       try {
-        const allLotes = await loteService.getLotes({});
-        const blocks = Array.from(new Set(allLotes.map(lote => lote.block))).sort();
+        let page = 1;
+        const seen = new Set<string>();
+        while (true) {
+          const { next, results } = await loteService.getLotesPage({ page, page_size: 100 });
+          results.forEach(lote => {
+            if (lote.block) seen.add(lote.block);
+          });
+          if (!next) break;
+          page += 1;
+        }
+        const blocks = Array.from(seen).sort();
         setAllBlocks(blocks);
       } catch (err) {
         console.error('Error al cargar las manzanas:', err);
@@ -47,13 +63,21 @@ const LoteManagement: React.FC = () => {
     setIsLoading(true);
     try {
       setError(null);
-      const params: { status?: string; search?: string; block?: string } = {};
-      if (filterStatus) params.status = filterStatus;
-      if (currentSearchTerm) params.search = currentSearchTerm;
-      if (selectedBlock) params.block = selectedBlock;
-      
-      const data = await loteService.getLotes(params);
-      setLotes(data);
+      const baseParams: { status?: string; search?: string; block?: string } = {};
+      if (filterStatus) baseParams.status = filterStatus;
+      if (currentSearchTerm) baseParams.search = currentSearchTerm;
+      if (selectedBlock) baseParams.block = selectedBlock;
+
+      let page = 1;
+      const all: Lote[] = [] as any;
+      while (true) {
+        const { next, results } = await loteService.getLotesPage({ ...baseParams, page, page_size: 100 });
+        all.push(...results);
+        if (!next) break;
+        page += 1;
+      }
+
+      setLotes(all);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al cargar los lotes.');
     } finally {
@@ -70,31 +94,65 @@ const LoteManagement: React.FC = () => {
   const handleNew = () => { setSelectedLote(null); setShowForm(true); };
   const handleEdit = (lote: Lote) => { setSelectedLote(lote); setShowForm(true); };
   const handleSave = () => { setShowForm(false); setSelectedLote(null); loadLotes(''); };
-  const handleDelete = async (id: number) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este lote?')) {
-      try {
-        await loteService.deleteLote(id);
-        loadLotes(searchTerm);
-      } catch (err: any) {
+  const handleDelete = (id: number) => {
+    setLoteToDelete(id);
+    setConfirmAction('delete');
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!loteToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await loteService.deleteLote(loteToDelete);
+      loadLotes(searchTerm);
+      setShowConfirmModal(false);
+      setLoteToDelete(null);
+      setConfirmAction(null);
+    } catch (err: any) {
+      // Verificar si el error es específico sobre tener dueño
+      const errorMessage = err.response?.data?.detail || err.message || '';
+      if (errorMessage.toLowerCase().includes('dueño') || errorMessage.toLowerCase().includes('owner') || errorMessage.toLowerCase().includes('propietario')) {
+        setError('Error al eliminar un lote porque tiene dueño');
+      } else {
         setError(err.response?.data?.detail || 'Error al eliminar el lote.');
       }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedLotes.size === 0) return;
     
-    const count = selectedLotes.size;
-    if (window.confirm(`¿Está seguro de que desea eliminar ${count} lote${count > 1 ? 's' : ''}?`)) {
-      try {
-        const deletePromises = Array.from(selectedLotes).map(id => loteService.deleteLote(id));
-        await Promise.all(deletePromises);
-        setSelectedLotes(new Set());
-        setIsSelectionMode(false);
-        loadLotes(searchTerm);
-      } catch (err: any) {
+    setConfirmAction('bulkDelete');
+    setShowConfirmModal(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedLotes.size === 0) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const deletePromises = Array.from(selectedLotes).map(id => loteService.deleteLote(id));
+      await Promise.all(deletePromises);
+      setSelectedLotes(new Set());
+      setIsSelectionMode(false);
+      loadLotes(searchTerm);
+      setShowConfirmModal(false);
+      setConfirmAction(null);
+    } catch (err: any) {
+      // Verificar si el error es específico sobre tener dueño
+      const errorMessage = err.response?.data?.detail || err.message || '';
+      if (errorMessage.toLowerCase().includes('dueño') || errorMessage.toLowerCase().includes('owner') || errorMessage.toLowerCase().includes('propietario')) {
+        setError('Error al eliminar lotes porque algunos tienen dueño');
+      } else {
         setError(err.response?.data?.detail || 'Error al eliminar los lotes.');
       }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -399,6 +457,27 @@ const LoteManagement: React.FC = () => {
           onClose={() => setViewingLoteId(null)}
         />
       )}
+
+      {/* Modal de confirmación */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+          setLoteToDelete(null);
+        }}
+        onConfirm={confirmAction === 'delete' ? confirmDelete : confirmBulkDelete}
+        title={confirmAction === 'delete' ? 'Eliminar Lote' : 'Eliminar Lotes'}
+        message={
+          confirmAction === 'delete' 
+            ? '¿Está seguro de que desea eliminar este lote? Esta acción no se puede deshacer.'
+            : `¿Está seguro de que desea eliminar ${selectedLotes.size} lote${selectedLotes.size > 1 ? 's' : ''}? Esta acción no se puede deshacer.`
+        }
+        type="danger"
+        confirmText={confirmAction === 'delete' ? 'Eliminar' : `Eliminar ${selectedLotes.size}`}
+        cancelText="Cancelar"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

@@ -14,9 +14,21 @@ const handlePaginatedResponse = (data: any): any[] => {
 
 class LoteService {
   
-  async getLotes(params?: { status?: string; search?: string }): Promise<Lote[]> {
+  async getLotes(params?: { status?: string; search?: string; block?: string; page_size?: number }): Promise<Lote[]> {
     const response = await api.get('/lotes/', { params });
     return handlePaginatedResponse(response.data);
+  }
+
+  async getLotesPage(params?: { status?: string; search?: string; block?: string; page?: number; page_size?: number }): Promise<{ count: number; next: string | null; previous: string | null; results: Lote[] }> {
+    const response = await api.get('/lotes/', { params });
+    // Normalizamos mínimamente el shape esperado
+    const data = response.data || {};
+    return {
+      count: typeof data.count === 'number' ? data.count : (Array.isArray(data) ? data.length : 0),
+      next: data.next ?? null,
+      previous: data.previous ?? null,
+      results: handlePaginatedResponse(data) as Lote[],
+    };
   }
 
   
