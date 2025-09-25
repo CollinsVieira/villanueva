@@ -129,3 +129,9 @@ villanueva/
 - Configura HTTPS
 - Implementa autenticación robusta
 - Revisa la configuración de CORS
+
+
+
+## BACKUP DE BASE DE DATOS
+- docker ps
+- docker exec villanueva_db pg_dumpall -U postgres | Out-File -Encoding UTF8 "{url de carpeta}\backup.sql"

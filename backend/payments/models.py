@@ -249,7 +249,7 @@ class PaymentSchedule(models.Model):
         _("Monto Programado Actual"),
         max_digits=12,
         decimal_places=2,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(Decimal('0.01'))],
         help_text=_("Monto actual a pagar (puede ser diferente al original)")
     )
     
@@ -568,7 +568,9 @@ class PaymentSchedule(models.Model):
     
     def modify_amount(self, new_amount, notes=None, recorded_by=None):
         """
-        Modifica el monto programado de esta cuota.
+        Modifica el monto programado de esta cuota y redistribuye automáticamente
+        el saldo restante entre las demás cuotas pendientes para mantener el total
+        del cronograma igual al saldo objetivo de la venta.
         """
         old_amount = self.scheduled_amount
         self.scheduled_amount = new_amount
@@ -584,7 +586,94 @@ class PaymentSchedule(models.Model):
             self.notes = modification_note
             
         self.save()
+        
+        # Redistribuir automáticamente las demás cuotas pendientes
+        self._redistribute_remaining_installments()
+        
         return self
+    
+    def _redistribute_remaining_installments(self):
+        """
+        Redistribuye automáticamente el saldo restante entre las cuotas pendientes
+        (excluyendo cuotas pagadas, parciales y perdonadas) para mantener el total
+        del cronograma igual al saldo objetivo de la venta.
+        """
+        try:
+            # Calcular el saldo objetivo total (precio de venta - pago inicial)
+            target_total = self.venta.sale_price - self.venta.initial_payment
+            
+            # Obtener todas las cuotas de esta venta
+            all_schedules = self.venta.payment_schedules.all().order_by('installment_number')
+            
+            # Separar cuotas que NO se pueden modificar (pagadas, parciales, perdonadas)
+            # de las que SÍ se pueden redistribuir (pendientes y vencidas)
+            # EXCLUIR la cuota actual que se está modificando de la redistribución
+            fixed_schedules = all_schedules.filter(
+                status__in=['paid', 'partial', 'forgiven']
+            )
+            redistributable_schedules = all_schedules.filter(
+                status__in=['pending', 'overdue']
+            ).exclude(id=self.id)  # Excluir la cuota actual
+            
+            # Calcular el monto total ya "fijo" (cuotas que no se pueden cambiar + cuota actual)
+            from django.db.models import Sum
+            fixed_total = fixed_schedules.aggregate(
+                total=Sum('scheduled_amount')
+            )['total'] or Decimal('0.00')
+            
+            # Agregar el monto de la cuota actual (que ya fue modificada)
+            fixed_total += self.scheduled_amount
+            
+            # El saldo restante a distribuir entre las cuotas redistributables
+            remaining_to_distribute = target_total - fixed_total
+            
+            # Contar cuántas cuotas se pueden redistribuir
+            redistributable_count = redistributable_schedules.count()
+            
+            if redistributable_count > 0 and remaining_to_distribute > 0:
+                # Calcular el monto base para cada cuota redistributable (redondeado hacia abajo)
+                base_amount = (remaining_to_distribute / redistributable_count).quantize(
+                    Decimal('1'), rounding='ROUND_DOWN'
+                )
+                
+                # Calcular cuánto sobra para ajustar en la última cuota redistributable
+                total_base = base_amount * (redistributable_count - 1)
+                last_amount = remaining_to_distribute - total_base
+                
+                # Aplicar la redistribución
+                redistributable_list = list(redistributable_schedules)
+                for i, schedule in enumerate(redistributable_list):
+                    if i == len(redistributable_list) - 1:  # Última cuota
+                        new_amount = last_amount
+                    else:
+                        new_amount = base_amount
+                    
+                    # Solo actualizar si el monto cambió y es mayor o igual a 0.01
+                    if schedule.scheduled_amount != new_amount and new_amount >= Decimal('0.01'):
+                        schedule.scheduled_amount = new_amount
+                        
+                        # Agregar nota de redistribución automática
+                        redistribution_note = f"Redistribución automática: nuevo monto {new_amount}"
+                        if schedule.notes:
+                            schedule.notes += f"\n{redistribution_note}"
+                        else:
+                            schedule.notes = redistribution_note
+                        
+                        schedule.save()
+            
+            elif redistributable_count == 0:
+                # No hay cuotas redistributables - todas están fijas
+                # En este caso, el total podría no coincidir con el objetivo
+                # pero no podemos hacer nada sin afectar cuotas ya pagadas
+                pass
+                
+        except Exception as e:
+            # Log del error para debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en redistribución de cuotas para venta {self.venta.id}: {str(e)}")
+            # No relanzar la excepción para evitar que falle la modificación principal
+            pass
 
     @staticmethod
     def _calculate_due_date(start_date, installment_number, payment_day):

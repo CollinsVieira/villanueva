@@ -271,19 +271,32 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
         
         try:
             from decimal import Decimal
+            import logging
+            logger = logging.getLogger(__name__)
+            
             new_amount = Decimal(str(new_amount))
+            logger.info(f"Modificando cuota {schedule.id} de {schedule.scheduled_amount} a {new_amount}")
+            
             schedule.modify_amount(
                 new_amount=new_amount,
                 notes=notes,
                 recorded_by=request.user
             )
             
+            logger.info(f"Cuota modificada exitosamente: {schedule.id}")
             serializer = self.get_serializer(schedule)
             return Response(serializer.data)
-        except ValueError:
+        except ValueError as e:
+            logger.error(f"Error de formato en modify_amount: {str(e)}")
             return Response(
                 {'error': 'Invalid amount format'}, 
                 status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Error inesperado en modify_amount: {str(e)}")
+            return Response(
+                {'error': f'Error interno: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @action(detail=False, methods=['post'])
