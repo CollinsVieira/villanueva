@@ -183,6 +183,19 @@ class PaymentService {
     return response.data;
   }
 
+  async modifyMultipleAmounts(scheduleIds: number[], newAmount: number, notes?: string): Promise<{
+    message: string;
+    modified_count: number;
+    schedules: PaymentSchedule[];
+  }> {
+    const response = await api.post('/payments/schedules/modify_multiple_amounts/', {
+      schedule_ids: scheduleIds,
+      new_amount: newAmount,
+      notes
+    });
+    return response.data;
+  }
+
   async addPaymentToSchedule(scheduleId: number, paymentId: number): Promise<PaymentSchedule> {
     const response = await api.post(`/payments/schedules/${scheduleId}/add_payment/`, {
       payment_id: paymentId

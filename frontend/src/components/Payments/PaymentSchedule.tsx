@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, AlertTriangle, CircleDot, Plus } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, AlertTriangle, CircleDot, Plus, Edit2 } from 'lucide-react';
 import { PaymentSchedule as PaymentScheduleType, Lote } from '../../types';
 import paymentService from '../../services/paymentService';
 import loteService from '../../services/loteService';
 import PaymentRegistrationForm from './PaymentRegistrationForm';
 import AmountModificationForm from './AmountModificationForm';
+import BulkAmountModificationForm from './BulkAmountModificationForm';
 import DateService from '../../services/dateService';
 import { getProxyImageUrl } from '../../utils/imageUtils';
 
 interface PaymentScheduleProps {
   loteId?: number;
+  ventaId?: number;
   showLoteFilter?: boolean;
 }
 
 const PaymentSchedule: React.FC<PaymentScheduleProps> = ({ 
   loteId, 
+  ventaId,
   showLoteFilter = true 
 }) => {
   const [schedules, setSchedules] = useState<PaymentScheduleType[]>([]);
@@ -27,6 +30,8 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   const [selectedSchedule, setSelectedSchedule] = useState<PaymentScheduleType | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showModifyModal, setShowModifyModal] = useState(false);
+  const [selectedScheduleIds, setSelectedScheduleIds] = useState<Set<number>>(new Set());
+  const [showBulkModifyModal, setShowBulkModifyModal] = useState(false);
   const itemsPerPage = 10;
 
 
@@ -39,7 +44,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   useEffect(() => {
     loadSchedules();
     setCurrentPage(1);
-  }, [selectedLoteId, statusFilter]);
+  }, [selectedLoteId, ventaId, statusFilter]);
 
   const loadLotes = async () => {
     try {
@@ -56,16 +61,21 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       setError(null);
       let data: PaymentScheduleType[] = [];
 
-      // Solo cargar datos si hay un lote seleccionado
-      if (selectedLoteId) {
+      // Priorizar ventaId si está disponible (para venta específica)
+      if (ventaId) {
+        const response = await paymentService.getPaymentScheduleByVenta(ventaId);
+        data = response.schedules;
+      } 
+      // Solo cargar datos si hay un lote seleccionado (para vista general)
+      else if (selectedLoteId) {
         data = await paymentService.getPaymentScheduleByLote(selectedLoteId);
-        
-        // Aplicar filtro de estado si no es 'all'
-        if (statusFilter !== 'all') {
-          data = data.filter(schedule => schedule.status === statusFilter);
-        }
       }
-      // Si no hay lote seleccionado, no cargar ningún dato
+      // Si no hay lote ni venta seleccionado, no cargar ningún dato
+      
+      // Aplicar filtro de estado si no es 'all'
+      if (statusFilter !== 'all') {
+        data = data.filter(schedule => schedule.status === statusFilter);
+      }
 
       setSchedules(data);
     } catch (err: any) {
@@ -167,6 +177,52 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
     }
   };
 
+  // Funciones de selección múltiple
+  const handleScheduleSelect = (scheduleId: number, checked: boolean) => {
+    const newSelection = new Set(selectedScheduleIds);
+    if (checked) {
+      newSelection.add(scheduleId);
+    } else {
+      newSelection.delete(scheduleId);
+    }
+    setSelectedScheduleIds(newSelection);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      // Solo seleccionar cuotas que se pueden modificar (incluye vencidas, excluye pagadas y perdonadas)
+      const modifiableIds = currentSchedules
+        .filter(schedule => ['pending', 'overdue', 'partial'].includes(schedule.status))
+        .map(schedule => schedule.id);
+      setSelectedScheduleIds(new Set(modifiableIds));
+    } else {
+      setSelectedScheduleIds(new Set());
+    }
+  };
+
+  const handleBulkModify = () => {
+    if (selectedScheduleIds.size === 0) {
+      alert('Por favor seleccione al menos una cuota para modificar');
+      return;
+    }
+    setShowBulkModifyModal(true);
+  };
+
+  const handleBulkModifySuccess = () => {
+    setShowBulkModifyModal(false);
+    setSelectedScheduleIds(new Set());
+    loadSchedules();
+  };
+
+  // Obtener cuotas seleccionadas
+  const selectedSchedules = schedules.filter(schedule => selectedScheduleIds.has(schedule.id));
+
+  // Verificar si todas las cuotas modificables están seleccionadas
+  const modifiableSchedules = currentSchedules.filter(schedule => ['pending', 'overdue', 'partial'].includes(schedule.status));
+  const isAllSelected = modifiableSchedules.length > 0 && 
+    modifiableSchedules.every(schedule => selectedScheduleIds.has(schedule.id));
+  const isIndeterminate = selectedScheduleIds.size > 0 && !isAllSelected;
+
   
   if (isLoading && schedules.length === 0) {
     return (
@@ -206,7 +262,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       {/* Filtros */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {showLoteFilter && (
+          {showLoteFilter && !ventaId && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Filtrar por Lote *
@@ -248,8 +304,8 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
         </div>
       </div>
 
-      {/* Mensaje cuando no hay lote seleccionado */}
-      {!selectedLoteId && (
+      {/* Mensaje cuando no hay lote seleccionado y no hay ventaId */}
+      {!selectedLoteId && !ventaId && (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200">
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -265,24 +321,42 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
         </div>
       )}
 
-      {/* Tabla de cronograma - Solo mostrar si hay lote seleccionado */}
-      {selectedLoteId && (
+      {/* Tabla de cronograma - Solo mostrar si hay lote seleccionado o ventaId */}
+      {(selectedLoteId || ventaId) && (
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Calendar className="mr-2 text-blue-600" size={20} />
-            Cronograma de Cuotas
-            {!isLoading && (
-              <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {schedules.length} cuotas
-              </span>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Calendar className="mr-2 text-blue-600" size={20} />
+              Cronograma de Cuotas
+              {!isLoading && (
+                <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  {schedules.length} cuotas
+                </span>
+              )}
+              {totalPages > 1 && (
+                <span className="ml-2 text-sm text-gray-600">
+                  Página {currentPage} de {totalPages}
+                </span>
+              )}
+            </h2>
+            
+            {/* Botón de modificación múltiple */}
+            {selectedScheduleIds.size > 0 && (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">
+                  {selectedScheduleIds.size} cuota{selectedScheduleIds.size > 1 ? 's' : ''} seleccionada{selectedScheduleIds.size > 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={handleBulkModify}
+                  className="flex items-center space-x-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Edit2 size={16} />
+                  <span>Modificar Cuotas</span>
+                </button>
+              </div>
             )}
-            {totalPages > 1 && (
-              <span className="ml-2 text-sm text-gray-600">
-                Página {currentPage} de {totalPages}
-              </span>
-            )}
-          </h2>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -297,6 +371,18 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
             <table className="w-full">
               <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b">
                 <tr>
+                  <th className="p-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={input => {
+                        if (input) input.indeterminate = isIndeterminate;
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      title="Seleccionar todas las cuotas modificables"
+                    />
+                  </th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuota</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lote/Cliente</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimiento</th>
@@ -308,8 +394,22 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {currentSchedules.map((schedule, index) => (
-                  <tr key={schedule.id} className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                {currentSchedules.map((schedule, index) => {
+                  const isModifiable = ['pending', 'overdue', 'partial'].includes(schedule.status);
+                  const isSelected = selectedScheduleIds.has(schedule.id);
+                  
+                  return (
+                  <tr key={schedule.id} className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${isSelected ? 'ring-2 ring-blue-200 bg-blue-50' : ''}`}>
+                    <td className="p-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => handleScheduleSelect(schedule.id, e.target.checked)}
+                        disabled={!isModifiable}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                        title={isModifiable ? "Seleccionar esta cuota" : "Esta cuota no se puede modificar"}
+                      />
+                    </td>
                     <td className="p-4">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
@@ -453,7 +553,8 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -566,6 +667,15 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
             />
           </div>
         </div>
+      )}
+
+      {/* Bulk Amount Modification Modal */}
+      {showBulkModifyModal && selectedSchedules.length > 0 && (
+        <BulkAmountModificationForm
+          schedules={selectedSchedules}
+          onSuccess={handleBulkModifySuccess}
+          onCancel={() => setShowBulkModifyModal(false)}
+        />
       )}
     </div>
   );

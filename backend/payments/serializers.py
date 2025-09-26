@@ -336,6 +336,7 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
         model = PaymentSchedule
         fields = [
             'id',
+            'venta',  # ← AGREGADO: campo faltante
             'installment_number',
             'scheduled_amount',
             'due_date',

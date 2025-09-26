@@ -129,10 +129,9 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input 
                   type="email" 
-                  name="email" 
+                  name="email"
                   value={formData.email} 
                   onChange={handleChange} 
-                  placeholder="ejemplo@correo.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg  focus:ring-blue-500 focus:border-transparent" 
                 />
               </div>

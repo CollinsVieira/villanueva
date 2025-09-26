@@ -573,7 +573,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                 </p>
               </div>
               <div className="p-6">
-                <PaymentSchedule loteId={sale.lote} showLoteFilter={false} />
+                <PaymentSchedule ventaId={sale.id} showLoteFilter={false} />
               </div>
             </div>
           ) : (
