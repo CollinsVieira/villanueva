@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CreditCard, X, Upload } from "lucide-react";
 import { paymentService, loteService, salesService, dynamicReportsService } from "../../services";
-import { Lote } from "../../types";
+import { Lote, Payment } from "../../types";
 import { Alert } from "../UI";
 import { SearchableSelect } from "../UI";
 import DateService from "../../services/dateService";
@@ -9,9 +9,11 @@ import DateService from "../../services/dateService";
 interface PaymentFormProps {
   onClose: () => void;
   onSave: () => void;
+  editPayment?: Payment;
+  isEditing?: boolean;
 }
 
-const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
+const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave, editPayment, isEditing = false }) => {
   const [allLotes, setAllLotes] = useState<Lote[]>([]);
   const [selectedLoteId, setSelectedLoteId] = useState<number | null>(null);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
@@ -37,6 +39,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
     // Carga todos los lotes vendidos una sola vez
     loteService.getLotes({ status: "vendido" }).then(setAllLotes);
   }, []);
+
+  // Efecto para cargar datos del pago cuando se está editando
+  useEffect(() => {
+    if (isEditing && editPayment) {
+      // Cargar datos del pago a editar
+      setSelectedLoteId(editPayment.lote_info?.id || null);
+      setPaymentAmount(editPayment.amount);
+      setPaymentDate(DateService.utcToLocalDateOnly(editPayment.payment_date));
+      setReceiptDate(editPayment.receipt_date || DateService.getCurrentLocalDate());
+      setInstallmentNumber(editPayment.payment_schedule?.installment_number || editPayment.payment_schedule_info?.installment_number || 1);
+      setPaymentType(editPayment.payment_schedule?.installment_number || editPayment.payment_schedule_info?.installment_number ? "installment" : "initial");
+    }
+  }, [isEditing, editPayment]);
 
   // Función para encontrar una cuota específica por número
   const findScheduleByInstallmentNumber = (installmentNum: number) => {
@@ -159,25 +174,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
     setError(null);
 
     try {
-      if (paymentType === "initial") {
-        // Pago inicial a través de la venta
-        await salesService.registerInitialPayment(activeVenta.id, {
-          amount: paymentAmount,
-          // El backend no espera payment_date para pago inicial
-          method: (e.currentTarget.elements.namedItem('method') as HTMLSelectElement)?.value || 'transferencia',
-          receipt_number: (e.currentTarget.elements.namedItem('receipt_number') as HTMLInputElement)?.value,
-          receipt_date: (e.currentTarget.elements.namedItem('receipt_date') as HTMLInputElement)?.value,
-          receipt_image: selectedFile || undefined,
-          notes: (e.currentTarget.elements.namedItem('notes') as HTMLTextAreaElement)?.value,
-        });
-      } else {
-        // Pago de cuota a través del cronograma
-        if (!selectedScheduleId) {
-          setError("No se encontró una cuota pendiente para pagar.");
-          return;
-        }
-        
-        await paymentService.registerPayment(selectedScheduleId, {
+      if (isEditing && editPayment) {
+        // Modo edición - actualizar pago existente
+        await (paymentService as any).updatePayment(editPayment.id, {
           amount: parseFloat(paymentAmount),
           method: (e.currentTarget.elements.namedItem('method') as HTMLSelectElement)?.value || 'transferencia',
           receipt_number: e.currentTarget.receipt_number.value,
@@ -185,14 +184,47 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
           receipt_image: selectedFile || undefined,
           boleta_image: selectedBoletaFile || undefined,
           notes: e.currentTarget.notes.value,
+          payment_date: `${paymentDate}T12:00:00Z`, // Convertir a datetime ISO
         });
+      } else {
+        // Modo creación
+        if (paymentType === "initial") {
+          // Pago inicial a través de la venta
+          await salesService.registerInitialPayment(activeVenta.id, {
+            amount: paymentAmount,
+            // El backend no espera payment_date para pago inicial
+            method: (e.currentTarget.elements.namedItem('method') as HTMLSelectElement)?.value || 'transferencia',
+            receipt_number: (e.currentTarget.elements.namedItem('receipt_number') as HTMLInputElement)?.value,
+            receipt_date: (e.currentTarget.elements.namedItem('receipt_date') as HTMLInputElement)?.value,
+            receipt_image: selectedFile || undefined,
+            notes: (e.currentTarget.elements.namedItem('notes') as HTMLTextAreaElement)?.value,
+          });
+        } else {
+          // Pago de cuota a través del cronograma
+          if (!selectedScheduleId) {
+            setError("No se encontró una cuota pendiente para pagar.");
+            return;
+          }
+          
+          await paymentService.registerPayment(selectedScheduleId, {
+            amount: parseFloat(paymentAmount),
+            method: (e.currentTarget.elements.namedItem('method') as HTMLSelectElement)?.value || 'transferencia',
+            receipt_number: e.currentTarget.receipt_number.value,
+            receipt_date: e.currentTarget.receipt_date.value,
+            receipt_image: selectedFile || undefined,
+            boleta_image: selectedBoletaFile || undefined,
+            notes: e.currentTarget.notes.value,
+          });
+        }
       }
 
       onSave();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.detail || 'Error al registrar el pago');
       console.error('Error saving payment:', err);
+      console.error('Error response data:', err.response?.data);
+      console.error('Error response status:', err.response?.status);
+      setError(err.response?.data?.error || err.response?.data?.detail || err.response?.data?.message || 'Error al registrar el pago');
     } finally {
       setIsSubmitting(false);
     }
@@ -210,10 +242,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">
-                    Registrar Pago Realizado
+                    {isEditing ? 'Editar Pago' : 'Registrar Pago Realizado'}
                   </h3>
                   <p className="text-blue-100 text-sm">
-                    Registre un pago que ya fue efectuado por el cliente
+                    {isEditing ? 'Modifique los datos del pago seleccionado' : 'Registre un pago que ya fue efectuado por el cliente'}
                   </p>
                 </div>
               </div>

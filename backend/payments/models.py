@@ -723,6 +723,47 @@ class PaymentSchedule(models.Model):
                 if latest_payment.notes and not self.notes:
                     self.notes = latest_payment.notes
 
+    def reset_payment(self, payment_to_remove, recorded_by=None):
+        """
+        Restablece una cuota eliminando un pago específico y volviendo al estado pendiente.
+        Elimina toda la información relacionada al pago como si nunca se hubiera realizado.
+        """
+        # Remover el pago de la relación
+        self.payments.remove(payment_to_remove)
+        
+        # Limpiar toda la información de pago
+        self.paid_amount = Decimal('0.00')
+        self.payment_date = None
+        self.payment_method = None
+        self.receipt_number = None
+        self.receipt_date = None
+        self.receipt_image = None
+        self.boleta_image = None
+        self.is_forgiven = False
+        self.recorded_by = recorded_by
+        
+        # Determinar el nuevo estado basado en la fecha de vencimiento
+        today = timezone.now().date()
+        if self.due_date < today:
+            self.status = 'overdue'
+        else:
+            self.status = 'pending'
+        
+        # Agregar nota sobre el restablecimiento
+        reset_note = f"Pago restablecido el {timezone.now().strftime('%d/%m/%Y %H:%M')} por {recorded_by.get_full_name() if recorded_by else 'Sistema'}"
+        if self.notes:
+            self.notes += f"\n{reset_note}"
+        else:
+            self.notes = reset_note
+        
+        self.save()
+        
+        # Actualizar el estado del lote para recalcular el saldo
+        if hasattr(self.venta, 'lote') and self.venta.lote:
+            self.venta.lote.save()
+        
+        return self
+
     def get_payment_history(self):
         """
         Retorna el historial de pagos para esta cuota.

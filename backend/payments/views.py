@@ -41,6 +41,42 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
+    @action(detail=True, methods=['post'])
+    def reset(self, request, pk=None):
+        """
+        Restablece un pago, eliminando todos los datos relacionados y volviendo la cuota al estado pendiente.
+        """
+        payment = self.get_object()
+        
+        try:
+            # Verificar si el pago tiene un cronograma asociado
+            if payment.payment_schedule:
+                # Restablecer el cronograma a estado pendiente
+                schedule = payment.payment_schedule
+                schedule.reset_payment(payment, recorded_by=request.user)
+                
+                # Eliminar el pago
+                payment.delete()
+                
+                # Retornar el cronograma actualizado
+                serializer = PaymentScheduleSerializer(schedule, context={'request': request})
+                return Response({
+                    'message': 'Pago restablecido exitosamente',
+                    'schedule': serializer.data
+                })
+            else:
+                # Si es un pago inicial, simplemente eliminarlo
+                payment.delete()
+                return Response({
+                    'message': 'Pago inicial restablecido exitosamente'
+                })
+                
+        except Exception as e:
+            return Response(
+                {'error': f'Error al restablecer el pago: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class PaymentScheduleViewSet(viewsets.ModelViewSet):
     """

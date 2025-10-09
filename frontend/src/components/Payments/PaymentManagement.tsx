@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, PlusCircle, Download, Search, DollarSign, Calendar, TrendingUp, Users, FileSpreadsheet, CalendarDays } from 'lucide-react';
+import { CreditCard, PlusCircle, Download, Search, DollarSign, Calendar, TrendingUp, Users, FileSpreadsheet, CalendarDays, Edit, RotateCcw } from 'lucide-react';
 import { Payment } from '../../types';
 import paymentService from '../../services/paymentService';
 import LoadingSpinner from '../UI/LoadingSpinner';
@@ -16,6 +16,11 @@ const PaymentManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [paymentToReset, setPaymentToReset] = useState<Payment | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
   const [activeTab, setActiveTab] = useState<'payments' | 'schedule'>('payments');
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,8 +83,44 @@ const PaymentManagement: React.FC = () => {
 
   const handleSave = () => {
     setShowForm(false);
+    setEditingPayment(null);
+    setIsEditing(false);
     setSearchTerm(''); // Limpiar la búsqueda para ver el nuevo pago
     loadPayments(); // Recargar la lista de pagos para mostrar el nuevo pago
+  };
+
+  const handleEditPayment = (payment: Payment) => {
+    setEditingPayment(payment);
+    setIsEditing(true);
+    setShowForm(true);
+  };
+
+  const handleResetPayment = (payment: Payment) => {
+    setPaymentToReset(payment);
+    setShowResetConfirm(true);
+  };
+
+  const confirmResetPayment = async () => {
+    if (!paymentToReset) return;
+    
+    setIsResetting(true);
+    setError(null);
+    
+    try {
+      await paymentService.resetPayment(paymentToReset.id);
+      setShowResetConfirm(false);
+      setPaymentToReset(null);
+      loadPayments(); // Recargar la lista de pagos
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Error al restablecer el pago');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const cancelResetPayment = () => {
+    setShowResetConfirm(false);
+    setPaymentToReset(null);
   };
   
   const handleExportToExcel = async () => {
@@ -336,6 +377,7 @@ const PaymentManagement: React.FC = () => {
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Operación</th>
                       <th className="p-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Comprobante</th>
+                      <th className="p-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -421,6 +463,26 @@ const PaymentManagement: React.FC = () => {
                             <span className="text-gray-400 text-sm italic">No adjunto</span>
                           )}
                         </td>
+                        <td className="p-4 text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <button
+                              onClick={() => handleEditPayment(payment)}
+                              className="inline-flex items-center bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                              title="Editar pago"
+                            >
+                              <Edit size={14} className="mr-1" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleResetPayment(payment)}
+                              className="inline-flex items-center bg-red-100 text-red-700 hover:bg-red-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                              title="Restablecer pago"
+                            >
+                              <RotateCcw size={14} className="mr-1" />
+                              Restablecer
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -501,9 +563,86 @@ const PaymentManagement: React.FC = () => {
 
       {showForm && (
         <PaymentForm 
-          onClose={() => setShowForm(false)}
+          onClose={() => {
+            setShowForm(false);
+            setEditingPayment(null);
+            setIsEditing(false);
+          }}
           onSave={handleSave}
+          editPayment={editingPayment || undefined}
+          isEditing={isEditing}
         />
+      )}
+
+      {/* Diálogo de confirmación para restablecer pago */}
+      {showResetConfirm && paymentToReset && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <RotateCcw className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Restablecer Pago
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Esta acción no se puede deshacer
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <h4 className="font-medium text-red-800 mb-2">¿Estás seguro de que quieres restablecer este pago?</h4>
+                <div className="text-sm text-red-700 space-y-1">
+                  <p><strong>Cliente:</strong> {paymentToReset.customer_info?.full_name}</p>
+                  <p><strong>Lote:</strong> Mz. {paymentToReset.lote_info?.block} - Lt. {paymentToReset.lote_info?.lot_number}</p>
+                  <p><strong>Monto:</strong> S/. {paymentToReset.amount}</p>
+                  <p><strong>N° Cuota:</strong> {paymentToReset.payment_schedule?.installment_number || paymentToReset.payment_schedule_info?.installment_number || 'Inicial'}</p>
+                </div>
+                <div className="mt-3 text-sm text-red-600">
+                  <p>Se eliminará:</p>
+                  <ul className="list-disc list-inside ml-2 space-y-1">
+                    <li>Número de operación</li>
+                    <li>Fecha de operación</li>
+                    <li>Comprobante de pago</li>
+                    <li>Boleta de pago</li>
+                    <li>Notas del pago</li>
+                  </ul>
+                  <p className="mt-2 font-medium">La cuota volverá al estado "Pendiente"</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelResetPayment}
+                  disabled={isResetting}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmResetPayment}
+                  disabled={isResetting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {isResetting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Restableciendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw size={16} />
+                      <span>Restablecer</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -64,6 +64,54 @@ class PaymentService {
     return response.data;
   }
 
+  async updatePayment(id: number, paymentData: {
+    amount: number;
+    method?: string;
+    receipt_number?: string;
+    receipt_date?: string;
+    receipt_image?: File;
+    boleta_image?: File;
+    notes?: string;
+    payment_date?: string;
+  }): Promise<Payment> {
+    const formData = new FormData();
+    formData.append('amount', paymentData.amount.toString());
+    
+    if (paymentData.method) {
+      formData.append('method', paymentData.method);
+    }
+    if (paymentData.receipt_number) {
+      formData.append('receipt_number', paymentData.receipt_number);
+    }
+    if (paymentData.receipt_date) {
+      formData.append('receipt_date', paymentData.receipt_date);
+    }
+    if (paymentData.payment_date) {
+      formData.append('payment_date', paymentData.payment_date);
+    }
+    if (paymentData.receipt_image) {
+      formData.append('receipt_image', paymentData.receipt_image);
+    }
+    if (paymentData.boleta_image) {
+      formData.append('boleta_image', paymentData.boleta_image);
+    }
+    if (paymentData.notes) {
+      formData.append('notes', paymentData.notes);
+    }
+
+    const response = await api.patch(`/payments/payments/${id}/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async resetPayment(id: number): Promise<Payment> {
+    const response = await api.post(`/payments/payments/${id}/reset/`);
+    return response.data;
+  }
+
   async deletePayment(id: number): Promise<void> {
     await api.delete(`/payments/payments/${id}/`);
   }

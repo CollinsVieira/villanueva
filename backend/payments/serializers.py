@@ -116,29 +116,37 @@ class PaymentSerializer(serializers.ModelSerializer):
         return None
 
     def validate(self, attrs):
-        """Validar que se proporcione venta_id"""
-        venta_id = attrs.get('venta_id')
-        if not venta_id:
-            raise serializers.ValidationError("venta_id es requerido")
-        
-        # Verificar que la venta existe
-        try:
-            from sales.models import Venta
-            venta = Venta.objects.get(id=venta_id)
-            attrs['venta'] = venta
-        except Venta.DoesNotExist:
-            raise serializers.ValidationError("La venta especificada no existe")
-        
-        # Si se proporciona payment_schedule_id, verificar que existe y pertenece a la venta
-        payment_schedule_id = attrs.get('payment_schedule_id')
-        if payment_schedule_id:
+        """Validar que se proporcione venta_id solo en creación"""
+        # Solo validar venta_id si no estamos actualizando (cuando self.instance existe, es una actualización)
+        if not self.instance:  # Es una creación, no una actualización
+            venta_id = attrs.get('venta_id')
+            if not venta_id:
+                raise serializers.ValidationError("venta_id es requerido")
+            
+            # Verificar que la venta existe
             try:
-                schedule = PaymentSchedule.objects.get(id=payment_schedule_id)
-                if schedule.venta != venta:
-                    raise serializers.ValidationError("El cronograma de pago no pertenece a la venta especificada")
-                attrs['payment_schedule'] = schedule
-            except PaymentSchedule.DoesNotExist:
-                raise serializers.ValidationError("El cronograma de pago especificado no existe")
+                from sales.models import Venta
+                venta = Venta.objects.get(id=venta_id)
+                attrs['venta'] = venta
+            except Venta.DoesNotExist:
+                raise serializers.ValidationError("La venta especificada no existe")
+            
+            # Si se proporciona payment_schedule_id, verificar que existe y pertenece a la venta
+            payment_schedule_id = attrs.get('payment_schedule_id')
+            if payment_schedule_id:
+                try:
+                    schedule = PaymentSchedule.objects.get(id=payment_schedule_id)
+                    if schedule.venta != venta:
+                        raise serializers.ValidationError("El cronograma de pago no pertenece a la venta especificada")
+                    attrs['payment_schedule'] = schedule
+                except PaymentSchedule.DoesNotExist:
+                    raise serializers.ValidationError("El cronograma de pago especificado no existe")
+        else:
+            # En actualizaciones, no permitir cambiar la venta ni el cronograma
+            if 'venta_id' in attrs:
+                del attrs['venta_id']
+            if 'payment_schedule_id' in attrs:
+                del attrs['payment_schedule_id']
         
         return attrs
 
@@ -161,6 +169,20 @@ class PaymentSerializer(serializers.ModelSerializer):
             schedule.add_payment(payment)
         
         return payment
+
+    def update(self, instance, validated_data):
+        """Actualizar un pago existente"""
+        # Asignar el usuario que actualiza el pago
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['recorded_by'] = request.user
+
+        # Actualizar los campos del pago
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        return instance
 
 class PaymentScheduleSerializer(serializers.ModelSerializer):
     """
