@@ -5,6 +5,7 @@ import paymentService from '../../services/paymentService';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import PaymentForm from './PaymentForm';
+import EditPaymentForm from './EditPaymentForm';
 import PaymentSchedule from './PaymentSchedule';
 import { useDebounce } from '../../hooks/useDebounce';
 import DateService from '../../services/dateService';
@@ -16,8 +17,8 @@ const PaymentManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [paymentToReset, setPaymentToReset] = useState<Payment | null>(null);
   const [isResetting, setIsResetting] = useState(false);
@@ -83,16 +84,15 @@ const PaymentManagement: React.FC = () => {
 
   const handleSave = () => {
     setShowForm(false);
+    setShowEditForm(false);
     setEditingPayment(null);
-    setIsEditing(false);
     setSearchTerm(''); // Limpiar la búsqueda para ver el nuevo pago
     loadPayments(); // Recargar la lista de pagos para mostrar el nuevo pago
   };
 
   const handleEditPayment = (payment: Payment) => {
     setEditingPayment(payment);
-    setIsEditing(true);
-    setShowForm(true);
+    setShowEditForm(true);
   };
 
   const handleResetPayment = (payment: Payment) => {
@@ -563,14 +563,19 @@ const PaymentManagement: React.FC = () => {
 
       {showForm && (
         <PaymentForm 
+          onClose={() => setShowForm(false)}
+          onSave={handleSave}
+        />
+      )}
+
+      {showEditForm && editingPayment && (
+        <EditPaymentForm
+          payment={editingPayment}
           onClose={() => {
-            setShowForm(false);
+            setShowEditForm(false);
             setEditingPayment(null);
-            setIsEditing(false);
           }}
           onSave={handleSave}
-          editPayment={editingPayment || undefined}
-          isEditing={isEditing}
         />
       )}
 
