@@ -48,16 +48,16 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Cargar datos en paralelo
+      // Cargar datos en paralelo - usando métodos que obtienen TODOS los datos
       const [
         customers,
         lotes,
         recentPayments,
         pendingInstallments
       ] = await Promise.all([
-        customerService.getAllCustomers(),
-        loteService.getLotes(),
-        paymentService.getPayments(),
+        customerService.getAllCustomersUnlimited(),
+        loteService.getAllLotesUnlimited(),
+        paymentService.getAllPaymentsUnlimited(),
         dynamicReportsService.getPendingInstallments()
       ]);
 
@@ -195,7 +195,8 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-[400px] flex-col">
+        <p className="text-gray-500">Cargando datos del dashboard...</p>
         <LoadingSpinner />
       </div>
     );

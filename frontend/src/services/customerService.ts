@@ -44,6 +44,24 @@ class CustomerService {
     return response.results;
   }
 
+  // Método para obtener TODOS los clientes sin limitación de paginación
+  async getAllCustomersUnlimited(searchTerm: string = ''): Promise<Customer[]> {
+    const allCustomers: Customer[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await this.getCustomers(searchTerm, page);
+      allCustomers.push(...response.results);
+      
+      // Si hay siguiente página, continuar
+      hasMore = !!response.next;
+      page++;
+    }
+
+    return allCustomers;
+  }
+
   async getCustomerById(id: number): Promise<Customer> {
     const response = await api.get(`/customers/${id}/`);
     return response.data;

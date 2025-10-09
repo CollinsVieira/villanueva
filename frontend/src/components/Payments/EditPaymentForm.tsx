@@ -189,7 +189,7 @@ const EditPaymentForm: React.FC<EditPaymentFormProps> = ({ payment, onClose, onS
                 </label>
                 <select
                   value={method}
-                  onChange={(e) => setMethod(e.target.value)}
+                  onChange={(e) => setMethod(e.target.value as "efectivo" | "transferencia" | "tarjeta" | "otro")}
                   className="w-full p-3 border border-gray-300 rounded-lg"
                 >
                   <option value="transferencia">💳 Transferencia Bancaria</option>

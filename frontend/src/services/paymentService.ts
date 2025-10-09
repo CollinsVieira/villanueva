@@ -20,6 +20,39 @@ class PaymentService {
     return handlePaginatedResponse(response.data);
   }
 
+  // Método para obtener TODOS los pagos sin limitación de paginación
+  async getAllPaymentsUnlimited(searchTerm: string = ''): Promise<Payment[]> {
+    const allPayments: Payment[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const params: any = { 
+        page,
+        page_size: 100 // Usar un tamaño de página grande para reducir el número de requests
+      };
+      
+      if (searchTerm) params.search = searchTerm;
+      
+      const response = await api.get('/payments/payments/', { params });
+      const data = response.data || {};
+      
+      if (data.results && Array.isArray(data.results)) {
+        allPayments.push(...data.results);
+        hasMore = !!data.next;
+      } else {
+        // Si no hay estructura paginada, usar los datos tal como están
+        const payments = Array.isArray(data) ? data : [];
+        allPayments.push(...payments);
+        hasMore = false;
+      }
+      
+      page++;
+    }
+
+    return allPayments;
+  }
+
   async getInitialPayments(saleId: number): Promise<any[]> {
     const response = await api.get(`/payments/payments/?venta__id=${saleId}&payment_type=initial`);
     return handlePaginatedResponse(response.data);

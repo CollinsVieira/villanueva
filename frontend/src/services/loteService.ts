@@ -19,6 +19,38 @@ class LoteService {
     return handlePaginatedResponse(response.data);
   }
 
+  // Método para obtener TODOS los lotes sin limitación de paginación
+  async getAllLotesUnlimited(params?: { status?: string; search?: string; block?: string }): Promise<Lote[]> {
+    const allLotes: Lote[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const requestParams = { 
+        ...params, 
+        page,
+        page_size: 100 // Usar un tamaño de página grande para reducir el número de requests
+      };
+      
+      const response = await api.get('/lotes/', { params: requestParams });
+      const data = response.data || {};
+      
+      if (data.results && Array.isArray(data.results)) {
+        allLotes.push(...data.results);
+        hasMore = !!data.next;
+      } else {
+        // Si no hay estructura paginada, usar los datos tal como están
+        const lotes = Array.isArray(data) ? data : [];
+        allLotes.push(...lotes);
+        hasMore = false;
+      }
+      
+      page++;
+    }
+
+    return allLotes;
+  }
+
   async getLotesPage(params?: { status?: string; search?: string; block?: string; page?: number; page_size?: number }): Promise<{ count: number; next: string | null; previous: string | null; results: Lote[] }> {
     const response = await api.get('/lotes/', { params });
     // Normalizamos mínimamente el shape esperado
