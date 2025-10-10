@@ -38,9 +38,59 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
     loteService.getLotes({ status: "vendido" }).then(setAllLotes);
   }, []);
 
-  // Función para encontrar una cuota específica por número
+  // Función para encontrar una cuota específica por número (solo cuotas disponibles)
   const findScheduleByInstallmentNumber = (installmentNum: number) => {
-    return paymentSchedules.find(s => s.installment_number === installmentNum && s.status !== 'paid');
+    return paymentSchedules.find(s => 
+      s.installment_number === installmentNum && 
+      (s.status === 'pending' || s.status === 'overdue' || s.status === 'partial')
+    );
+  };
+
+  // Función para obtener las cuotas disponibles (pendientes, vencidas, parciales)
+  const getAvailableSchedules = () => {
+    const available = paymentSchedules.filter(s => 
+      s.status === 'pending' || s.status === 'overdue' || s.status === 'partial'
+    );
+    
+    // Ordenar por prioridad: vencidas primero, luego pendientes, luego parciales
+    // Dentro de cada grupo, ordenar por número de cuota
+    const priorityOrder = { 'overdue': 1, 'pending': 2, 'partial': 3 };
+    
+    return available.sort((a, b) => {
+      const priorityA = priorityOrder[a.status as keyof typeof priorityOrder];
+      const priorityB = priorityOrder[b.status as keyof typeof priorityOrder];
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      return a.installment_number - b.installment_number;
+    });
+  };
+
+  // Función para obtener la próxima cuota por prioridad (vencidas primero, luego pendientes)
+  const getNextScheduleByPriority = () => {
+    const availableSchedules = getAvailableSchedules();
+    
+    // Primero buscar cuotas vencidas
+    const overdueSchedules = availableSchedules.filter(s => s.status === 'overdue');
+    if (overdueSchedules.length > 0) {
+      return overdueSchedules.sort((a, b) => a.installment_number - b.installment_number)[0];
+    }
+    
+    // Si no hay vencidas, buscar la primera pendiente
+    const pendingSchedules = availableSchedules.filter(s => s.status === 'pending');
+    if (pendingSchedules.length > 0) {
+      return pendingSchedules.sort((a, b) => a.installment_number - b.installment_number)[0];
+    }
+    
+    // Si no hay pendientes, buscar la primera parcial
+    const partialSchedules = availableSchedules.filter(s => s.status === 'partial');
+    if (partialSchedules.length > 0) {
+      return partialSchedules.sort((a, b) => a.installment_number - b.installment_number)[0];
+    }
+    
+    return null;
   };
 
   // Recalcular cuando cambie el tipo de pago o la venta activa
@@ -50,16 +100,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
         // Para pago inicial, usar el monto de la venta
         setPaymentAmount(activeVenta.initial_payment?.toString() || "0");
         setInstallmentNumber(0);
+        setSelectedScheduleId(null);
       } else {
         // Para cuotas, solo auto-seleccionar si no hay una cuota específica seleccionada
         // o si la cuota seleccionada ya no existe
         const currentSchedule = findScheduleByInstallmentNumber(installmentNumber);
         
         if (!currentSchedule) {
-          // Solo buscar la próxima cuota pendiente si no hay una selección válida
-          const pendingSchedules = paymentSchedules.filter(s => s.status === 'pending');
-          if (pendingSchedules.length > 0) {
-            const nextSchedule = pendingSchedules[0];
+          // Buscar la próxima cuota por prioridad (vencidas primero, luego pendientes)
+          const nextSchedule = getNextScheduleByPriority();
+          if (nextSchedule) {
             setPaymentAmount(nextSchedule.scheduled_amount?.toString() || "0");
             setInstallmentNumber(nextSchedule.installment_number);
             setSelectedScheduleId(nextSchedule.id);
@@ -76,7 +126,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
   // Efecto separado para cuando el usuario cambia manualmente el número de cuota
   useEffect(() => {
     if (paymentType === "installment" && installmentNumber > 0 && paymentSchedules.length > 0) {
-      const selectedSchedule = findScheduleByInstallmentNumber(installmentNumber);
+      const availableSchedules = getAvailableSchedules();
+      const selectedSchedule = availableSchedules.find(s => s.installment_number === installmentNumber);
       if (selectedSchedule) {
         setPaymentAmount(selectedSchedule.scheduled_amount?.toString() || "0");
         setSelectedScheduleId(selectedSchedule.id);
@@ -372,7 +423,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tipo de Pago
@@ -418,23 +469,69 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
                   <option value="otro">🔄 Otro</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" >
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   N° de Cuota
                 </label>
-                <input
-                  type="number"
+                <select
                   name="installment_number"
                   value={installmentNumber}
-                  onChange={(e) =>
-                    setInstallmentNumber(parseInt(e.target.value) || 1)
-                  }
+                  onChange={(e) => setInstallmentNumber(parseInt(e.target.value) || 1)}
                   disabled={paymentType === "initial"}
                   className="w-full p-3 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  min="1"
-                  max={selectedLote?.financing_months || 999}
-                  
-                />
+                >
+                  {paymentType === "initial" ? (
+                    <option value={0}>Pago Inicial</option>
+                  ) : (
+                    <>
+                      {getAvailableSchedules().length === 0 ? (
+                        <option value={0}>
+                          {paymentSchedules.length === 0 ? 'No hay cronograma de pagos' : 'Todas las cuotas están pagadas'}
+                        </option>
+                      ) : (
+                        getAvailableSchedules().map((schedule) => (
+                          <option key={schedule.id} value={schedule.installment_number}>
+                            Cuota {schedule.installment_number} - {schedule.status === 'overdue' ? '🔴 Vencida' : schedule.status === 'partial' ? '🟡 Parcial' : '🟢 Pendiente'} - S/. {parseFloat(schedule.scheduled_amount || "0").toLocaleString()}
+                          </option>
+                        ))
+                      )}
+                    </>
+                  )}
+                </select>
+                {paymentType === "installment" && getAvailableSchedules().length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">
+                      💡 Se selecciona automáticamente la siguiente cuota por orden (vencidas primero)
+                    </p>
+                    {(() => {
+                      const selectedSchedule = getAvailableSchedules().find(s => s.installment_number === installmentNumber);
+                      if (selectedSchedule) {
+                        const statusInfo = {
+                          'overdue': { emoji: '🔴', text: 'Vencida', color: 'text-red-600' },
+                          'partial': { emoji: '🟡', text: 'Pago Parcial', color: 'text-yellow-600' },
+                          'pending': { emoji: '🟢', text: 'Pendiente', color: 'text-green-600' }
+                        };
+                        const status = statusInfo[selectedSchedule.status as keyof typeof statusInfo];
+                        return (
+                          <div className={`text-xs ${status.color} bg-gray-50 px-2 py-1 rounded flex items-center space-x-1`}>
+                            <span>{status.emoji}</span>
+                            <span>Estado: {status.text}</span>
+                            {selectedSchedule.status === 'overdue' && (
+                              <span className="text-red-500">• Vence: {new Date(selectedSchedule.due_date).toLocaleDateString()}</span>
+                            )}
+                            {selectedSchedule.status === 'partial' && (
+                              <span className="text-yellow-600">
+                                • Pagado: S/. {parseFloat(selectedSchedule.paid_amount || "0").toLocaleString()} 
+                                • Restante: S/. {parseFloat(selectedSchedule.remaining_amount || "0").toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
 
