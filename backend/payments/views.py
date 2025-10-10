@@ -246,8 +246,15 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
             if payment_date:
                 # Parse the date string if provided
                 try:
-                    from datetime import datetime
-                    payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
+                    from datetime import datetime, date
+                    # Handle both date (YYYY-MM-DD) and datetime formats
+                    if len(payment_date) == 10:  # Date format YYYY-MM-DD
+                        payment_date = datetime.combine(
+                            datetime.strptime(payment_date, '%Y-%m-%d').date(),
+                            datetime.min.time()
+                        )
+                    else:  # ISO datetime format
+                        payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
                 except:
                     payment_date = timezone.now()
             else:

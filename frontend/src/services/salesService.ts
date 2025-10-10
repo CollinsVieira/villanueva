@@ -262,6 +262,9 @@ class SalesService {
       if (data.receipt_date) {
         formData.append('receipt_date', data.receipt_date);
       }
+      if (data.payment_date) {
+        formData.append('payment_date', data.payment_date);
+      }
       if (data.notes) {
         formData.append('notes', data.notes);
       }
@@ -280,6 +283,7 @@ class SalesService {
     };
     if (data.receipt_number) payload.receipt_number = data.receipt_number;
     if (data.receipt_date) payload.receipt_date = data.receipt_date;
+    if (data.payment_date) payload.payment_date = data.payment_date;
     if (data.notes) payload.notes = data.notes;
 
     const response = await api.post(`/sales/ventas/${id}/register_initial_payment/`, payload);

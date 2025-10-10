@@ -230,5 +230,6 @@ class InitialPaymentSerializer(serializers.Serializer):
     )
     receipt_number = serializers.CharField(max_length=100, required=False)
     receipt_date = serializers.DateField(required=False)
+    payment_date = serializers.DateTimeField(required=False)
     receipt_image = serializers.ImageField(required=False)
     notes = serializers.CharField(max_length=500, required=False)

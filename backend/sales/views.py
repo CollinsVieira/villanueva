@@ -146,6 +146,7 @@ class VentaViewSet(viewsets.ModelViewSet):
                     payment_method=serializer.validated_data.get('payment_method', 'transferencia'),
                     receipt_number=serializer.validated_data.get('receipt_number'),
                     receipt_date=serializer.validated_data.get('receipt_date'),
+                    payment_date=serializer.validated_data.get('payment_date'),
                     receipt_image=serializer.validated_data.get('receipt_image'),
                     notes=serializer.validated_data.get('notes'),
                     recorded_by=request.user

@@ -73,6 +73,7 @@ class PaymentService {
     method?: string;
     receipt_number?: string;
     receipt_date?: string;
+    payment_date?: string;
     payment_schedule_id?: number;
     notes?: string;
     receipt_image?: File;
@@ -85,6 +86,7 @@ class PaymentService {
     if (paymentData.method) formData.append('method', paymentData.method);
     if (paymentData.receipt_number) formData.append('receipt_number', paymentData.receipt_number);
     if (paymentData.receipt_date) formData.append('receipt_date', paymentData.receipt_date);
+    if (paymentData.payment_date) formData.append('payment_date', paymentData.payment_date);
     if (paymentData.payment_schedule_id) formData.append('payment_schedule_id', paymentData.payment_schedule_id.toString());
     if (paymentData.notes) formData.append('notes', paymentData.notes);
     if (paymentData.receipt_image) formData.append('receipt_image', paymentData.receipt_image);
@@ -215,6 +217,7 @@ class PaymentService {
     method?: string;
     receipt_number?: string;
     receipt_date?: string;
+    payment_date?: string;
     receipt_image?: File;
     boleta_image?: File;
     notes?: string;
@@ -230,6 +233,9 @@ class PaymentService {
     }
     if (paymentData.receipt_date) {
       formData.append('receipt_date', paymentData.receipt_date);
+    }
+    if (paymentData.payment_date) {
+      formData.append('payment_date', paymentData.payment_date);
     }
     if (paymentData.receipt_image) {
       formData.append('receipt_image', paymentData.receipt_image);
