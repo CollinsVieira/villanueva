@@ -304,6 +304,101 @@ class Venta(models.Model):
         
         return self.payment_schedules.all()
     
+    def update_payment_schedule_for_financing_change(self, new_financing_months, new_payment_day=None):
+        """Actualiza el cronograma cuando cambian los meses de financiamiento"""
+        from payments.models import PaymentSchedule
+        
+        # Verificar si hay pagos realizados
+        existing_schedules = self.payment_schedules.all()
+        has_payments = existing_schedules.filter(paid_amount__gt=0).exists()
+        
+        if not has_payments:
+            # No hay pagos realizados, se puede regenerar completamente
+            existing_schedules.delete()
+            PaymentSchedule.generate_schedule_for_venta(self)
+            return self.payment_schedules.all()
+        else:
+            # Hay pagos realizados, manejar el cambio de manera inteligente
+            paid_schedules = existing_schedules.filter(paid_amount__gt=0)
+            pending_schedules = existing_schedules.filter(status='pending')
+            
+            if new_financing_months < len(existing_schedules):
+                # Reducir meses: eliminar cuotas futuras pendientes
+                schedules_to_delete = pending_schedules.filter(installment_number__gt=new_financing_months)
+                schedules_to_delete.delete()
+                
+                # Recalcular montos de las cuotas restantes
+                remaining_amount = self.sale_price - self.initial_payment
+                paid_amount = sum(schedule.paid_amount for schedule in paid_schedules)
+                remaining_amount -= paid_amount
+                
+                remaining_schedules = existing_schedules.filter(status='pending')
+                if remaining_schedules.exists():
+                    # Recalcular montos equitativamente
+                    monthly_amount_base = (remaining_amount / len(remaining_schedules)).quantize(Decimal('1'), rounding='ROUND_DOWN')
+                    total_base_amount = monthly_amount_base * (len(remaining_schedules) - 1)
+                    last_installment_amount = remaining_amount - total_base_amount
+                    
+                    for i, schedule in enumerate(remaining_schedules.order_by('installment_number')):
+                        if i == len(remaining_schedules) - 1:
+                            schedule.scheduled_amount = last_installment_amount
+                        else:
+                            schedule.scheduled_amount = monthly_amount_base
+                        schedule.save()
+                        
+            elif new_financing_months > len(existing_schedules):
+                # Aumentar meses: agregar nuevas cuotas
+                remaining_amount = self.sale_price - self.initial_payment
+                paid_amount = sum(schedule.paid_amount for schedule in paid_schedules)
+                remaining_amount -= paid_amount
+                
+                # Calcular monto para las nuevas cuotas
+                new_schedules_count = new_financing_months - len(existing_schedules)
+                monthly_amount_base = (remaining_amount / new_schedules_count).quantize(Decimal('1'), rounding='ROUND_DOWN')
+                total_base_amount = monthly_amount_base * (new_schedules_count - 1)
+                last_installment_amount = remaining_amount - total_base_amount
+                
+                # Crear nuevas cuotas
+                start_installment = len(existing_schedules) + 1
+                payment_day = new_payment_day or self.payment_day
+                
+                if self.schedule_start_date:
+                    start_date = self.schedule_start_date
+                else:
+                    start_date = self.sale_date.date()
+                
+                for i in range(new_schedules_count):
+                    installment_number = start_installment + i
+                    due_date = PaymentSchedule._calculate_due_date(start_date, installment_number, payment_day)
+                    
+                    if i == new_schedules_count - 1:
+                        installment_amount = last_installment_amount
+                    else:
+                        installment_amount = monthly_amount_base
+                    
+                    PaymentSchedule.objects.create(
+                        venta=self,
+                        installment_number=installment_number,
+                        original_amount=installment_amount,
+                        scheduled_amount=installment_amount,
+                        due_date=due_date
+                    )
+            
+            # Actualizar fechas de vencimiento si cambió el payment_day
+            if new_payment_day and new_payment_day != self.payment_day:
+                for schedule in pending_schedules:
+                    installment_number = schedule.installment_number
+                    if self.schedule_start_date:
+                        start_date = self.schedule_start_date
+                    else:
+                        start_date = self.sale_date.date()
+                    
+                    due_date = PaymentSchedule._calculate_due_date(start_date, installment_number, new_payment_day)
+                    schedule.due_date = due_date
+                    schedule.save()
+            
+            return self.payment_schedules.all()
+    
     def register_initial_payment(self, amount, payment_date=None, payment_method='transferencia', 
                                 receipt_number=None, receipt_date=None, receipt_image=None, 
                                 notes=None, recorded_by=None):

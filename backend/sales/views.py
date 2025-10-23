@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import Venta
 from .serializers import (
-    VentaSerializer, VentaCreateSerializer, VentaSummarySerializer,
+    VentaSerializer, VentaCreateSerializer, VentaUpdateSerializer, VentaSummarySerializer,
     VentaCancelSerializer, VentaCompleteSerializer, InitialPaymentSerializer
 )
 
@@ -33,6 +33,8 @@ class VentaViewSet(viewsets.ModelViewSet):
         """Seleccionar el serializer apropiado según la acción"""
         if self.action == 'create':
             return VentaCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return VentaUpdateSerializer
         elif self.action == 'list':
             return VentaSummarySerializer
         elif self.action in ['cancel_sale', 'complete_sale', 'register_initial_payment']:

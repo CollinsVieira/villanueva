@@ -151,6 +151,128 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         return Venta.create_sale(payment_day=payment_day, financing_months=financing_months, **validated_data)
 
 
+class VentaUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para actualizar ventas existentes"""
+    
+    payment_day = serializers.IntegerField(
+        min_value=1,
+        max_value=31,
+        required=False,
+        help_text=_("Día del mes en que vencen las cuotas (1-31)")
+    )
+    
+    financing_months = serializers.IntegerField(
+        min_value=1,
+        max_value=120,
+        required=False,
+        help_text=_("Número de meses para el financiamiento")
+    )
+    
+    contract_pdf = serializers.FileField(
+        required=False,
+        allow_null=True,
+        help_text=_("Archivo PDF del contrato (opcional)")
+    )
+    
+    schedule_start_date = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text=_("Fecha de inicio del cronograma en formato YYYY-MM (opcional)")
+    )
+    
+    class Meta:
+        model = Venta
+        fields = [
+            'sale_price', 'initial_payment', 'contract_date', 'schedule_start_date', 
+            'contract_pdf', 'notes', 'payment_day', 'financing_months'
+        ]
+    
+    def validate_contract_pdf(self, value):
+        """Validar archivo PDF"""
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError(_("El archivo debe ser un PDF"))
+            
+            # Validar tamaño del archivo (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(_("El archivo PDF no puede ser mayor a 10MB"))
+        
+        return value
+    
+    def validate(self, attrs):
+        """Validaciones adicionales"""
+        sale_price = attrs.get('sale_price')
+        initial_payment = attrs.get('initial_payment')
+        
+        if sale_price and initial_payment and initial_payment > sale_price:
+            raise serializers.ValidationError({
+                'initial_payment': _("El pago inicial no puede ser mayor al precio de venta")
+            })
+        
+        return attrs
+    
+    def update(self, instance, validated_data):
+        """Actualizar una venta existente"""
+        # Convertir schedule_start_date de YYYY-MM a Date si está presente
+        if 'schedule_start_date' in validated_data and validated_data['schedule_start_date']:
+            try:
+                from datetime import datetime
+                date_str = validated_data['schedule_start_date']
+                # Convertir YYYY-MM a YYYY-MM-01 (primer día del mes)
+                date_obj = datetime.strptime(date_str, '%Y-%m').date().replace(day=1)
+                validated_data['schedule_start_date'] = date_obj
+            except ValueError:
+                # Si el formato es incorrecto, eliminar el campo
+                del validated_data['schedule_start_date']
+        
+        # Guardar valores originales para comparar cambios
+        original_payment_day = instance.payment_day
+        original_financing_months = instance.financing_months
+        
+        # Actualizar campos normales
+        for attr, value in validated_data.items():
+            if attr not in ['payment_day', 'financing_months']:
+                setattr(instance, attr, value)
+        
+        # Manejar payment_day y financing_months
+        payment_day = validated_data.get('payment_day')
+        financing_months = validated_data.get('financing_months')
+        
+        if payment_day is not None:
+            instance.payment_day = payment_day
+        if financing_months is not None:
+            instance.financing_months = financing_months
+        
+        instance.save()
+        
+        # Verificar si cambió el payment_day o financing_months
+        payment_day_changed = payment_day is not None and payment_day != original_payment_day
+        financing_months_changed = financing_months is not None and financing_months != original_financing_months
+        
+        # Si cambió el payment_day o financing_months, actualizar el cronograma
+        if payment_day_changed or financing_months_changed:
+            try:
+                if financing_months_changed:
+                    # Usar el nuevo método para manejar cambios en financing_months
+                    instance.update_payment_schedule_for_financing_change(
+                        new_financing_months=instance.financing_months,
+                        new_payment_day=instance.payment_day
+                    )
+                elif payment_day_changed:
+                    # Solo cambió el payment_day, usar el método original
+                    instance.regenerate_payment_schedule()
+                        
+            except Exception as e:
+                # Log del error para debugging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error updating payment schedule for venta {instance.id}: {str(e)}")
+                # No relanzar la excepción para evitar que falle la actualización
+        
+        return instance
+
+
 class VentaSummarySerializer(serializers.ModelSerializer):
     """Serializer resumido para listados de ventas"""
     

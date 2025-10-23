@@ -228,7 +228,21 @@ class SalesService {
       return response.data;
     } else {
       // Si no hay archivo, usar JSON normal
-      const response = await api.patch(`/sales/ventas/${id}/`, data);
+      // Preparar los datos asegurando que los números se envíen como números
+      const jsonData: any = {};
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && key !== 'contract_pdf') {
+          if (key === 'payment_day' || key === 'financing_months') {
+            jsonData[key] = typeof value === 'number' ? value : parseInt(value.toString());
+          } else if (key === 'sale_price' || key === 'initial_payment') {
+            jsonData[key] = value.toString();
+          } else {
+            jsonData[key] = value;
+          }
+        }
+      });
+      
+      const response = await api.patch(`/sales/ventas/${id}/`, jsonData);
       return response.data;
     }
   }
