@@ -41,8 +41,8 @@ const PaymentManagement: React.FC = () => {
     setIsLoading(true);
     try {
       setError(null);
-      // Enviamos el término de búsqueda a la API
-      const data = await paymentService.getPayments(debouncedSearchTerm);
+      // Usamos getAllPaymentsUnlimited para obtener todos los pagos sin limitación de Django
+      const data = await paymentService.getAllPaymentsUnlimited(debouncedSearchTerm);
       setPayments(data);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al cargar los pagos.');
