@@ -35,7 +35,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave }) => {
 
   useEffect(() => {
     // Carga todos los lotes vendidos una sola vez
-    loteService.getLotes({ status: "vendido" }).then(setAllLotes);
+    loteService.getAllLotesUnlimited({ status: "vendido" }).then(setAllLotes);
   }, []);
 
   // Función para encontrar una cuota específica por número (solo cuotas disponibles)
