@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 
@@ -82,7 +83,7 @@ class Customer(models.Model):
             return (total_payments / total_ventas_value) * 100
         return 0
 
-    @property
+    @cached_property
     def payment_summary(self):
         """Devuelve un resumen detallado de los pagos del cliente."""
         from django.db.models import Sum, Count

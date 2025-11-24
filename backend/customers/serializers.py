@@ -4,6 +4,9 @@ from .models import Customer
 from users.serializers import UserSerializer
 from payments.serializers import PaymentSerializer
 from django.db import transaction
+from django.utils.functional import cached_property
+
+
 
 class NestedVentaSerializer(serializers.Serializer):
     """Serializer simplificado para mostrar información básica de ventas"""
@@ -80,6 +83,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         """Retorna un resumen detallado de los pagos del cliente."""
         return obj.payment_summary
     
+    @cached_property
     def get_payments(self, obj):
         """Retorna todos los pagos del cliente a través de sus ventas."""
         from payments.models import Payment
