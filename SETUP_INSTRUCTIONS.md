@@ -25,48 +25,6 @@
 docker-compose build frontend
 ```
 
-## 🌐 Configuración para Acceso desde la Red Local
-
-### 1. Obtener Información de Red
-```bash
-# Ejecutar como administrador en PowerShell
-.\get-network-info.ps1
-```
-
-### 2. Configurar Firewall de Windows
-```bash
-# Permitir acceso HTTP (puerto 80)
-netsh advfirewall firewall add rule name="Villanueva HTTP" dir=in action=allow protocol=TCP localport=80
-
-# Permitir acceso Backend (puerto 8000)
-netsh advfirewall firewall add rule name="Villanueva Backend" dir=in action=allow protocol=TCP localport=8000
-
-# Permitir acceso Base de datos (puerto 5432)
-netsh advfirewall firewall add rule name="Villanueva Database" dir=in action=allow protocol=TCP localport=5432
-```
-
-### 3. URLs de Acceso
-- **Desde tu máquina:** http://localhost
-- **Desde la red local:** http://[TU_IP_LOCAL]
-- **Ejemplo:** Si tu IP es 192.168.1.100, accede desde http://192.168.1.100
-
-## 🐳 Ejecutar el Proyecto
-
-1. **Detener contenedores existentes:**
-   ```bash
-   docker-compose down
-   ```
-
-2. **Iniciar los servicios:**
-   ```bash
-   docker-compose up -d
-   ```
-
-3. **Verificar logs:**
-   ```bash
-   docker-compose logs -f
-   ```
-
 ## 🌐 Acceso a la Aplicación
 
 ### Acceso Local
