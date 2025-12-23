@@ -8,6 +8,7 @@ from .models import Payment, PaymentSchedule
 from .serializers import PaymentSerializer, PaymentScheduleSerializer, PaymentScheduleSummarySerializer
 from users.permissions import IsWorkerOrAdmin
 from rest_framework.parsers import MultiPartParser, FormParser 
+from .pagination import PaymentsPagination
 
 class PaymentViewSet(viewsets.ModelViewSet):
     """
@@ -16,7 +17,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all().select_related('venta', 'payment_schedule', 'recorded_by', 'venta__lote', 'venta__customer')
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated, IsWorkerOrAdmin]
-    
+    pagination_class = PaymentsPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     parser_classes = [MultiPartParser, FormParser] # Para manejar la subida de archivos/imágenes
     
@@ -38,6 +39,15 @@ class PaymentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['payment_date', 'amount', 'created_at']
     ordering = ['-payment_date']
 
+    def get_queryset(self):
+        return Payment.objects.select_related(
+            'venta', 
+            'venta__lote', 
+            'venta__customer', 
+            'payment_schedule',
+            'recorded_by'
+        ).all()
+        
     def get_serializer_context(self):
         return {'request': self.request}
 

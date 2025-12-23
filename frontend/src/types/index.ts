@@ -86,64 +86,92 @@ export interface Venta {
   };
 }
 
+export interface Info {
+  page: number;
+  count: number;
+  pages: number;
+  next:  string | null;
+  prev:  string | null;
+  total_recaudado: number;
+}
+
 export interface Payment {
-  id: number;
-  venta: {
-    id: number;
-    status: string;
-    sale_price: string;
-    initial_payment?: string;
-    sale_date?: string;
-  };
-  payment_schedule?: {
-    id: number;
-    installment_number: number;
-  };
-  payment_schedule_info?: {
-    id: number;
-    installment_number: number;
-    scheduled_amount: string;
-    paid_amount: string;
-    due_date?: string;
-    status: string;
-    is_forgiven: boolean;
-  };
-  amount: string;
-  payment_date: string;
-  payment_date_display?: string;
-  method: 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
-  payment_type: 'initial' | 'installment';
-  receipt_number?: string;
-  receipt_date?: string;
-  receipt_date_display?: string;
-  receipt_image?: string;
-  notes?: string;
-  recorded_by: User;
-  created_at: string;
-  updated_at: string;
-  // Información contextual del serializer
-  venta_info?: {
-    id: number;
-    status: string;
-    sale_price: string;
-    initial_payment?: string;
-    sale_date?: string;
-  };
-  lote_info?: {
-    id: number;
-    block: string;
-    lot_number: string;
-    area: string;
-    display: string;
-  };
-  customer_info?: {
-    id: number;
-    first_name: string;
-    last_name: string;
-    full_name: string;
-    document_number: string;
-    phone?: string;
-  };
+  id:                    number;
+  venta:                 number;
+  payment_schedule:      number;
+  amount:                string;
+  payment_date:          Date;
+  payment_date_display:  string;
+  method:                Method;
+  payment_type:          PaymentType;
+  receipt_number:        string;
+  receipt_date:          Date;
+  receipt_date_display:  string;
+  receipt_image:         string;
+  notes:                 string;
+  recorded_by:           number;
+  created_at:            Date;
+  updated_at:            Date;
+  venta_info:            VentaInfo;
+  lote_info:             LoteInfo;
+  customer_info:         CustomerInfo;
+  payment_schedule_info: PaymentScheduleInfo;
+}
+
+export interface CustomerInfo {
+  id:              number;
+  first_name:      string;
+  last_name:       string;
+  full_name:       string;
+  document_number: string;
+  phone:           string;
+}
+
+export interface LoteInfo {
+  id:         number;
+  block:      string;
+  lot_number: string;
+  area:       string;
+  display:    string;
+}
+
+export enum Method {
+  Transferencia = "transferencia",
+}
+
+export interface PaymentScheduleInfo {
+  id:                 number;
+  installment_number: number;
+  scheduled_amount:   string;
+  paid_amount:        string;
+  due_date:           Date;
+  status:             PaymentScheduleInfoStatus;
+  is_forgiven:        boolean;
+}
+
+export enum PaymentScheduleInfoStatus {
+  Paid = "paid",
+}
+
+export enum PaymentType {
+  Installment = "installment",
+}
+
+export interface VentaInfo {
+  id:              number;
+  status:          VentaInfoStatus;
+  sale_price:      string;
+  initial_payment: string;
+  sale_date:       Date;
+}
+
+export enum VentaInfoStatus {
+  Active = "active",
+}
+
+export interface PaginatedPaymentResponse {
+  info: Info;
+  results: Payment[];
 }
 
 export interface PaymentPlan {

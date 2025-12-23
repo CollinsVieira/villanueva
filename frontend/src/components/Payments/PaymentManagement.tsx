@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, PlusCircle, Download, Search, DollarSign, Calendar, TrendingUp, Users, FileSpreadsheet, CalendarDays, Edit, RotateCcw } from 'lucide-react';
-import { Payment } from '../../types';
+import { Info, Payment } from '../../types';
 import paymentService from '../../services/paymentService';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
@@ -14,6 +14,7 @@ import { getProxyImageUrl } from '../../utils/imageUtils';
 
 const PaymentManagement: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [info, setInfo] = useState<Info>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -29,21 +30,25 @@ const PaymentManagement: React.FC = () => {
   
   // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
 
   useEffect(() => {
-    // Esta función se ejecutará cada vez que dejes de escribir en el buscador
-    loadPayments();
-    setCurrentPage(1); // Reiniciar a la primera página cuando cambie la búsqueda
+    // Reiniciar a la primera página cuando cambie la búsqueda
+    setCurrentPage(1);
   }, [debouncedSearchTerm]);
 
-  const loadPayments = async () => {
+  useEffect(() => {
+    // Cargar pagos cuando cambie la página o la búsqueda
+    loadPayments(currentPage);
+  }, [currentPage, debouncedSearchTerm]);
+
+  const loadPayments = async (page: number = 1) => {
     setIsLoading(true);
     try {
       setError(null);
-      // Usamos getAllPaymentsUnlimited para obtener todos los pagos sin limitación de Django
-      const data = await paymentService.getAllPaymentsUnlimited(debouncedSearchTerm);
-      setPayments(data);
+      // Usamos paginación del servidor
+      const data = await paymentService.getPaymentsPaginated(page, debouncedSearchTerm);
+      setPayments(data.results);
+      setInfo(data.info);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al cargar los pagos.');
     } finally {
@@ -54,8 +59,7 @@ const PaymentManagement: React.FC = () => {
   // Calcular estadísticas de los pagos
   const paymentStats = React.useMemo(() => {
     const totalPayments = payments.length;
-    const totalAmount = payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
-    const uniqueCustomers = new Set(payments.map(p => p.customer_info?.id).filter(Boolean)).size;
+    const totalAmount = dynamicReportsService.formatCurrency(info?.total_recaudado || 0);
     const thisMonthPayments = payments.filter(p => {
       const paymentDate = new Date(p.payment_date);
       const now = new Date();
@@ -66,17 +70,18 @@ const PaymentManagement: React.FC = () => {
     return {
       totalPayments,
       totalAmount,
-      uniqueCustomers,
       thisMonthPayments: thisMonthPayments.length,
       thisMonthAmount
     };
   }, [payments]);
 
-  // Cálculos de paginación
-  const totalPages = Math.ceil(payments.length / itemsPerPage);
+  // Paginación del servidor
+  const totalPages = info?.pages || 1;
+  const totalCount = info?.count || 0;
+  const itemsPerPage = 25; // Debe coincidir con page_size del backend
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentPayments = payments.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
+  const currentPayments = payments; // Ya vienen paginados del servidor
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -87,7 +92,8 @@ const PaymentManagement: React.FC = () => {
     setShowEditForm(false);
     setEditingPayment(null);
     setSearchTerm(''); // Limpiar la búsqueda para ver el nuevo pago
-    loadPayments(); // Recargar la lista de pagos para mostrar el nuevo pago
+    setCurrentPage(1); // Volver a la primera página
+    loadPayments(1); // Recargar la lista de pagos para mostrar el nuevo pago
   };
 
   const handleEditPayment = (payment: Payment) => {
@@ -110,7 +116,7 @@ const PaymentManagement: React.FC = () => {
       await paymentService.resetPayment(paymentToReset.id);
       setShowResetConfirm(false);
       setPaymentToReset(null);
-      loadPayments(); // Recargar la lista de pagos
+      loadPayments(currentPage); // Recargar la lista de pagos
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.detail || 'Error al restablecer el pago');
     } finally {
@@ -147,7 +153,7 @@ const PaymentManagement: React.FC = () => {
           'DNI': payment.customer_info?.document_number || 'N/A',
           'Teléfono': payment.customer_info?.phone || 'Sin teléfono',
           'Email': 'Sin email', // Email no disponible en customer_info
-          'N° Cuota': payment.payment_schedule?.installment_number || 'N/A',
+          'N° Cuota': payment.payment_schedule_info?.installment_number || 'N/A',
           'Fecha de Pago': new Date(payment.payment_date).toLocaleDateString('es-ES'),
           'Monto': parseFloat(payment.amount).toFixed(2),
           'Método de Pago': payment.method,
@@ -262,13 +268,13 @@ const PaymentManagement: React.FC = () => {
         <>
           {/* Payment Statistics */}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30">
             {/* <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg"> */}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-sm font-medium text-left">Total Recaudado</p>
-                  <p className="text-2xl font-bold text-white">{dynamicReportsService.formatCurrency(paymentStats.totalAmount)}</p>
+                  <p className="text-2xl font-bold text-white">{paymentStats.totalAmount}</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg">
                   <DollarSign size={24} />
@@ -281,7 +287,7 @@ const PaymentManagement: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Total de Pagos</p>
-                  <p className="text-2xl font-bold text-white text-left">{paymentStats.totalPayments}</p>
+                  <p className="text-2xl font-bold text-white text-left">{info?.count || 0}</p>
                   <p className="text-blue-100 text-xs">Pagos registrados</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg">
@@ -291,20 +297,7 @@ const PaymentManagement: React.FC = () => {
             </div>
 
             <div className="bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30">
-            {/* <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg"> */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm font-medium">Clientes Activos</p>
-                  <p className="text-2xl font-bold text-white text-left">{paymentStats.uniqueCustomers}</p>
-                  <p className="text-purple-100 text-xs text-left">Con pagos</p>
-                </div>
-                <div className="bg-white p-3 rounded-lg">
-                  <Users size={24} />
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30">
             {/* <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg"> */}
               <div className="flex items-center justify-between">
                 <div>
@@ -349,7 +342,7 @@ const PaymentManagement: React.FC = () => {
                 Historial de Pagos
                 {!isLoading && (
                   <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                    {payments.length} registros
+                    {payments?.length || 0} pagos
                   </span>
                 )}
                 {totalPages > 1 && (
@@ -409,9 +402,9 @@ const PaymentManagement: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4 text-center">
-                          {(payment.payment_schedule?.installment_number || payment.payment_schedule_info?.installment_number) ? (
+                          {(payment.payment_schedule_info?.installment_number || payment.payment_schedule_info?.installment_number) ? (
                             <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                              #{(payment.payment_schedule?.installment_number || payment.payment_schedule_info?.installment_number)}
+                              #{(payment.payment_schedule_info?.installment_number || payment.payment_schedule_info?.installment_number)}
                             </span>
                           ) : (
                             <span className="bg-orange-100 text-orange-500 px-3 py-1 rounded-full text-xs">Inicial</span>
@@ -421,7 +414,7 @@ const PaymentManagement: React.FC = () => {
                           <div className="flex items-center">
                             <Calendar size={16} className="text-gray-400 mr-2" />
                             <span className="text-gray-900">
-                              {DateService.utcToLocalDateOnly(payment.payment_date)}
+                              {DateService.utcToLocalDateOnly(payment.payment_date.toString())}
                             </span>
                           </div>
                         </td>
@@ -494,7 +487,7 @@ const PaymentManagement: React.FC = () => {
             {!isLoading && totalPages > 1 && (
               <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
                 <div className="text-sm text-gray-700">
-                  Mostrando {startIndex + 1} a {Math.min(endIndex, payments.length)} de {payments.length} registros
+                  Mostrando {startIndex + 1} a {endIndex} de {totalCount} registros
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -505,19 +498,66 @@ const PaymentManagement: React.FC = () => {
                     Anterior
                   </button>
                   
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-3 py-2 text-sm font-medium rounded-lg ${
-                        currentPage === page
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  {(() => {
+                    const maxVisible = 20;
+                    const pages: (number | string)[] = [];
+                    
+                    if (totalPages <= maxVisible) {
+                      // Si hay 20 o menos páginas, mostrar todas
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(i);
+                      }
+                    } else {
+                      // Siempre mostrar la primera página
+                      pages.push(1);
+                      
+                      // Calcular el rango alrededor de la página actual
+                      const sidePages = 3; // Páginas a cada lado de la actual
+                      let startRange = Math.max(2, currentPage - sidePages);
+                      let endRange = Math.min(totalPages - 1, currentPage + sidePages);
+                      
+                      // Añadir "..." si hay un salto después de la primera página
+                      if (startRange > 2) {
+                        pages.push('...');
+                      }
+                      
+                      // Añadir páginas del rango
+                      for (let i = startRange; i <= endRange; i++) {
+                        pages.push(i);
+                      }
+                      
+                      // Añadir "..." si hay un salto antes de la última página
+                      if (endRange < totalPages - 1) {
+                        pages.push('...');
+                      }
+                      
+                      // Siempre mostrar la última página
+                      pages.push(totalPages);
+                    }
+                    
+                    return pages.map((page, index) => (
+                      typeof page === 'string' ? (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="px-3 py-2 text-sm font-medium text-gray-500"
+                        >
+                          {page}
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ));
+                  })()}
                   
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
@@ -604,7 +644,7 @@ const PaymentManagement: React.FC = () => {
                   <p><strong>Cliente:</strong> {paymentToReset.customer_info?.full_name}</p>
                   <p><strong>Lote:</strong> Mz. {paymentToReset.lote_info?.block} - Lt. {paymentToReset.lote_info?.lot_number}</p>
                   <p><strong>Monto:</strong> S/. {paymentToReset.amount}</p>
-                  <p><strong>N° Cuota:</strong> {paymentToReset.payment_schedule?.installment_number || paymentToReset.payment_schedule_info?.installment_number || 'Inicial'}</p>
+                  <p><strong>N° Cuota:</strong> {paymentToReset.payment_schedule_info?.installment_number || 'Inicial'}</p>
                 </div>
                 <div className="mt-3 text-sm text-red-600">
                   <p>Se eliminará:</p>

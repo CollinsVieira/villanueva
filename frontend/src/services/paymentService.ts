@@ -1,6 +1,6 @@
 // villanueva/frontend/src/services/paymentService.ts
 import api from './api';
-import { Payment, PaymentSchedule, PaymentScheduleSummary } from '../types';
+import { Info, PaginatedPaymentResponse, Payment, PaymentSchedule, PaymentScheduleSummary } from '../types';
 
 // Helper para manejar respuestas paginadas
 const handlePaginatedResponse = (data: any): any[] => {
@@ -20,39 +20,53 @@ class PaymentService {
     return handlePaginatedResponse(response.data);
   }
 
-  // Método para obtener TODOS los pagos sin limitación de paginación
-  async getAllPaymentsUnlimited(searchTerm: string = ''): Promise<Payment[]> {
-    const allPayments: Payment[] = [];
-    let page = 1;
-    let hasMore = true;
-
-    while (hasMore) {
-      const params: any = { 
-        page,
-        page_size: 1000 // Usar un tamaño de página grande para reducir el número de requests
-      };
-      
-      if (searchTerm) params.search = searchTerm;
-      
-      const response = await api.get('/payments/payments/', { params });
-      const data = response.data || {};
-      
-      if (data.results && Array.isArray(data.results)) {
-        allPayments.push(...data.results);
-        hasMore = !!data.next;
-      } else {
-        // Si no hay estructura paginada, usar los datos tal como están
-        const payments = Array.isArray(data) ? data : [];
-        allPayments.push(...payments);
-        hasMore = false;
-      }
-      
-      page++;
-    }
-
-    return allPayments;
+  // Método para obtener pagos con paginación del servidor
+  async getPaymentsPaginated(page: number = 1, searchTerm: string = ''): Promise<PaginatedPaymentResponse> {
+    const params: any = { page };
+    if (searchTerm) params.search = searchTerm;
+    
+    const response = await api.get<PaginatedPaymentResponse>('/payments/payments/', { params });
+    return response.data;
   }
 
+  // Método para obtener TODOS los pagos sin limitación de paginación
+  async getAllPaymentsUnlimited(searchTerm: string = ''): Promise<PaginatedPaymentResponse> {
+    let allResults: Payment[] = [];
+    let page = 1;
+    let hasMore = true;
+    let firstBatchInfo: Info | null = null;
+  
+    while (hasMore) {
+      const params = { 
+        page,
+        page_size: 1000 
+      };
+      
+      if (searchTerm) (params as any).search = searchTerm;
+      
+      // Tipamos la respuesta de la API
+      const response = await api.get<PaginatedPaymentResponse>('/payments/payments/', { params });
+      const { info, results } = response.data;
+  
+      if (page === 1) firstBatchInfo = info;
+  
+      allResults.push(...results);
+      hasMore = !!info.next;
+      page++;
+    }
+  
+    return {
+      info: {
+        page: 1,
+        count: firstBatchInfo?.count || allResults.length,
+        pages: firstBatchInfo?.pages || 1,
+        next: null,
+        prev: null,
+        total_recaudado: firstBatchInfo?.total_recaudado || 0
+      },
+      results: allResults
+    };
+  }
   async getInitialPayments(saleId: number): Promise<any[]> {
     const response = await api.get(`/payments/payments/?venta__id=${saleId}&payment_type=initial`);
     return handlePaginatedResponse(response.data);
