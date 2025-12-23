@@ -47,11 +47,6 @@ const BulkAmountModificationForm: React.FC<BulkAmountModificationFormProps> = ({
 
     try {
       const scheduleIds = schedules.map(s => s.id);
-      const payload = {
-        schedule_ids: scheduleIds,
-        new_amount: parseFloat(formData.new_amount),
-        notes: formData.notes
-      };
       
       await paymentService.modifyMultipleAmounts(
         scheduleIds,

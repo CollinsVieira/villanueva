@@ -38,7 +38,7 @@ const LoteManagement: React.FC = () => {
         let page = 1;
         const seen = new Set<string>();
         while (true) {
-          const { next, results } = await loteService.getLotesPage({ page, page_size: 100 });
+          const { next, results } = await loteService.getLotesPage({ page, page_size: 5000 });
           results.forEach(lote => {
             if (lote.block) seen.add(lote.block);
           });
@@ -71,7 +71,7 @@ const LoteManagement: React.FC = () => {
       let page = 1;
       const all: Lote[] = [] as any;
       while (true) {
-        const { next, results } = await loteService.getLotesPage({ ...baseParams, page, page_size: 100 });
+        const { next, results } = await loteService.getLotesPage({ ...baseParams, page, page_size: 5000 });
         all.push(...results);
         if (!next) break;
         page += 1;

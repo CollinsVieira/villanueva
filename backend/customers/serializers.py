@@ -83,7 +83,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         """Retorna un resumen detallado de los pagos del cliente."""
         return obj.payment_summary
     
-    @cached_property
+    
     def get_payments(self, obj):
         """Retorna todos los pagos del cliente a través de sus ventas."""
         from payments.models import Payment

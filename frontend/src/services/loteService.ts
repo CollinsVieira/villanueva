@@ -29,7 +29,7 @@ class LoteService {
       const requestParams = { 
         ...params, 
         page,
-        page_size: 100 // Usar un tamaño de página grande para reducir el número de requests
+        page_size: 5000 // Usar un tamaño de página grande para reducir el número de requests
       };
       
       const response = await api.get('/lotes/', { params: requestParams });
