@@ -10,7 +10,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { dynamicReportsService, customerService, loteService, paymentService } from '../../services';
+import { dashboardSummaryService } from '../../services';
 import { Customer, Lote, Payment } from '../../types';
 import { LoadingSpinner } from '../UI';
 
@@ -22,11 +22,11 @@ interface DashboardMetrics {
   overdueInstallments: number;
   recentPayments: Payment[];
   upcomingDueDates: Array<{
-    lote: Lote;
-    customer: Customer;
-    dueDate: string;
+    lote_info: Lote;
+    customer_info: Customer;
+    due_date: string;
     daysUntilDue: number;
-    amount: string;
+    scheduled_amount: number;
   }>;
   paymentMethods: Array<{
     method: string;
@@ -48,41 +48,17 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Cargar datos en paralelo - usando métodos que obtienen TODOS los datos
-      const [
-        customers,
-        lotes,
-        recentPayments,
-        pendingInstallments
-      ] = await Promise.all([
-        customerService.getAllCustomersUnlimited(),
-        loteService.getAllLotesUnlimited(),
-        paymentService.getAllPaymentsUnlimited(),
-        dynamicReportsService.getPendingInstallments()
-      ]);
-
-      // Calcular métricas
-      const availableLotes = lotes.filter((l: Lote) => l.status === 'disponible');
-      const soldLotes = lotes.filter((l: Lote) => l.status === 'vendido' || l.status === 'reservado');
-      
-      // Calcular fechas de vencimiento próximas
-      const upcomingDueDates = calculateUpcomingDueDates(lotes, pendingInstallments);
-      
-      // Calcular métodos de pago
-      const paymentMethods = calculatePaymentMethods(recentPayments);
-      
-      // Obtener cuotas vencidas
-      const overdueInstallments = pendingInstallments.summary?.total_overdue_installments || 0;
+      const dashboardSummary = await dashboardSummaryService.getDashboardSummary();
 
       setMetrics({
-        totalCustomers: customers.length,
-        totalLotes: lotes.length,
-        availableLotes: availableLotes.length,
-        soldLotes: soldLotes.length,
-        overdueInstallments,
-        recentPayments: recentPayments.slice(0, 5), // Solo los últimos 5 pagos
-        upcomingDueDates: upcomingDueDates.slice(0, 5), // Solo los próximos 5 vencimientos
-        paymentMethods
+        totalCustomers: dashboardSummary.info.total_clientes,
+        totalLotes: dashboardSummary.info.total_lotes,
+        availableLotes: dashboardSummary.info.lotes_disponibles,
+        soldLotes: dashboardSummary.info.lotes_vendidos,
+        overdueInstallments: dashboardSummary.info.cuotas_vencidas,
+        recentPayments: dashboardSummary.results.ultimos_pagos, // Solo los últimos 5 pagos
+        upcomingDueDates: dashboardSummary.results.cuotas_proximas_a_vencer, // Solo los próximos 5 vencimientos
+        paymentMethods: dashboardSummary.results.ultimos_pagos, // Solo los últimos 5 pagos
       });
 
     } catch (error) {
@@ -93,84 +69,12 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const calculateUpcomingDueDates = (lotes: Lote[], pendingInstallments: any) => {
+
+  const getDaysUntilDue = (due_date: string) => {
+    const dueDate = new Date(due_date);
     const today = new Date();
-    const dueDates: Array<{
-      lote: Lote;
-      customer: Customer;
-      dueDate: string;
-      daysUntilDue: number;
-      amount: string;
-    }> = [];
-
-    // Usar los datos del reporte de cuotas pendientes que ya tienen la lógica correcta
-    if (pendingInstallments.all_customers) {
-      pendingInstallments.all_customers.forEach((customer: any) => {
-        customer.lotes.forEach((loteData: any) => {
-          // Buscar el lote correspondiente por descripción
-          // El formato del backend es "Manzana A, Lote 2" pero necesitamos "A - 2"
-          const lote = lotes.find(l => {
-            // Extraer bloque y número del lote desde la descripción del backend
-            const match = loteData.lote_description.match(/Manzana ([A-Z]), Lote (\d+)/);
-            if (match) {
-              const [, block, lotNumber] = match;
-              return l.block === block && l.lot_number === lotNumber;
-            }
-            
-            // Fallback: intentar con formato alternativo
-            const altMatch = loteData.lote_description.match(/([A-Z]) - (\d+)/);
-            if (altMatch) {
-              const [, block, lotNumber] = altMatch;
-              return l.block === block && l.lot_number === lotNumber;
-            }
-            
-            return false;
-          });
-          
-          if (lote && lote.current_owner) {
-            const nextDueDate = loteData.next_due_date ? new Date(loteData.next_due_date) : null;
-            if (nextDueDate) {
-              const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-              
-              // Solo mostrar vencimientos en los próximos 30 días o vencidos recientemente
-              if (daysUntilDue <= 30 || (daysUntilDue < 0 && daysUntilDue > -30)) {
-                dueDates.push({
-                  lote,
-                  customer: lote.current_owner,
-                  dueDate: nextDueDate.toISOString().split('T')[0],
-                  daysUntilDue,
-                  amount: loteData.monthly_payment.toString()
-                });
-              }
-            }
-          }
-        });
-      });
-    }
-
-    // Ordenar por días hasta vencimiento (vencidos primero, luego por proximidad)
-    return dueDates.sort((a, b) => {
-      if (a.daysUntilDue < 0 && b.daysUntilDue >= 0) return -1; // Vencidos primero
-      if (a.daysUntilDue >= 0 && b.daysUntilDue < 0) return 1;
-      return a.daysUntilDue - b.daysUntilDue;
-    });
+    return Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
-
-  const calculatePaymentMethods = (payments: Payment[]) => {
-    const methodCounts: { [key: string]: number } = {};
-    const total = payments.length;
-
-    payments.forEach(payment => {
-      methodCounts[payment.method] = (methodCounts[payment.method] || 0) + 1;
-    });
-
-    return Object.entries(methodCounts).map(([method, count]) => ({
-      method: method.charAt(0).toUpperCase() + method.slice(1),
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0
-    }));
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadDashboardData();
@@ -180,7 +84,7 @@ const Dashboard: React.FC = () => {
 
   const getUrgencyColor = (days: number) => {
     if (days < 0) return 'text-red-600 bg-red-50'; // Vencido
-    if (days <= 3) return 'text-red-600 bg-red-50';
+    if (days <= 3) return 'text-orange-600 bg-orange-50';
     if (days <= 7) return 'text-orange-600 bg-orange-50';
     if (days <= 15) return 'text-yellow-600 bg-yellow-50';
     return 'text-green-600 bg-green-50';
@@ -309,10 +213,6 @@ const Dashboard: React.FC = () => {
             {metrics.paymentMethods.map((method, index) => (
               <div key={index} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{method.method}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900">{method.count}</span>
-                  <span className="text-xs text-gray-500">({method.percentage}%)</span>
-                </div>
               </div>
             ))}
           </div>
@@ -345,7 +245,7 @@ const Dashboard: React.FC = () => {
                     <p className="text-sm font-semibold text-gray-900">
                       S/ {parseFloat(payment.amount).toFixed(2)}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500">                      
                       {new Date(payment.payment_date).toLocaleDateString('es-PE')}
                     </p>
                   </div>
@@ -362,34 +262,36 @@ const Dashboard: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Próximos Vencimientos</h3>
           <div className="space-y-3">
             {metrics.upcomingDueDates.length > 0 ? (
-              metrics.upcomingDueDates.map((item, index) => (
+              metrics.upcomingDueDates.map((item, index) => {
+                const daysUntil = getDaysUntilDue(item.due_date);
+                return (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${getUrgencyColor(item.daysUntilDue).split(' ')[1]}`}>
-                      {getUrgencyIcon(item.daysUntilDue)}
+                    <div className={`p-2 rounded-full ${getUrgencyColor(daysUntil).split(' ')[1]}`}>
+                      {getUrgencyIcon(daysUntil)}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        Mz. {item.lote?.block} - Lt. {item.lote?.lot_number}
+                        Mz. {item.lote_info?.block} - Lt. {item.lote_info?.lot_number}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {item.customer?.full_name}
+                        {item.customer_info?.full_name}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900">
-                      S/ {parseFloat(item.amount).toFixed(2)}
+                      S/ {parseFloat(item.scheduled_amount.toString()).toFixed(2)}
                     </p>
-                                         <p className={`text-xs font-medium ${getUrgencyColor(item.daysUntilDue).split(' ')[0]}`}>
-                       {item.daysUntilDue < 0 ? `Vencido hace ${Math.abs(item.daysUntilDue)} días` :
-                        item.daysUntilDue === 0 ? 'Vence hoy' : 
-                        item.daysUntilDue === 1 ? 'Vence mañana' : 
-                        `Vence en ${item.daysUntilDue} días`}
-                     </p>
+                    <p className={`text-xs font-medium ${getUrgencyColor(daysUntil).split(' ')[0]}`}>
+                      {daysUntil < 0 ? `Vencido hace ${Math.abs(daysUntil)} días` :
+                        daysUntil === 0 ? 'Vence hoy' : 
+                        daysUntil === 1 ? 'Vence mañana' : 
+                        `Vence en ${daysUntil} días`}
+                    </p>
                   </div>
                 </div>
-              ))
+              )})
             ) : (
               <p className="text-gray-500 text-center py-4">No hay vencimientos próximos</p>
             )}

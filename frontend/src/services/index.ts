@@ -9,3 +9,4 @@ export { default as userService } from './userService';
 export { default as excelService } from './excelService';
 export { default as dynamicReportsService } from './dynamicReportsService';
 export { default as dateService } from './dateService';
+export { default as dashboardSummaryService } from './dashboardService';
