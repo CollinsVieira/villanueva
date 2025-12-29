@@ -10,9 +10,11 @@ interface EditPaymentFormProps {
   onSave: () => void;
 }
 
+type PaymentMethod = 'efectivo' | 'transferencia' | 'tarjeta' | 'otro';
+
 const EditPaymentForm: React.FC<EditPaymentFormProps> = ({ payment, onClose, onSave }) => {
   const [amount, setAmount] = useState(payment.amount);
-  const [method, setMethod] = useState(payment.method || 'transferencia');
+  const [method, setMethod] = useState<PaymentMethod>((payment.method as PaymentMethod) || 'transferencia');
   const [receiptNumber, setReceiptNumber] = useState(payment.receipt_number || '');
   const [receiptDate, setReceiptDate] = useState(
     payment.receipt_date ? new Date(payment.receipt_date).toISOString().split('T')[0] : ''
@@ -133,7 +135,7 @@ const EditPaymentForm: React.FC<EditPaymentFormProps> = ({ payment, onClose, onS
                     N° de Cuota
                   </p>
                   <p className="font-semibold text-gray-900">
-                    {payment.payment_schedule?.installment_number || payment.payment_schedule_info?.installment_number || 'Pago Inicial'}
+                    {payment.payment_schedule_info?.installment_number || 'Pago Inicial'}
                   </p>
                 </div>
               </div>
@@ -189,7 +191,7 @@ const EditPaymentForm: React.FC<EditPaymentFormProps> = ({ payment, onClose, onS
                 </label>
                 <select
                   value={method}
-                  onChange={(e) => setMethod(e.target.value as "efectivo" | "transferencia" | "tarjeta" | "otro")}
+                  onChange={(e) => setMethod(e.target.value as PaymentMethod)}
                   className="w-full p-3 border border-gray-300 rounded-lg"
                 >
                   <option value="transferencia">💳 Transferencia Bancaria</option>
