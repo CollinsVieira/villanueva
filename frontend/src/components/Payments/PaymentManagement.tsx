@@ -288,7 +288,6 @@ const PaymentManagement: React.FC = () => {
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Total de Pagos</p>
                   <p className="text-2xl font-bold text-white text-left">{info?.count || 0}</p>
-                  <p className="text-blue-100 text-xs">Pagos registrados</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg">
                   <CreditCard size={24} />
@@ -302,8 +301,7 @@ const PaymentManagement: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100 text-sm font-medium text-left">Este Mes</p>
-                  <p className="text-2xl font-bold text-white">{dynamicReportsService.formatCurrency(paymentStats.thisMonthAmount)}</p>
-                  <p className="text-orange-100 text-xs text-left">{paymentStats.thisMonthPayments} pagos</p>
+                  <p className="text-2xl font-bold text-white">{dynamicReportsService.formatCurrency(info?.este_mes_recaudado || 0)}</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg">
                   <TrendingUp size={24} />

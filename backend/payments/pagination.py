@@ -1,6 +1,7 @@
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Sum
+from django.utils import timezone
 
 
 class PaymentsPagination(PageNumberPagination):
@@ -11,6 +12,7 @@ class PaymentsPagination(PageNumberPagination):
         # Calculamos el total recaudado del queryset completo (sin paginar)
         queryset = self.page.paginator.object_list
         total_recaudado = queryset.aggregate(total=Sum('amount'))['total'] or 0
+        este_mes_recaudado = queryset.filter(payment_date__month=timezone.now().month).aggregate(total=Sum('amount'))['total'] or 0
         return Response({
             'info': {
                 'page': self.page.number,
@@ -18,7 +20,8 @@ class PaymentsPagination(PageNumberPagination):
                 'pages': self.page.paginator.num_pages,
                 'next': self.get_next_link(),
                 'prev': self.get_previous_link(),
-                'total_recaudado': float(total_recaudado)
+                'total_recaudado': float(total_recaudado),
+                'este_mes_recaudado': float(este_mes_recaudado)
             },
             'results': data
         })

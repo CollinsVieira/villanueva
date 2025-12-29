@@ -208,7 +208,7 @@ const Dashboard: React.FC = () => {
 
         {/* Métodos de Pago */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Métodos de Pago</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Últimos Métodos de Pago</h3>
           <div className="space-y-3">
             {metrics.paymentMethods.map((method, index) => (
               <div key={index} className="flex items-center justify-between">

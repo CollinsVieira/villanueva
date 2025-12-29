@@ -92,7 +92,8 @@ export interface Info {
   pages: number;
   next:  string | null;
   prev:  string | null;
-  total_recaudado: number;
+  total_recaudado?: number;
+  este_mes_recaudado?: number;
 }
 
 export interface Payment {
