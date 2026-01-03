@@ -54,6 +54,8 @@ class LoteSerializer(serializers.ModelSerializer):
             'current_owner',
             'active_sale',
         ]
+        # Eliminar validadores automáticos de UniqueConstraint para usar nuestro mensaje personalizado
+        validators = []
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -72,6 +74,20 @@ class LoteSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("El área debe ser mayor a 0.")
         return value
+
+    def validate(self, data):
+        """Validar que no exista un lote con la misma manzana y número."""
+        block = data.get('block')
+        lot_number = data.get('lot_number')
+        
+        # Solo validar en creación (cuando no hay instancia)
+        if not self.instance and block and lot_number:
+            if Lote.objects.filter(block=block, lot_number=lot_number).exists():
+                raise serializers.ValidationError({
+                    'detail': f"Ya existe un registro con la Manzana '{block}' y Lote '{lot_number}'"
+                })
+        
+        return data
 
     def get_current_owner(self, obj):
         """Obtiene la información del propietario actual del lote."""

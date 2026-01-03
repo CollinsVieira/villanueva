@@ -70,7 +70,27 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
       
       onSave();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Ocurrió un error al guardar.");
+      // Manejar errores de validación del backend
+      const errorData = err.response?.data;
+      let errorMessage = "Ocurrió un error al guardar.";
+      
+      if (errorData) {
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.non_field_errors) {
+          errorMessage = errorData.non_field_errors.join(", ");
+        } else if (typeof errorData === 'object') {
+          // Buscar el primer mensaje de error en los campos
+          const firstError = Object.values(errorData).find(val => val);
+          if (Array.isArray(firstError)) {
+            errorMessage = firstError[0];
+          } else if (typeof firstError === 'string') {
+            errorMessage = firstError;
+          }
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
