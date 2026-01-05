@@ -241,6 +241,10 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         
         if payment_day is not None:
             instance.payment_day = payment_day
+            # También actualizar el payment_day en el plan de pagos si existe
+            if hasattr(instance, 'plan_pagos'):
+                instance.plan_pagos.payment_day = payment_day
+                instance.plan_pagos.save()
         if financing_months is not None:
             instance.financing_months = financing_months
         
