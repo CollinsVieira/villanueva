@@ -232,7 +232,7 @@ class SalesService {
       const jsonData: any = {};
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null && key !== 'contract_pdf') {
-          if (key === 'payment_day' || key === 'financing_months') {
+          if (key === 'payment_day' || key === 'financing_months' || key === 'customer') {
             jsonData[key] = typeof value === 'number' ? value : parseInt(value.toString());
           } else if (key === 'sale_price' || key === 'initial_payment') {
             jsonData[key] = value.toString();

@@ -34,36 +34,44 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
   const [existingPdf, setExistingPdf] = useState<string | null>(null);
 
   useEffect(() => {
-    loadLotes();
-  }, []);
-
-  useEffect(() => {
     if (sale) {
+      // Si estamos editando, solo cargar el lote específico de la venta
+      loadSingleLote(sale.lote);
+      
+      // Convertir schedule_start_date de YYYY-MM-DD a YYYY-MM para el input type="month"
+      let scheduleStartDate = sale.schedule_start_date || '';
+      if (scheduleStartDate && scheduleStartDate.length > 7) {
+        scheduleStartDate = scheduleStartDate.substring(0, 7); // "2023-01-01" -> "2023-01"
+      }
+      
       setFormData({
         lote: sale.lote || 0,
         customer: sale.customer || 0,
         sale_price: sale.sale_price || '',
         initial_payment: sale.initial_payment || '',
         contract_date: sale.contract_date || '',
-        schedule_start_date: sale.schedule_start_date || '',
-        contract_pdf: undefined, // No se puede editar el PDF existente
+        schedule_start_date: scheduleStartDate,
+        contract_pdf: undefined,
         notes: sale.notes || '',
-        payment_day: sale.payment_day || 15, // Usar el valor existente
-        financing_months: sale.financing_months || 12 // Usar el valor existente
+        payment_day: sale.payment_day || 15,
+        financing_months: sale.financing_months || 12
       });
       setExistingPdf(sale.contract_pdf || null);
+    } else {
+      // Si estamos creando, cargar todos los lotes disponibles
+      loadLotes();
     }
   }, [sale]);
 
-  // Establecer el lote seleccionado cuando se cargan los lotes y hay una venta existente
-  useEffect(() => {
-    if (sale && lotes.length > 0) {
-      const lote = lotes.find(l => l.id === sale.lote);
-      if (lote) {
-        setSelectedLote(lote);
-      }
+  const loadSingleLote = async (loteId: number) => {
+    try {
+      const lote = await loteService.getLoteById(loteId);
+      setSelectedLote(lote);
+      setLotes([lote]);
+    } catch (err) {
+      console.error('Error loading lote:', err);
     }
-  }, [sale, lotes]);
+  };
 
   const loadLotes = async () => {
     try {
@@ -75,14 +83,9 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
         if (!next) break;
         page += 1;
       }
-      // Si estamos editando una venta, incluir todos los lotes (incluyendo el vendido)
-      // Si estamos creando una nueva venta, solo mostrar lotes disponibles
-      if (sale) {
-        setLotes(all as any);
-      } else {
-        const filteredLotes = all.filter((lote: any) => lote.status === 'disponible');
-        setLotes(filteredLotes as any);
-      }
+      // Solo mostrar lotes disponibles para nuevas ventas
+      const filteredLotes = all.filter((lote: any) => lote.status === 'disponible');
+      setLotes(filteredLotes as any);
     } catch (err) {
       console.error('Error loading lotes:', err);
     }
@@ -114,8 +117,9 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       let savedSale: Venta;
       
       if (sale) {
-        // Update existing sale
-        savedSale = await salesService.updateVenta(sale.id, formData);
+        // Update existing sale - solo enviar campos editables (sin lote)
+        const { lote, ...updateData } = formData;
+        savedSale = await salesService.updateVenta(sale.id, updateData);
       } else {
         // Create new sale
         savedSale = await salesService.createVenta(formData);
@@ -147,21 +151,35 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="lote" className="block text-sm font-medium text-gray-700 mb-1">Lote *</label>
-              <select
-                id="lote"
-                value={formData.lote > 0 ? formData.lote.toString() : ''}
-                onChange={(e: any) => handleLoteChange(e.target.value)}
-                disabled={!!sale}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              >
-                <option value="">Seleccionar lote</option>
-                {lotes.map((lote) => (
-                  <option key={lote.id} value={lote.id.toString()}>
-                    Mz. {lote.block}, Lote {lote.lot_number} - {dynamicReportsService.formatCurrency((lote as any).price || 0)}
-                  </option>
-                ))}
-              </select>
+              {sale ? (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">
+                        {selectedLote ? `Mz. ${selectedLote.block}, Lote ${selectedLote.lot_number}` : 'Cargando...'}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {selectedLote ? `${selectedLote.area} m² • ${dynamicReportsService.formatCurrency((selectedLote as any).price || 0)}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <select
+                  id="lote"
+                  value={formData.lote > 0 ? formData.lote.toString() : ''}
+                  onChange={(e: any) => handleLoteChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Seleccionar lote</option>
+                  {lotes.map((lote) => (
+                    <option key={lote.id} value={lote.id.toString()}>
+                      Mz. {lote.block}, Lote {lote.lot_number} - {dynamicReportsService.formatCurrency((lote as any).price || 0)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
@@ -169,7 +187,6 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
               <CustomerSelector
                 value={formData.customer > 0 ? formData.customer : null}
                 onChange={(customerId) => setFormData(prev => ({ ...prev, customer: customerId || 0 }))}
-                disabled={!!sale}
                 placeholder="Buscar cliente..."
                 required
               />

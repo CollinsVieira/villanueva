@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from .models import Venta
 from lotes.serializers import LoteSerializer
 from customers.serializers import CustomerSerializer
+from customers.models import Customer
 
 
 class VentaSerializer(serializers.ModelSerializer):
@@ -154,6 +155,12 @@ class VentaCreateSerializer(serializers.ModelSerializer):
 class VentaUpdateSerializer(serializers.ModelSerializer):
     """Serializer para actualizar ventas existentes"""
     
+    customer = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(),
+        required=False,
+        help_text=_("ID del cliente")
+    )
+    
     payment_day = serializers.IntegerField(
         min_value=1,
         max_value=31,
@@ -184,7 +191,7 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Venta
         fields = [
-            'sale_price', 'initial_payment', 'contract_date', 'schedule_start_date', 
+            'customer', 'sale_price', 'initial_payment', 'contract_date', 'schedule_start_date', 
             'contract_pdf', 'notes', 'payment_day', 'financing_months'
         ]
     
@@ -251,8 +258,8 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         
         # Verificar si cambió el payment_day o financing_months
-        payment_day_changed = payment_day is not None and payment_day != original_payment_day
-        financing_months_changed = financing_months is not None and financing_months != original_financing_months
+        payment_day_changed = payment_day is not None and int(payment_day) != int(original_payment_day) if original_payment_day else payment_day is not None
+        financing_months_changed = financing_months is not None and int(financing_months) != int(original_financing_months) if original_financing_months else financing_months is not None
         
         # Si cambió el payment_day o financing_months, actualizar el cronograma
         if payment_day_changed or financing_months_changed:

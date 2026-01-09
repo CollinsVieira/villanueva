@@ -23,12 +23,23 @@ const SalesPage: React.FC = () => {
     setViewMode('details');
   };
 
-  const handleSaveSuccess = () => {
+  const handleCreateSuccess = () => {
     setViewMode('list');
     setSelectedSale(null);
   };
 
-  const handleCancel = () => {
+  const handleEditSuccess = (updatedSale: Venta) => {
+    // Actualizar la venta seleccionada y regresar a los detalles
+    setSelectedSale(updatedSale);
+    setViewMode('details');
+  };
+
+  const handleEditCancel = () => {
+    // Regresar a los detalles de la venta
+    setViewMode('details');
+  };
+
+  const handleBackToList = () => {
     setViewMode('list');
     setSelectedSale(null);
   };
@@ -38,8 +49,8 @@ const SalesPage: React.FC = () => {
       case 'create':
         return (
           <SaleForm
-            onSave={handleSaveSuccess}
-            onCancel={handleCancel}
+            onSave={handleCreateSuccess}
+            onCancel={handleBackToList}
           />
         );
       
@@ -47,8 +58,8 @@ const SalesPage: React.FC = () => {
         return (
           <SaleForm
             sale={selectedSale!}
-            onSave={handleSaveSuccess}
-            onCancel={handleCancel}
+            onSave={handleEditSuccess}
+            onCancel={handleEditCancel}
           />
         );
       
@@ -57,8 +68,8 @@ const SalesPage: React.FC = () => {
           <SaleDetails
             saleId={selectedSale!.id}
             onEdit={handleEditSale}
-            onClose={handleCancel}
-            onBack={handleCancel}
+            onClose={handleBackToList}
+            onBack={handleBackToList}
           />
         );
       
