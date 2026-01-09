@@ -5,8 +5,7 @@ import {
   CreditCard, 
   Home, 
   AlertTriangle, 
-  Calendar,
-  DollarSign 
+  Calendar
 } from 'lucide-react';
 
 // Import tab components
@@ -16,7 +15,6 @@ import AvailableLotsTab from '../components/Reports/tabs/AvailableLotsTab';
 import PendingInstallmentsTab from '../components/Reports/tabs/PendingInstallmentsTab';
 import SalesSummaryTab from '../components/Reports/tabs/SalesSummaryTab';
 import FinancialOverviewTab from '../components/Reports/tabs/FinancialOverviewTab';
-import MonthlyCollectionsTab from '../components/Reports/tabs/MonthlyCollectionsTab';
 
 type TabId = 
   | 'customers-debt' 
@@ -80,13 +78,6 @@ const DynamicReports: React.FC = () => {
       icon: FileText,
       description: 'Métricas de ventas por período',
       component: SalesSummaryTab
-    },
-    {
-      id: 'monthly-collections',
-      label: 'Cobranzas Mensuales',
-      icon: DollarSign,
-      description: 'Análisis temporal de ingresos',
-      component: MonthlyCollectionsTab
     }
   ];
 
