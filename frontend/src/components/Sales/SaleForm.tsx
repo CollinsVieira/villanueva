@@ -6,6 +6,8 @@ import { Lote } from '../../types';
 import { Eye, Download, FileText } from 'lucide-react';
 import CustomerSelector from '../UI/CustomerSelector';
 import SchedulePDFGenerator from './SchedulePDFGenerator';
+import { getProxyImageUrl } from '../../utils/imageUtils';
+
 
 interface SaleFormProps {
   sale?: Venta;
@@ -304,7 +306,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
                   <div className="flex gap-1 ml-auto">
                     <button
                       type="button"
-                      onClick={() => window.open(existingPdf, '_blank')}
+                      onClick={() => window.open(getProxyImageUrl(existingPdf) || existingPdf, '_blank')}
                       className="p-1 text-blue-600 hover:text-blue-800"
                       title="Ver PDF"
                     >
@@ -314,7 +316,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
                       type="button"
                       onClick={() => {
                         const link = document.createElement('a');
-                        link.href = existingPdf;
+                        link.href = getProxyImageUrl(existingPdf) || existingPdf || '';
                         link.download = `contrato_venta_${sale.id}.pdf`;
                         link.click();
                       }}

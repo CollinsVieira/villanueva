@@ -22,7 +22,7 @@ import { handleDownloadBoletasPagoPDF } from "../../utils/PdfBoletasDePago";
 import ConfirmationModal from "../../utils/ConfirmationModal";
 import { useConfirmation } from "../../hooks/useConfirmation";
 import toastService from "../../services/toastService";
-
+import { getProxyImageUrl } from "../../utils/imageUtils";
 interface SaleDetailsProps {
   saleId: number;
   onEdit?: (sale: Venta) => void;
@@ -356,7 +356,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
           {sale.contract_pdf && (
             <>
               <button
-                onClick={() => window.open(sale.contract_pdf, "_blank")}
+                onClick={() => window.open(getProxyImageUrl(sale.contract_pdf) || sale.contract_pdf, "_blank")}
                 className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 gap-2"
               >
                 <Eye className="h-4 w-4" />
@@ -365,7 +365,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
               <button
                 onClick={() => {
                   const link = document.createElement("a");
-                  link.href = sale.contract_pdf!;
+                  link.href = getProxyImageUrl(sale.contract_pdf) || sale.contract_pdf || '';
                   link.download = `contrato_venta_${sale.id}.pdf`;
                   link.click();
                 }}
