@@ -200,9 +200,9 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      // Solo seleccionar cuotas que se pueden modificar (incluye vencidas, excluye pagadas y perdonadas)
+      // Seleccionar cuotas que se pueden modificar (incluye todas)
       const modifiableIds = currentSchedules
-        .filter(schedule => ['pending', 'overdue', 'partial'].includes(schedule.status))
+        .filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status))
         .map(schedule => schedule.id);
       setSelectedScheduleIds(new Set(modifiableIds));
     } else {
@@ -228,7 +228,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   const selectedSchedules = schedules.filter(schedule => selectedScheduleIds.has(schedule.id));
 
   // Verificar si todas las cuotas modificables están seleccionadas
-  const modifiableSchedules = currentSchedules.filter(schedule => ['pending', 'overdue', 'partial'].includes(schedule.status));
+  const modifiableSchedules = currentSchedules.filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status));
   const isAllSelected = modifiableSchedules.length > 0 && 
     modifiableSchedules.every(schedule => selectedScheduleIds.has(schedule.id));
   const isIndeterminate = selectedScheduleIds.size > 0 && !isAllSelected;
@@ -405,7 +405,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {currentSchedules.map((schedule, index) => {
-                  const isModifiable = ['pending', 'overdue', 'partial'].includes(schedule.status);
+                  const isModifiable = ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status);
                   const isSelected = selectedScheduleIds.has(schedule.id);
                   
                   return (
@@ -533,23 +533,23 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                     </td>
                     <td className="p-4">
                       <div className="flex items-center space-x-2">
-                        {schedule.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleModifyAmount(schedule)}
-                              className="text-yellow-600 hover:text-yellow-800 text-sm font-medium"
-                              title="Modificar monto"
-                            >
-                              Modificar
-                            </button>
-                            <button
-                              onClick={() => handleForgiveInstallment(schedule)}
-                              className="text-purple-600 hover:text-purple-800 text-sm font-medium"
-                              title="Absolver cuota"
-                            >
-                              Absolver
-                            </button>
-                          </>
+                        {['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status) && (
+                          <button
+                            onClick={() => handleModifyAmount(schedule)}
+                            className="text-yellow-600 hover:text-yellow-800 text-sm font-medium"
+                            title="Modificar monto"
+                          >
+                            Modificar
+                          </button>
+                        )}
+                        {['pending', 'overdue'].includes(schedule.status) && (
+                          <button
+                            onClick={() => handleForgiveInstallment(schedule)}
+                            className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                            title="Absolver cuota"
+                          >
+                            Absolver
+                          </button>
                         )}
                         {schedule.status === 'partial' && (
                           <button

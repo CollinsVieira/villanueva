@@ -95,10 +95,10 @@ const DynamicReports: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Reportes en Tiempo Real
+                Reportes
               </h1>
               <p className="text-gray-600">
-                Analiza los datos actuales de tu negocio inmobiliario
+                Analiza los datos actuales
               </p>
             </div>
           </div>
