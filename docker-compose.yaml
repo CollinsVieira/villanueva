@@ -33,19 +33,6 @@ services:
       - db
     command: gunicorn villanueva_project.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: villanueva_frontend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://0.0.0.0:8000
-    depends_on:
-      - backend
-
   nginx:
     image: nginx:alpine
     ports:
@@ -58,3 +45,26 @@ services:
     depends_on:
       - backend
       - frontend
+
+  # Scheduler para actualizar cuotas vencidas diariamente
+  scheduler:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: villanueva_scheduler
+    volumes:
+      - ./backend:/app
+      - ./media_volume:/app/media
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEBUG=0
+      - IP_BASE_URL=192.168.100.4
+    depends_on:
+      - db
+    command: >
+      sh -c "echo 'Scheduler iniciado - Actualizando cuotas cada 24 horas' &&
+      while true; do
+        python manage.py update_overdue_installments;
+        sleep 86400;
+      done"
+    restart: always

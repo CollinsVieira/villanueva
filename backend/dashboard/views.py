@@ -23,7 +23,10 @@ class DashboardSummaryView(APIView):
         total_lotes = Lote.objects.count()
         lotes_disponibles = Lote.objects.filter(status='disponible').count()
         lotes_vendidos = Lote.objects.filter(status='vendido').count()
-        cuotas_vencidas = PaymentSchedule.objects.filter(status='overdue').count()
+        cuotas_vencidas = PaymentSchedule.objects.filter(
+            status='overdue',
+            venta__status='active'  # Solo ventas activas
+        ).count()
         
         
         # 2. Datos para gráficos (Agrupación)
@@ -33,7 +36,10 @@ class DashboardSummaryView(APIView):
         ultimos_pagos = Payment.objects.select_related('venta__customer').order_by('-created_at')[:5]
         ultimos_pagos_serializer = PaymentSerializer(ultimos_pagos, many=True)
 
-        cuotas_proximas_a_vencer = PaymentSchedule.objects.filter(status='pending').order_by('due_date')[:5]
+        cuotas_proximas_a_vencer = PaymentSchedule.objects.filter(
+            status='pending',
+            venta__status='active'  # Solo ventas activas
+        ).order_by('due_date')[:5]
         cuotas_proximas_a_vencer_serializer = PaymentScheduleSerializer(cuotas_proximas_a_vencer, many=True)
         
 
