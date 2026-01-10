@@ -8,6 +8,11 @@ import {
   RefreshCw,
   Clock,
   CheckCircle,
+  ChevronDown,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { dashboardSummaryService } from '../../services';
@@ -35,14 +40,61 @@ interface DashboardMetrics {
   }>;
 }
 
+interface DueDateItem {
+  id: number;
+  lote_info: Lote;
+  customer_info: Customer;
+  due_date: string;
+  scheduled_amount: number;
+  status: string;
+  installment_number: number;
+}
+
 const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Estados para el modal de vencimientos
+  const [showDueDatesModal, setShowDueDatesModal] = useState(false);
+  const [allDueDates, setAllDueDates] = useState<DueDateItem[]>([]);
+  const [dueDatesLoading, setDueDatesLoading] = useState(false);
+  const [dueDatesFilter, setDueDatesFilter] = useState<'all' | 'pending' | 'overdue'>('all');
+  const [dueDatesPage, setDueDatesPage] = useState(1);
+  const [dueDatesTotalPages, setDueDatesTotalPages] = useState(1);
+  const [dueDatesTotalCount, setDueDatesTotalCount] = useState(0);
+  const [dueDatesOrdering, setDueDatesOrdering] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Cargar todas las cuotas cuando el modal está abierto
+  useEffect(() => {
+    if (showDueDatesModal) {
+      loadAllDueDates();
+    }
+  }, [showDueDatesModal, dueDatesFilter, dueDatesPage, dueDatesOrdering]);
+
+  const loadAllDueDates = async () => {
+    try {
+      setDueDatesLoading(true);
+      const response = await dashboardSummaryService.getAllDueDates(dueDatesFilter, dueDatesPage, 20, dueDatesOrdering);
+      setAllDueDates(response.results);
+      setDueDatesTotalCount(response.count);
+      setDueDatesTotalPages(Math.ceil(response.count / 20));
+    } catch (error) {
+      console.error('Error cargando cuotas:', error);
+      toast.error('Error al cargar las cuotas');
+    } finally {
+      setDueDatesLoading(false);
+    }
+  };
+
+  const handleOpenDueDatesModal = () => {
+    setDueDatesPage(1);
+    setShowDueDatesModal(true);
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -259,7 +311,16 @@ const Dashboard: React.FC = () => {
 
         {/* Próximos Vencimientos */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Próximos Vencimientos</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Próximos Vencimientos</h3>
+            <button
+              onClick={handleOpenDueDatesModal}
+              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Ver más
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
           <div className="space-y-3">
             {metrics.upcomingDueDates.length > 0 ? (
               metrics.upcomingDueDates.map((item, index) => {
@@ -317,6 +378,170 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Todas las Cuotas */}
+      {showDueDatesModal && (
+        <div className="fixed inset-0 bg-transparent  flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* Header del modal */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Cuotas Pendientes y Vencidas</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {dueDatesTotalCount} cuota(s) encontrada(s)
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDueDatesModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Filtros */}
+            <div className="flex items-center justify-between gap-2 p-4 border-b bg-gray-50">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setDueDatesFilter('all'); setDueDatesPage(1); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    dueDatesFilter === 'all' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border'
+                  }`}
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={() => { setDueDatesFilter('pending'); setDueDatesPage(1); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    dueDatesFilter === 'pending' 
+                      ? 'bg-yellow-500 text-white' 
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border'
+                  }`}
+                >
+                  Pendientes
+                </button>
+                <button
+                  onClick={() => { setDueDatesFilter('overdue'); setDueDatesPage(1); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    dueDatesFilter === 'overdue' 
+                      ? 'bg-red-600 text-white' 
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border'
+                  }`}
+                >
+                  Vencidas
+                </button>
+              </div>
+              
+              {/* Botón de ordenamiento */}
+              <button
+                onClick={() => {
+                  setDueDatesOrdering(prev => prev === 'asc' ? 'desc' : 'asc');
+                  setDueDatesPage(1);
+                }}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${
+                  dueDatesOrdering === 'desc' 
+                    ? 'bg-purple-600 text-white border-purple-600' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+                title={dueDatesOrdering === 'asc' ? 'Ver todas las cuotas' : 'Próximos 5 días'}
+              >
+                <ArrowUpDown className="w-4 h-4" />
+                {dueDatesOrdering === 'asc' ? 'Todas' : 'Próx. 5 días'}
+              </button>
+            </div>
+
+            {/* Lista de cuotas */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {dueDatesLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <LoadingSpinner />
+                </div>
+              ) : allDueDates.length > 0 ? (
+                <div className="space-y-3">
+                  {allDueDates.map((item) => {
+                    const daysUntil = getDaysUntilDue(item.due_date);
+                    return (
+                      <div 
+                        key={item.id} 
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-full ${getUrgencyColor(daysUntil).split(' ')[1]}`}>
+                            {getUrgencyIcon(daysUntil)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              Mz. {item.lote_info?.block} - Lt. {item.lote_info?.lot_number}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {item.customer_info?.full_name}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Cuota #{item.installment_number} · Vence: {new Date(item.due_date).toLocaleDateString('es-PE')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-gray-900">
+                            S/ {parseFloat(item.scheduled_amount.toString()).toFixed(2)}
+                          </p>
+                          <p className={`text-xs font-medium ${getUrgencyColor(daysUntil).split(' ')[0]}`}>
+                            {daysUntil < 0 ? `Vencido hace ${Math.abs(daysUntil)} días` :
+                              daysUntil === 0 ? 'Vence hoy' : 
+                              daysUntil === 1 ? 'Vence mañana' : 
+                              `Vence en ${daysUntil} días`}
+                          </p>
+                          <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded-full ${
+                            item.status === 'overdue' 
+                              ? 'bg-red-100 text-red-700' 
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {item.status === 'overdue' ? 'Vencida' : 'Pendiente'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay cuotas para mostrar</p>
+                </div>
+              )}
+            </div>
+
+            {/* Paginación */}
+            {dueDatesTotalPages > 1 && (
+              <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+                <p className="text-sm text-gray-600">
+                  Página {dueDatesPage} de {dueDatesTotalPages}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDueDatesPage(prev => Math.max(1, prev - 1))}
+                    disabled={dueDatesPage === 1}
+                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setDueDatesPage(prev => Math.min(dueDatesTotalPages, prev + 1))}
+                    disabled={dueDatesPage === dueDatesTotalPages}
+                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Siguiente
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
