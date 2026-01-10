@@ -8,6 +8,7 @@ import AmountModificationForm from './AmountModificationForm';
 import BulkAmountModificationForm from './BulkAmountModificationForm';
 import DateService from '../../services/dateService';
 import { getProxyImageUrl } from '../../utils/imageUtils';
+import ConfirmationModal from '../../utils/ConfirmationModal';
 
 interface PaymentScheduleProps {
   loteId?: number;
@@ -32,6 +33,9 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<Set<number>>(new Set());
   const [showBulkModifyModal, setShowBulkModifyModal] = useState(false);
+  const [showForgiveModal, setShowForgiveModal] = useState(false);
+  const [scheduleToForgive, setScheduleToForgive] = useState<PaymentScheduleType | null>(null);
+  const [isForgiving, setIsForgiving] = useState(false);
   const itemsPerPage = 10;
 
 
@@ -162,18 +166,24 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
     setShowModifyModal(true);
   };
 
-  const handleForgiveInstallment = async (schedule: PaymentScheduleType) => {
-    if (!confirm(`¿Está seguro de que desea absolver la cuota #${schedule.installment_number}?`)) {
-      return;
-    }
+  const handleForgiveInstallment = (schedule: PaymentScheduleType) => {
+    setScheduleToForgive(schedule);
+    setShowForgiveModal(true);
+  };
 
+  const confirmForgiveInstallment = async () => {
+    if (!scheduleToForgive) return;
+
+    setIsForgiving(true);
     try {
-      await paymentService.forgiveInstallment(schedule.id, 'Cuota absuelta por el usuario');
+      await paymentService.forgiveInstallment(scheduleToForgive.id, 'Cuota absuelta por el usuario');
       loadSchedules();
-      // Show success message
+      setShowForgiveModal(false);
+      setScheduleToForgive(null);
     } catch (error) {
       console.error('Error al absolver cuota:', error);
-      // Show error message
+    } finally {
+      setIsForgiving(false);
     }
   };
 
@@ -677,6 +687,22 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
           onCancel={() => setShowBulkModifyModal(false)}
         />
       )}
+
+      {/* Forgive Installment Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showForgiveModal}
+        onClose={() => {
+          setShowForgiveModal(false);
+          setScheduleToForgive(null);
+        }}
+        onConfirm={confirmForgiveInstallment}
+        title="Absolver Cuota"
+        message={`¿Está seguro de que desea absolver la cuota #${scheduleToForgive?.installment_number}? Esta acción no se puede deshacer.`}
+        type="warning"
+        confirmText="Absolver"
+        cancelText="Cancelar"
+        isLoading={isForgiving}
+      />
     </div>
   );
 };
