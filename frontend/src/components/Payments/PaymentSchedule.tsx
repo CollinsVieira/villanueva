@@ -642,7 +642,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
 
       {/* Payment Registration Modal */}
       {showPaymentModal && selectedSchedule && (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-transparent  flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">
               Registrar Pago - Cuota #{selectedSchedule.installment_number}
@@ -665,7 +665,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
 
       {/* Amount Modification Modal */}
       {showModifyModal && selectedSchedule && (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-transparent  flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">
               Modificar Monto - Cuota #{selectedSchedule.installment_number}

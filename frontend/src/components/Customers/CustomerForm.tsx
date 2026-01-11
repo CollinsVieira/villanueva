@@ -95,7 +95,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-transparent shadow-2xl bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
         <form onSubmit={handleSubmit}>
           <div className="flex items-center justify-between p-6 border-b">

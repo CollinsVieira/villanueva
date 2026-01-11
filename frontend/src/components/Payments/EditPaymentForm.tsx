@@ -71,7 +71,7 @@ const EditPaymentForm: React.FC<EditPaymentFormProps> = ({ payment, onClose, onS
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/50  flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="bg-gradient-to-r from-yellow-600 to-yellow-700 p-6 text-white">
