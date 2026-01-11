@@ -451,6 +451,42 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=True, methods=['post'])
+    def reset_installment(self, request, pk=None):
+        """
+        Restablece una cuota del cronograma, eliminando todos los pagos asociados 
+        y volviendo la cuota a su estado pendiente/vencido original.
+        """
+        schedule = self.get_object()
+        
+        try:
+            # Obtener todos los pagos asociados a esta cuota
+            payments = list(schedule.payments.all())
+            
+            if not payments:
+                return Response(
+                    {'message': 'No hay pagos que restablecer para esta cuota'},
+                    status=status.HTTP_200_OK
+                )
+            
+            # Eliminar todos los pagos asociados
+            for payment in payments:
+                schedule.reset_payment(payment, recorded_by=request.user)
+                payment.delete()
+            
+            # Retornar el cronograma actualizado
+            serializer = self.get_serializer(schedule)
+            return Response({
+                'message': 'Cuota restablecida exitosamente',
+                'schedule': serializer.data
+            })
+                
+        except Exception as e:
+            return Response(
+                {'error': f'Error al restablecer la cuota: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     def _redistribute_remaining_installments_bulk(self, venta, excluded_schedule_ids, user):
         """
         Redistribuye automáticamente las cuotas que NO están en la lista de exclusión

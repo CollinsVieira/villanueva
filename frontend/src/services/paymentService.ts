@@ -309,6 +309,11 @@ class PaymentService {
     return response.data;
   }
 
+  async resetSchedule(id: number): Promise<PaymentSchedule> {
+    const response = await api.post(`/payments/schedules/${id}/reset_installment/`);
+    return response.data;
+  }
+
 }
 
 export default new PaymentService();

@@ -9,17 +9,20 @@ import BulkAmountModificationForm from './BulkAmountModificationForm';
 import DateService from '../../services/dateService';
 import { getProxyImageUrl } from '../../utils/imageUtils';
 import ConfirmationModal from '../../utils/ConfirmationModal';
+import { useResetSchedule } from '../../hooks/usePaymentsQueries';
 
 interface PaymentScheduleProps {
   loteId?: number;
   ventaId?: number;
   showLoteFilter?: boolean;
+  onActionSuccess?: () => void;
 }
 
 const PaymentSchedule: React.FC<PaymentScheduleProps> = ({ 
   loteId, 
   ventaId,
-  showLoteFilter = true 
+  showLoteFilter = true,
+  onActionSuccess 
 }) => {
   const [schedules, setSchedules] = useState<PaymentScheduleType[]>([]);
   const [allLotes, setAllLotes] = useState<Lote[]>([]);
@@ -36,7 +39,12 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   const [showForgiveModal, setShowForgiveModal] = useState(false);
   const [scheduleToForgive, setScheduleToForgive] = useState<PaymentScheduleType | null>(null);
   const [isForgiving, setIsForgiving] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [scheduleToReset, setScheduleToReset] = useState<PaymentScheduleType | null>(null);
   const itemsPerPage = 10;
+
+  // Hook para restablecer cuota
+  const resetScheduleMutation = useResetSchedule();
 
 
   useEffect(() => {
@@ -180,11 +188,33 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       loadSchedules();
       setShowForgiveModal(false);
       setScheduleToForgive(null);
+      onActionSuccess?.();
     } catch (error) {
       console.error('Error al absolver cuota:', error);
     } finally {
       setIsForgiving(false);
     }
+  };
+
+  const handleResetSchedule = (schedule: PaymentScheduleType) => {
+    setScheduleToReset(schedule);
+    setShowResetModal(true);
+  };
+
+  const confirmResetSchedule = async () => {
+    if (!scheduleToReset) return;
+
+    resetScheduleMutation.mutate(scheduleToReset.id, {
+      onSuccess: () => {
+        loadSchedules();
+        setShowResetModal(false);
+        setScheduleToReset(null);
+        onActionSuccess?.();
+      },
+      onError: (error: any) => {
+        setError(error.response?.data?.error || error.response?.data?.detail || 'Error al restablecer la cuota');
+      }
+    });
   };
 
   // Funciones de selección múltiple
@@ -229,6 +259,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
     setShowBulkModifyModal(false);
     setSelectedScheduleIds(new Set());
     loadSchedules();
+    onActionSuccess?.();
   };
 
   // Obtener cuotas seleccionadas
@@ -540,10 +571,10 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                     </td>
                     <td className="p-4">
                       <div className="flex items-center space-x-2">
-                        {['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status) && (
+                        {['pending', 'overdue', 'partial'].includes(schedule.status) && (
                           <button
                             onClick={() => handleModifyAmount(schedule)}
-                            className="text-yellow-600 hover:text-yellow-800 text-sm font-medium"
+                            className="text-yellow-600 hover:text-yellow-800 text-sm font-medium rounded-lg bg-yellow-100 p-2 justify-center hover:cursor-pointer"
                             title="Modificar monto"
                           >
                             Modificar
@@ -552,7 +583,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                         {['pending', 'overdue'].includes(schedule.status) && (
                           <button
                             onClick={() => handleForgiveInstallment(schedule)}
-                            className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                            className="text-purple-600 hover:text-purple-800 text-sm font-medium rounded-lg bg-purple-100 p-2 justify-center hover:cursor-pointer"
                             title="Absolver cuota"
                           >
                             Absolver
@@ -561,10 +592,19 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                         {schedule.status === 'partial' && (
                           <button
                             onClick={() => handleRegisterPayment(schedule)}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium rounded-lg bg-blue-100 p-2 justify-center hover:cursor-pointer"
                             title="Completar pago"
                           >
                             Completar
+                          </button>
+                        )}
+                        {['partial', 'paid'].includes(schedule.status) && parseFloat(schedule.paid_amount) > 0 && (
+                          <button
+                            onClick={() => handleResetSchedule(schedule)}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium rounded-lg bg-red-100 p-2 justify-center hover:cursor-pointer"
+                            title="Restablecer cuota"
+                          >
+                            Restablecer
                           </button>
                         )}
                       </div>
@@ -653,6 +693,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                 setShowPaymentModal(false);
                 setSelectedSchedule(null);
                 loadSchedules();
+                onActionSuccess?.();
               }}
               onCancel={() => {
                 setShowPaymentModal(false);
@@ -676,6 +717,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                 setShowModifyModal(false);
                 setSelectedSchedule(null);
                 loadSchedules();
+                onActionSuccess?.();
               }}
               onCancel={() => {
                 setShowModifyModal(false);
@@ -709,6 +751,22 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
         confirmText="Absolver"
         cancelText="Cancelar"
         isLoading={isForgiving}
+      />
+
+      {/* Reset Schedule Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showResetModal}
+        onClose={() => {
+          setShowResetModal(false);
+          setScheduleToReset(null);
+        }}
+        onConfirm={confirmResetSchedule}
+        title="Restablecer Cuota"
+        message={`¿Está seguro de que desea restablecer la cuota #${scheduleToReset?.installment_number}? Esto eliminará todos los pagos asociados y volverá la cuota a su estado pendiente. Esta acción no se puede deshacer.`}
+        type="danger"
+        confirmText="Restablecer"
+        cancelText="Cancelar"
+        isLoading={resetScheduleMutation.isPending}
       />
     </div>
   );

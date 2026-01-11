@@ -317,3 +317,21 @@ export const useUpdatePaymentSchedule = () => {
     },
   });
 };
+
+// Hook para restablecer una cuota del cronograma
+export const useResetSchedule = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => paymentService.resetSchedule(id),
+    onSuccess: (resetSchedule) => {
+      queryClient.invalidateQueries({ queryKey: schedulesKeys.all });
+      queryClient.invalidateQueries({ queryKey: paymentsKeys.all });
+      queryClient.setQueryData(schedulesKeys.detail(resetSchedule.id), resetSchedule);
+      toastService.success('Cuota restablecida exitosamente');
+    },
+    onError: (error: any) => {
+      toastService.error(error.response?.data?.detail || 'Error al restablecer la cuota');
+    },
+  });
+};
