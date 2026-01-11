@@ -290,31 +290,44 @@ export const handleDownloadHistorialPagosPDF = async (
     // Mostrar comprobantes de pagos iniciales primero
     for (const payment of initialPayments || []) {
       if (payment.receipt_image) {
-        // Si la imagen se sale de la página, crea una nueva
-        if (imageY + 120 > doc.internal.pageSize.getHeight()) {
-          doc.addPage();
-          imageY = 40; // Reinicia la posición Y con más margen
-        }
-
-        // --- INICIO DE LA LÓGICA PARA CENTRAR ---
-        const imageWidth = 120; // Ancho de la imagen
-        const imageHeight = 80; // Alto de la imagen
-        const xCentered = (pageWidth - imageWidth) / 2;
-        // --- FIN DE LA LÓGICA PARA CENTRAR ---
-
         // URL corregida para usar con el proxy
         const imageUrl = getProxyImageUrl(payment.receipt_image);
 
-        // Título del comprobante del pago inicial
-        doc.text(
-          `Pago Inicial - S/ ${parseFloat(payment.amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${payment.receipt_number || "N/A"}`,
-          pageWidth / 2,
-          imageY - 10,
-          { align: "center" }
-        );
-
-        // Agregar la imagen si la URL es válida
         if (imageUrl) {
+          // Obtener las propiedades de la imagen usando jsPDF
+          const imgProps = doc.getImageProperties(imageUrl);
+          
+          // Usar un factor de escala que convierta píxeles a mm (aproximadamente 96 DPI = 0.26458 mm/px)
+          const scaleFactor = 0.15; // Factor ajustable para un buen tamaño en el PDF
+          let imageWidth = imgProps.width * scaleFactor;
+          let imageHeight = imgProps.height * scaleFactor;
+
+          // Limitar solo si la imagen es extremadamente grande (para que quepa en la página)
+          const pageWidthLimit = pageWidth - 40; // Dejar 20mm de margen a cada lado
+          if (imageWidth > pageWidthLimit) {
+            const ratio = pageWidthLimit / imageWidth;
+            imageWidth = pageWidthLimit;
+            imageHeight = imageHeight * ratio;
+          }
+
+          // Verificar si necesita una nueva página
+          if (imageY + imageHeight + 30 > doc.internal.pageSize.getHeight()) {
+            doc.addPage();
+            imageY = 40;
+          }
+
+          // Centrar la imagen
+          const xCentered = (pageWidth - imageWidth) / 2;
+
+          // Título del comprobante del pago inicial
+          doc.text(
+            `Pago Inicial - S/ ${parseFloat(payment.amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${payment.receipt_number || "N/A"}`,
+            pageWidth / 2,
+            imageY - 10,
+            { align: "center" }
+          );
+
+          // Agregar la imagen con sus dimensiones originales escaladas
           doc.addImage(
             imageUrl,
             "PNG",
@@ -323,43 +336,57 @@ export const handleDownloadHistorialPagosPDF = async (
             imageWidth,
             imageHeight
           );
-        }
 
-        // Incrementa la posición Y para la siguiente imagen
-        imageY += imageHeight + 25;
+          // Incrementa la posición Y para la siguiente imagen
+          imageY += imageHeight + 25;
+        }
       }
     }
 
     for (const schedule of paymentSchedules || []) {
       // Mostrar todas las imágenes de comprobantes para esta cuota
       if (schedule.all_payments && schedule.all_payments.length > 0) {
-        schedule.all_payments.forEach((payment, paymentIndex) => {
+        for (let paymentIndex = 0; paymentIndex < schedule.all_payments.length; paymentIndex++) {
+          const payment = schedule.all_payments[paymentIndex];
           if (payment.receipt_image) {
-            // Si la imagen se sale de la página, crea una nueva
-            if (imageY + 120 > doc.internal.pageSize.getHeight()) {
-              doc.addPage();
-              imageY = 40; // Reinicia la posición Y con más margen
-            }
-
-            // --- INICIO DE LA LÓGICA PARA CENTRAR ---
-            const imageWidth = 120; // Ancho de la imagen
-            const imageHeight = 80; // Alto de la imagen
-            const xCentered = (pageWidth - imageWidth) / 2;
-            // --- FIN DE LA LÓGICA PARA CENTRAR ---
-
             // URL corregida para usar con el proxy
             const imageUrl = getProxyImageUrl(payment.receipt_image);
 
-            // Título del comprobante con información del pago específico
-            doc.text(
-              `Cuota ${schedule.installment_number} - Pago ${paymentIndex + 1}/${schedule.all_payments?.length || 0} - S/ ${parseFloat(payment.amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${payment.receipt_number || "N/A"}`,
-              pageWidth / 2,
-              imageY - 10,
-              { align: "center" }
-            );
-
-            // Agregar la imagen si la URL es válida
             if (imageUrl) {
+              // Obtener las propiedades de la imagen usando jsPDF
+              const imgProps = doc.getImageProperties(imageUrl);
+              
+              // Usar un factor de escala que convierta píxeles a mm
+              const scaleFactor = 0.15;
+              let imageWidth = imgProps.width * scaleFactor;
+              let imageHeight = imgProps.height * scaleFactor;
+
+              // Limitar solo si la imagen es extremadamente grande
+              const pageWidthLimit = pageWidth - 40;
+              if (imageWidth > pageWidthLimit) {
+                const ratio = pageWidthLimit / imageWidth;
+                imageWidth = pageWidthLimit;
+                imageHeight = imageHeight * ratio;
+              }
+
+              // Verificar si necesita una nueva página
+              if (imageY + imageHeight + 30 > doc.internal.pageSize.getHeight()) {
+                doc.addPage();
+                imageY = 40;
+              }
+
+              // Centrar la imagen
+              const xCentered = (pageWidth - imageWidth) / 2;
+
+              // Título del comprobante con información del pago específico
+              doc.text(
+                `Cuota ${schedule.installment_number} - Pago ${paymentIndex + 1}/${schedule.all_payments?.length || 0} - S/ ${parseFloat(payment.amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${payment.receipt_number || "N/A"}`,
+                pageWidth / 2,
+                imageY - 10,
+                { align: "center" }
+              );
+
+              // Agregar la imagen con sus dimensiones originales escaladas
               doc.addImage(
                 imageUrl,
                 "PNG",
@@ -368,33 +395,50 @@ export const handleDownloadHistorialPagosPDF = async (
                 imageWidth,
                 imageHeight
               );
-            }
 
-            // Incrementa la posición Y para la siguiente imagen
-            imageY += imageHeight + 25;
+              // Incrementa la posición Y para la siguiente imagen
+              imageY += imageHeight + 25;
+            }
           }
-        });
+        }
       } else if (schedule.receipt_image) {
         // Lógica original para cuotas sin pagos múltiples
-        if (imageY + 120 > doc.internal.pageSize.getHeight()) {
-          doc.addPage();
-          imageY = 40;
-        }
-
-        const imageWidth = 120;
-        const imageHeight = 80;
-        const xCentered = (pageWidth - imageWidth) / 2;
-
         const imageUrl = getProxyImageUrl(schedule.receipt_image);
 
-        doc.text(
-          `Cuota ${schedule.installment_number} - S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${schedule.receipt_number || "N/A"}`,
-          pageWidth / 2,
-          imageY - 10,
-          { align: "center" }
-        );
-
         if (imageUrl) {
+          // Obtener las propiedades de la imagen usando jsPDF
+          const imgProps = doc.getImageProperties(imageUrl);
+          
+          // Usar un factor de escala que convierta píxeles a mm
+          const scaleFactor = 0.15;
+          let imageWidth = imgProps.width * scaleFactor;
+          let imageHeight = imgProps.height * scaleFactor;
+
+          // Limitar solo si la imagen es extremadamente grande
+          const pageWidthLimit = pageWidth - 40;
+          if (imageWidth > pageWidthLimit) {
+            const ratio = pageWidthLimit / imageWidth;
+            imageWidth = pageWidthLimit;
+            imageHeight = imageHeight * ratio;
+          }
+
+          // Verificar si necesita una nueva página
+          if (imageY + imageHeight + 30 > doc.internal.pageSize.getHeight()) {
+            doc.addPage();
+            imageY = 40;
+          }
+
+          // Centrar la imagen
+          const xCentered = (pageWidth - imageWidth) / 2;
+
+          doc.text(
+            `Cuota ${schedule.installment_number} - S/ ${parseFloat(schedule.paid_amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })} | N°. Operación: ${schedule.receipt_number || "N/A"}`,
+            pageWidth / 2,
+            imageY - 10,
+            { align: "center" }
+          );
+
+          // Agregar la imagen con sus dimensiones originales escaladas
           doc.addImage(
             imageUrl,
             "PNG",
@@ -403,9 +447,9 @@ export const handleDownloadHistorialPagosPDF = async (
             imageWidth,
             imageHeight
           );
-        }
 
-        imageY += imageHeight + 25;
+          imageY += imageHeight + 25;
+        }
       }
     }
 
