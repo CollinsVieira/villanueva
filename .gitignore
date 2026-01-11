@@ -376,3 +376,4 @@ docs/.doctrees/
 # */migrations/*
 # !*/migrations/__init__.py
 backup.sql
+frontend/.env
