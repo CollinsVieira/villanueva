@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Customer } from '../../types';
-import customerService from '../../services/customerService';
+import { useCreateCustomer, useUpdateCustomer } from '../../hooks/useCustomersQueries';
 
 interface CustomerFormProps {
   customer?: Customer | null;
@@ -19,9 +19,14 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
     document_type: '',
     document_number: '',
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customDocumentType, setCustomDocumentType] = useState('');
+
+  // Usar React Query mutations
+  const createCustomerMutation = useCreateCustomer();
+  const updateCustomerMutation = useUpdateCustomer();
+  
+  const isSubmitting = createCustomerMutation.isPending || updateCustomerMutation.isPending;
 
   useEffect(() => {
     if (customer) {
@@ -62,24 +67,30 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError(null);
-    try {
-      const dataToSend = {
-        ...formData,
-        document_type: formData.document_type === 'otro' ? customDocumentType : formData.document_type
-      };
-      
-      if (customer) {
-        await customerService.updateCustomer(customer.id, dataToSend);
-      } else {
-        await customerService.createCustomer(dataToSend);
-      }
-      onSave();
-    } catch (err: any) {
+    
+    const dataToSend = {
+      ...formData,
+      document_type: formData.document_type === 'otro' ? customDocumentType : formData.document_type
+    };
+    
+    const handleError = (err: any) => {
       setError(err.response?.data?.detail || 'Ocurrió un error al guardar el cliente.');
-    } finally {
-      setIsSubmitting(false);
+    };
+    
+    if (customer) {
+      updateCustomerMutation.mutate(
+        { id: customer.id, data: dataToSend },
+        {
+          onSuccess: () => onSave(),
+          onError: handleError
+        }
+      );
+    } else {
+      createCustomerMutation.mutate(dataToSend, {
+        onSuccess: () => onSave(),
+        onError: handleError
+      });
     }
   };
 

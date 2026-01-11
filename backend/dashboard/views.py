@@ -85,26 +85,36 @@ class AllDueDatesView(APIView):
             venta__status='active'
         ).select_related('venta', 'venta__lote', 'venta__customer')
         
-        # Aplicar filtro de estado
+        # Aplicar filtro de estado y ordenamiento
         if status_filter == 'pending':
             queryset = queryset.filter(status='pending')
+            # Para pendientes, aplicar filtro de próximos 5 días si ordering == 'desc'
+            if ordering == 'desc':
+                today = date.today()
+                max_date = today + timedelta(days=5)
+                queryset = queryset.filter(
+                    due_date__gte=today,
+                    due_date__lte=max_date
+                ).order_by('due_date')
+            else:
+                queryset = queryset.order_by('due_date')
         elif status_filter == 'overdue':
             queryset = queryset.filter(status='overdue')
+            # Para vencidas, mostrar las más recientes primero (las que vencieron hace menos tiempo)
+            queryset = queryset.order_by('-due_date')
         else:
             # 'all' - pendientes y vencidas
             queryset = queryset.filter(status__in=['pending', 'overdue'])
-        
-        # Ordenar por fecha de vencimiento
-        if ordering == 'desc':
-            # Próximos a vencer: cuotas que vencen en los próximos 5 días
-            today = date.today()
-            max_date = today + timedelta(days=5)
-            queryset = queryset.filter(
-                due_date__gte=today,
-                due_date__lte=max_date
-            ).order_by('due_date')  # Ordenar por fecha más próxima primero
-        else:
-            queryset = queryset.order_by('due_date')   # Más antiguas primero
+            if ordering == 'desc':
+                # Próximos a vencer: cuotas que vencen en los próximos 5 días
+                today = date.today()
+                max_date = today + timedelta(days=5)
+                queryset = queryset.filter(
+                    due_date__gte=today,
+                    due_date__lte=max_date
+                ).order_by('due_date')
+            else:
+                queryset = queryset.order_by('due_date')
         
         # Paginación
         paginator = self.pagination_class()

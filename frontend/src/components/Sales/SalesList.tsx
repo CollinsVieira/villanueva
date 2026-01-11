@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import salesService, { Venta, PaginatedResponse } from '../../services/salesService';
+import React, { useState } from 'react';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import { Search, Plus, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../UI/LoadingSpinner';
+import { useSales } from '../../hooks/useSalesQueries';
+import { Venta } from '../../services/salesService';
 
 interface SalesListProps {
   onCreateSale?: () => void;
@@ -14,65 +15,38 @@ const SalesList: React.FC<SalesListProps> = ({
   onCreateSale,
   onViewSale,
 }) => {
-  const [sales, setSales] = useState<Venta[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [error, setError] = useState<string | null>(null);
 
   // Estados de paginación del backend
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [hasNext, setHasNext] = useState(false);
-  const [hasPrevious, setHasPrevious] = useState(false);
   const itemsPerPage = 25; // Coincide con el PAGE_SIZE del backend
 
-  // Cargar datos iniciales
-  useEffect(() => {
-    loadSales(searchTerm, statusFilter, currentPage);
-  }, []);
+  // Construir parámetros de la query
+  const queryParams = {
+    page: currentPage,
+    ...(statusFilter !== 'all' && { status: statusFilter }),
+    ...(searchQuery.trim() && { search: searchQuery.trim() }),
+  };
 
-  useEffect(() => {
-    loadSales(searchTerm, statusFilter, currentPage);
-  }, [currentPage]);
+  // Usar React Query para obtener las ventas
+  const { data, isLoading, error } = useSales(queryParams);
+
+  // Extraer datos de la respuesta
+  const sales = data?.results || [];
+  const totalCount = data?.count || 0;
+  const hasNext = !!data?.next;
+  const hasPrevious = !!data?.previous;
 
   const handleSearch = () => {
     setCurrentPage(1); // Reiniciar a la primera página cuando se busque
-    loadSales(searchTerm, statusFilter, 1);
+    setSearchQuery(searchTerm);
   };
 
   const handleStatusFilterChange = (newStatus: string) => {
     setStatusFilter(newStatus);
     setCurrentPage(1); // Reiniciar a la primera página cuando cambie el filtro
-    loadSales(searchTerm, newStatus, 1);
-  };
-
-  const loadSales = async (currentSearchTerm: string, currentStatusFilter: string, page: number = 1) => {
-    setLoading(true);
-    try {
-      setError(null);
-      const params: any = {
-        page: page
-      };
-      
-      if (currentStatusFilter !== 'all') {
-        params.status = currentStatusFilter;
-      }
-      
-      if (currentSearchTerm.trim()) {
-        params.search = currentSearchTerm.trim();
-      }
-      
-      const response: PaginatedResponse<Venta> = await salesService.getVentas(params);
-      setSales(response.results);
-      setTotalCount(response.count);
-      setHasNext(!!response.next);
-      setHasPrevious(!!response.previous);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al cargar las ventas.');
-    } finally {
-      setLoading(false);
-    }
   };
 
 
@@ -98,7 +72,7 @@ const SalesList: React.FC<SalesListProps> = ({
     setCurrentPage(page);
   };
 
-  if (loading && sales.length === 0) return <LoadingSpinner />;
+  if (isLoading && sales.length === 0) return <LoadingSpinner />;
 
 
   return (
@@ -123,7 +97,7 @@ const SalesList: React.FC<SalesListProps> = ({
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          {(error as any)?.response?.data?.detail || 'Error al cargar las ventas'}
         </div>
       )}
 
@@ -160,7 +134,7 @@ const SalesList: React.FC<SalesListProps> = ({
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
             <Users className="mr-2 text-green-600" size={20} />
             Lista de Ventas
-            {!loading && (
+            {!isLoading && (
               <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
                 {totalCount} registros
               </span>
@@ -276,7 +250,7 @@ const SalesList: React.FC<SalesListProps> = ({
         </div>
         
         {/* Paginación */}
-        {!loading && totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
             <div className="text-sm text-gray-700">
               Mostrando {startRecord} a {endRecord} de {totalCount} registros

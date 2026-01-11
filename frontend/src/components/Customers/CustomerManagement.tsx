@@ -1,19 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Users, Edit, Trash2, PlusCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Customer } from '../../types';
-import customerService, { PaginatedResponse } from '../../services/customerService';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import CustomerForm from './CustomerForm';
 import CustomerDetailModal from './CustomerDetailModal';
 import ConfirmationModal from '../../utils/ConfirmationModal';
+import { useCustomers, useDeleteCustomer } from '../../hooks/useCustomersQueries';
 
 const CustomerManagement: React.FC = () => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -22,38 +21,24 @@ const CustomerManagement: React.FC = () => {
   // Estados para el modal de confirmación
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Estados de paginación del backend
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [hasNext, setHasNext] = useState(false);
-  const [hasPrevious, setHasPrevious] = useState(false);
   const itemsPerPage = 25; // Coincide con el PAGE_SIZE del backend
 
-  useEffect(() => {
-    loadCustomers(searchTerm, currentPage);
-  }, [currentPage]);
+  // Usar React Query para obtener clientes
+  const { data, isLoading } = useCustomers(searchQuery, currentPage);
+  const customers = data?.results || [];
+  const totalCount = data?.count || 0;
+  const hasNext = !!data?.next;
+  const hasPrevious = !!data?.previous;
 
-  const loadCustomers = async (currentSearchTerm: string, page: number = 1) => {
-    setIsLoading(true);
-    try {
-      setError(null);
-      const response: PaginatedResponse<Customer> = await customerService.getCustomers(currentSearchTerm, page);
-      setCustomers(response.results);
-      setTotalCount(response.count);
-      setHasNext(!!response.next);
-      setHasPrevious(!!response.previous);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al cargar los clientes.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Mutation para eliminar cliente
+  const deleteCustomerMutation = useDeleteCustomer();
 
   const handleSearch = () => {
     setCurrentPage(1); // Reiniciar a la primera página cuando se busque
-    loadCustomers(searchTerm, 1);
+    setSearchQuery(searchTerm);
   };
 
   // Cálculos de paginación
@@ -85,17 +70,15 @@ const CustomerManagement: React.FC = () => {
   const confirmDeleteCustomer = async () => {
     if (!customerToDelete) return;
     
-    setIsDeleting(true);
-    try {
-      await customerService.deleteCustomer(customerToDelete.id);
-      loadCustomers(searchTerm, currentPage); // Recargar manteniendo la página actual
-      setShowDeleteModal(false);
-      setCustomerToDelete(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al eliminar el cliente.');
-    } finally {
-      setIsDeleting(false);
-    }
+    deleteCustomerMutation.mutate(customerToDelete.id, {
+      onSuccess: () => {
+        setShowDeleteModal(false);
+        setCustomerToDelete(null);
+      },
+      onError: (err: any) => {
+        setError(err.response?.data?.detail || 'Error al eliminar el cliente.');
+      }
+    });
   };
 
   const cancelDeleteCustomer = () => {
@@ -106,7 +89,6 @@ const CustomerManagement: React.FC = () => {
   const handleSave = () => {
     setShowForm(false);
     setEditingCustomer(null);
-    loadCustomers(searchTerm, currentPage);
   };
 
   if (isLoading && customers.length === 0) return <LoadingSpinner />;
@@ -328,7 +310,6 @@ const CustomerManagement: React.FC = () => {
         <CustomerDetailModal 
           customerId={viewingCustomerId}
           onClose={() => setViewingCustomerId(null)}
-          onDataChange={() => loadCustomers(searchTerm, currentPage)}
         />
       )}
 
@@ -342,7 +323,7 @@ const CustomerManagement: React.FC = () => {
         type="danger"
         confirmText="Eliminar"
         cancelText="Cancelar"
-        isLoading={isDeleting}
+        isLoading={deleteCustomerMutation.isPending}
       />
     </div>
   );

@@ -4,8 +4,8 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { Lote } from "../../types";
-import loteService from "../../services/loteService";
 import Alert from "../UI/Alert";
+import { useCreateLote, useUpdateLote } from "../../hooks/useLotesQueries";
 
 interface LoteFormProps {
   lote?: Lote | null;
@@ -28,8 +28,13 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
     area: "0.00",
     price: "0.00",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Usar React Query mutations
+  const createLoteMutation = useCreateLote();
+  const updateLoteMutation = useUpdateLote();
+  
+  const isSubmitting = createLoteMutation.isPending || updateLoteMutation.isPending;
 
   useEffect(() => {
     if (lote) {
@@ -51,26 +56,16 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError(null);
 
-    try {
-      const dataToSend = {
-        block: formData.block,
-        lot_number: formData.lot_number,
-        area: formData.area,
-        price: formData.price,
-      };
+    const dataToSend = {
+      block: formData.block,
+      lot_number: formData.lot_number,
+      area: formData.area,
+      price: formData.price,
+    };
 
-      if (lote) {
-        await loteService.updateLote(lote.id, dataToSend);
-      } else {
-        await loteService.createLote(dataToSend);
-      }
-      
-      onSave();
-    } catch (err: any) {
-      // Manejar errores de validación del backend
+    const handleError = (err: any) => {
       const errorData = err.response?.data;
       let errorMessage = "Ocurrió un error al guardar.";
       
@@ -80,7 +75,6 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
         } else if (errorData.non_field_errors) {
           errorMessage = errorData.non_field_errors.join(", ");
         } else if (typeof errorData === 'object') {
-          // Buscar el primer mensaje de error en los campos
           const firstError = Object.values(errorData).find(val => val);
           if (Array.isArray(firstError)) {
             errorMessage = firstError[0];
@@ -91,8 +85,21 @@ const LoteForm: React.FC<LoteFormProps> = ({ lote, onClose, onSave }) => {
       }
       
       setError(errorMessage);
-    } finally {
-      setIsSubmitting(false);
+    };
+
+    if (lote) {
+      updateLoteMutation.mutate(
+        { id: lote.id, data: dataToSend },
+        {
+          onSuccess: () => onSave(),
+          onError: handleError
+        }
+      );
+    } else {
+      createLoteMutation.mutate(dataToSend, {
+        onSuccess: () => onSave(),
+        onError: handleError
+      });
     }
   };
 

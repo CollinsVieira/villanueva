@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, PlusCircle, Download, Search, DollarSign, Calendar, TrendingUp, Users, FileSpreadsheet, CalendarDays, Edit, RotateCcw } from 'lucide-react';
-import { Info, Payment } from '../../types';
-import paymentService from '../../services/paymentService';
+import { Payment } from '../../types';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import PaymentForm from './PaymentForm';
@@ -11,18 +10,15 @@ import { useDebounce } from '../../hooks/useDebounce';
 import DateService from '../../services/dateService';
 import { dynamicReportsService } from '../../services';
 import { getProxyImageUrl } from '../../utils/imageUtils';
+import { usePayments, useResetPayment } from '../../hooks/usePaymentsQueries';
 
 const PaymentManagement: React.FC = () => {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [info, setInfo] = useState<Info>();
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [paymentToReset, setPaymentToReset] = useState<Payment | null>(null);
-  const [isResetting, setIsResetting] = useState(false);
   const [activeTab, setActiveTab] = useState<'payments' | 'schedule'>('payments');
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,30 +27,18 @@ const PaymentManagement: React.FC = () => {
   // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Resetear página cuando cambie la búsqueda
   useEffect(() => {
-    // Reiniciar a la primera página cuando cambie la búsqueda
     setCurrentPage(1);
   }, [debouncedSearchTerm]);
 
-  useEffect(() => {
-    // Cargar pagos cuando cambie la página o la búsqueda
-    loadPayments(currentPage);
-  }, [currentPage, debouncedSearchTerm]);
+  // Usar React Query para obtener pagos
+  const { data, isLoading } = usePayments(currentPage, debouncedSearchTerm);
+  const payments = data?.results || [];
+  const info = data?.info;
 
-  const loadPayments = async (page: number = 1) => {
-    setIsLoading(true);
-    try {
-      setError(null);
-      // Usamos paginación del servidor
-      const data = await paymentService.getPaymentsPaginated(page, debouncedSearchTerm);
-      setPayments(data.results);
-      setInfo(data.info);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al cargar los pagos.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Mutation para resetear pagos
+  const resetPaymentMutation = useResetPayment();
 
   // Calcular estadísticas de los pagos
   const paymentStats = React.useMemo(() => {
@@ -93,7 +77,6 @@ const PaymentManagement: React.FC = () => {
     setEditingPayment(null);
     setSearchTerm(''); // Limpiar la búsqueda para ver el nuevo pago
     setCurrentPage(1); // Volver a la primera página
-    loadPayments(1); // Recargar la lista de pagos para mostrar el nuevo pago
   };
 
   const handleEditPayment = (payment: Payment) => {
@@ -109,19 +92,17 @@ const PaymentManagement: React.FC = () => {
   const confirmResetPayment = async () => {
     if (!paymentToReset) return;
     
-    setIsResetting(true);
     setError(null);
     
-    try {
-      await paymentService.resetPayment(paymentToReset.id);
-      setShowResetConfirm(false);
-      setPaymentToReset(null);
-      loadPayments(currentPage); // Recargar la lista de pagos
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.detail || 'Error al restablecer el pago');
-    } finally {
-      setIsResetting(false);
-    }
+    resetPaymentMutation.mutate(paymentToReset.id, {
+      onSuccess: () => {
+        setShowResetConfirm(false);
+        setPaymentToReset(null);
+      },
+      onError: (err: any) => {
+        setError(err.response?.data?.error || err.response?.data?.detail || 'Error al restablecer el pago');
+      }
+    });
   };
 
   const cancelResetPayment = () => {
@@ -660,17 +641,17 @@ const PaymentManagement: React.FC = () => {
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={cancelResetPayment}
-                  disabled={isResetting}
+                  disabled={resetPaymentMutation.isPending}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmResetPayment}
-                  disabled={isResetting}
+                  disabled={resetPaymentMutation.isPending}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors disabled:opacity-50 flex items-center space-x-2"
                 >
-                  {isResetting ? (
+                  {resetPaymentMutation.isPending ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                       <span>Restableciendo...</span>

@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
   const [dueDatesPage, setDueDatesPage] = useState(1);
   const [dueDatesTotalPages, setDueDatesTotalPages] = useState(1);
   const [dueDatesTotalCount, setDueDatesTotalCount] = useState(0);
-  const [dueDatesOrdering, setDueDatesOrdering] = useState<'asc' | 'desc'>('asc');
+  const [dueDatesOrdering, setDueDatesOrdering] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     loadDashboardData();

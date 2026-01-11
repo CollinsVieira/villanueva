@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import salesService, { VentaInitialPayment } from '../../services/salesService';
+import { VentaInitialPayment } from '../../services/salesService';
+import { useRegisterInitialPayment } from '../../hooks/useSalesQueries';
 
 interface InitialPaymentFormProps {
   saleId: number;
@@ -23,8 +24,11 @@ const InitialPaymentForm: React.FC<InitialPaymentFormProps> = ({
     notes: ''
   });
   
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Usar React Query mutation
+  const registerPaymentMutation = useRegisterInitialPayment();
+  const loading = registerPaymentMutation.isPending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,18 +43,19 @@ const InitialPaymentForm: React.FC<InitialPaymentFormProps> = ({
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
-      
-      await salesService.registerInitialPayment(saleId, formData);
-      onSuccess?.();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al registrar el pago inicial');
-      console.error('Error registering initial payment:', err);
-    } finally {
-      setLoading(false);
-    }
+    setError(null);
+    
+    registerPaymentMutation.mutate(
+      { saleId, data: formData },
+      {
+        onSuccess: () => {
+          onSuccess?.();
+        },
+        onError: (err: any) => {
+          setError(err.response?.data?.detail || 'Error al registrar el pago inicial');
+        }
+      }
+    );
   };
 
   return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import salesService, { VentaCreate, Venta } from '../../services/salesService';
+import { VentaCreate, Venta } from '../../services/salesService';
 import loteService from '../../services/loteService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import { Lote } from '../../types';
@@ -7,6 +7,7 @@ import { Eye, Download, FileText } from 'lucide-react';
 import CustomerSelector from '../UI/CustomerSelector';
 import SchedulePDFGenerator from './SchedulePDFGenerator';
 import { getProxyImageUrl } from '../../utils/imageUtils';
+import { useCreateSale, useUpdateSale } from '../../hooks/useSalesQueries';
 
 
 interface SaleFormProps {
@@ -31,9 +32,14 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
   
   const [lotes, setLotes] = useState<Lote[]>([]);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingPdf, setExistingPdf] = useState<string | null>(null);
+
+  // Usar React Query mutations
+  const createSaleMutation = useCreateSale();
+  const updateSaleMutation = useUpdateSale();
+
+  const loading = createSaleMutation.isPending || updateSaleMutation.isPending;
 
   useEffect(() => {
     if (sale) {
@@ -112,27 +118,32 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
-      
-      let savedSale: Venta;
-      
-      if (sale) {
-        // Update existing sale - solo enviar campos editables (sin lote)
-        const { lote, ...updateData } = formData;
-        savedSale = await salesService.updateVenta(sale.id, updateData);
-      } else {
-        // Create new sale
-        savedSale = await salesService.createVenta(formData);
-      }
-      
-      onSave?.(savedSale);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al guardar la venta');
-      console.error('Error saving sale:', err);
-    } finally {
-      setLoading(false);
+    setError(null);
+    
+    if (sale) {
+      // Update existing sale - solo enviar campos editables (sin lote)
+      const { lote, ...updateData } = formData;
+      updateSaleMutation.mutate(
+        { id: sale.id, data: updateData },
+        {
+          onSuccess: (savedSale) => {
+            onSave?.(savedSale);
+          },
+          onError: (err: any) => {
+            setError(err.response?.data?.detail || 'Error al actualizar la venta');
+          }
+        }
+      );
+    } else {
+      // Create new sale
+      createSaleMutation.mutate(formData, {
+        onSuccess: (savedSale) => {
+          onSave?.(savedSale);
+        },
+        onError: (err: any) => {
+          setError(err.response?.data?.detail || 'Error al crear la venta');
+        }
+      });
     }
   };
 

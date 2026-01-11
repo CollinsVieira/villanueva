@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import salesService, { Venta, PaymentPlan } from "../../services/salesService";
+import React, { useState } from "react";
+import { Venta } from "../../services/salesService";
 import { dynamicReportsService } from "../../services/dynamicReportsService";
+import { useSale, useSalePaymentPlan, useCancelSale, useCompleteSale } from "../../hooks/useSalesQueries";
 import {
   Edit,
   DollarSign,
@@ -21,7 +22,6 @@ import { handleDownloadHistorialPagosPDF } from "../../utils/PdfResumenPagos";
 import { handleDownloadBoletasPagoPDF } from "../../utils/PdfBoletasDePago";
 import ConfirmationModal from "../../utils/ConfirmationModal";
 import { useConfirmation } from "../../hooks/useConfirmation";
-import toastService from "../../services/toastService";
 import { getProxyImageUrl } from "../../utils/imageUtils";
 interface SaleDetailsProps {
   saleId: number;
@@ -35,36 +35,25 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
   onEdit,
   onBack,
 }) => {
-  const [sale, setSale] = useState<Venta | null>(null);
-  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showInitialPaymentForm, setShowInitialPaymentForm] = useState(false);
   const [activeTab, setActiveTab] = useState<"plan" | "schedule" | "initial">("plan");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const { isOpen, options, confirm, onConfirm, onCancel } = useConfirmation();
 
-  useEffect(() => {
-    loadSaleDetails();
-  }, [saleId]);
+  // Usar React Query para obtener los datos
+  const { data: sale, isLoading: saleLoading, error: saleError, refetch: refetchSale } = useSale(saleId);
+  const { data: paymentPlan, isLoading: planLoading } = useSalePaymentPlan(saleId, !!sale);
+
+  // Mutations
+  const cancelSaleMutation = useCancelSale();
+  const completeSaleMutation = useCompleteSale();
+
+  const loading = saleLoading || planLoading;
+  const error = saleError ? "Error al cargar los detalles de la venta" : null;
 
   const loadSaleDetails = async () => {
-    try {
-      setLoading(true);
-      const [saleData, planData] = await Promise.all([
-        salesService.getVenta(saleId),
-        salesService.getVentaPaymentPlan(saleId).catch(() => null),
-      ]);
-
-      setSale(saleData);
-      setPaymentPlan(planData);
-    } catch (err) {
-      setError("Error al cargar los detalles de la venta");
-      console.error("Error loading sale details:", err);
-    } finally {
-      setLoading(false);
-    }
+    await refetchSale();
   };
 
   const handleCancelSale = async () => {
@@ -80,17 +69,10 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
 
     if (!confirmed) return;
 
-    setIsProcessing(true);
-    try {
-      await salesService.cancelVenta(sale.id, "Cancelada desde detalles");
-      toastService.success("Venta cancelada exitosamente");
-      loadSaleDetails();
-    } catch (err) {
-      toastService.error("Error al cancelar la venta");
-      console.error("Error canceling sale:", err);
-    } finally {
-      setIsProcessing(false);
-    }
+    cancelSaleMutation.mutate({ 
+      id: sale.id, 
+      reason: "Cancelada desde detalles" 
+    });
   };
 
   const handleCompleteSale = async () => {
@@ -106,17 +88,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
 
     if (!confirmed) return;
 
-    setIsProcessing(true);
-    try {
-      await salesService.completeVenta(sale.id);
-      toastService.success("Venta completada exitosamente");
-      loadSaleDetails();
-    } catch (err) {
-      toastService.error("Error al completar la venta");
-      console.error("Error completing sale:", err);
-    } finally {
-      setIsProcessing(false);
-    }
+    completeSaleMutation.mutate(sale.id);
   };
 
   const handleInitialPaymentSuccess = () => {
@@ -206,6 +178,11 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
               {error}
+            </div>
+          )}
+          {pdfError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+              {pdfError}
             </div>
           )}
           <div className="p-6">
@@ -379,21 +356,21 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
 
           {/* Botones de PDF de pagos */}
           <button
-            onClick={() => handleDownloadCronogramaPDF(sale.id, setError)}
+            onClick={() => handleDownloadCronogramaPDF(sale.id, setPdfError)}
             className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
           >
             <FileDown className="h-4 w-4" />
             Descargar Cronograma
           </button>
           <button
-            onClick={() => handleDownloadHistorialPagosPDF(sale.id, setError)}
+            onClick={() => handleDownloadHistorialPagosPDF(sale.id, setPdfError)}
             className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
           >
             <FileDown className="h-4 w-4" />
             Descargar Historial de Pagos
           </button>
           <button
-            onClick={() => handleDownloadBoletasPagoPDF(sale.id, setError)}
+            onClick={() => handleDownloadBoletasPagoPDF(sale.id, setPdfError)}
             className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
           >
             <FileDown className="h-4 w-4" />
@@ -619,7 +596,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
         type={options?.type}
         confirmText={options?.confirmText}
         cancelText={options?.cancelText}
-        isLoading={isProcessing}
+        isLoading={cancelSaleMutation.isPending || completeSaleMutation.isPending}
       />
     </div>
   );

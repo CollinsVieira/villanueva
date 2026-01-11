@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CheckSquare, Edit, PlusCircle, Trash2, Search, MapPin, User, DollarSign, Calendar, Square, Check } from 'lucide-react';
 import { Lote } from '../../types';
-import loteService from '../../services/loteService';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import Alert from '../UI/Alert';
 import LoteForm from './LoteForm';
 import LoteDetailModal from './LoteDetailModal';
 import ConfirmationModal from '../../utils/ConfirmationModal';
 import dynamicReportsService from '../../services/dynamicReportsService';
+import { useLotesUnlimited, useDeleteLote } from '../../hooks/useLotesQueries';
 
 const LoteManagement: React.FC = () => {
-  const [lotes, setLotes] = useState<Lote[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [filterStatus, setFilterStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [showForm, setShowForm] = useState(false);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
@@ -23,77 +22,40 @@ const LoteManagement: React.FC = () => {
   const [selectedLotes, setSelectedLotes] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState('A');
-  const [allBlocks, setAllBlocks] = useState<string[]>([]);
 
   // Estados para el modal de confirmación
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'delete' | 'bulkDelete' | null>(null);
   const [loteToDelete, setLoteToDelete] = useState<number | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Cargar todas las manzanas al inicio
-  useEffect(() => {
-    const loadAllBlocks = async () => {
-      try {
-        let page = 1;
-        const seen = new Set<string>();
-        while (true) {
-          const { next, results } = await loteService.getLotesPage({ page, page_size: 5000 });
-          results.forEach(lote => {
-            if (lote.block) seen.add(lote.block);
-          });
-          if (!next) break;
-          page += 1;
-        }
-        const blocks = Array.from(seen).sort();
-        setAllBlocks(blocks);
-      } catch (err) {
-        console.error('Error al cargar las manzanas:', err);
-      }
-    };
-    loadAllBlocks();
-  }, []);
-
-  // Carga inicial y cuando cambia el filtro de estado o manzana
-  useEffect(() => {
-    loadLotes(searchTerm);
-  }, [filterStatus, selectedBlock]);
-
-  const loadLotes = async (currentSearchTerm: string) => {
-    setIsLoading(true);
-    try {
-      setError(null);
-      const baseParams: { status?: string; search?: string; block?: string } = {};
-      if (filterStatus) baseParams.status = filterStatus;
-      if (currentSearchTerm) baseParams.search = currentSearchTerm;
-      if (selectedBlock) baseParams.block = selectedBlock;
-
-      let page = 1;
-      const all: Lote[] = [] as any;
-      while (true) {
-        const { next, results } = await loteService.getLotesPage({ ...baseParams, page, page_size: 5000 });
-        all.push(...results);
-        if (!next) break;
-        page += 1;
-      }
-
-      setLotes(all);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al cargar los lotes.');
-    } finally {
-      setIsLoading(false);
-    }
+  // Construir parámetros de búsqueda
+  const queryParams = {
+    ...(filterStatus && { status: filterStatus }),
+    ...(searchQuery.trim() && { search: searchQuery.trim() }),
+    ...(selectedBlock && { block: selectedBlock }),
   };
+
+  // Usar React Query para obtener lotes
+  const { data: lotes = [], isLoading, refetch } = useLotesUnlimited(queryParams);
+  
+  // Obtener todas las manzanas únicas de los lotes
+  const allBlocks = Array.from(new Set(lotes.map(lote => lote.block).filter(Boolean))).sort();
+
+  // Mutation para eliminar lotes
+  const deleteLoteMutation = useDeleteLote();
   
   // --- NUEVA FUNCIÓN PARA BÚSQUEDA MANUAL ---
   const handleSearch = () => {
-    loadLotes(searchTerm);
+    setSearchQuery(searchTerm);
   };
   
-  // ... (resto de funciones handleNew, handleEdit, etc. sin cambios)
   const handleNew = () => { setSelectedLote(null); setShowForm(true); };
   const handleEdit = (lote: Lote) => { setSelectedLote(lote); setShowForm(true); };
-  const handleSave = () => { setShowForm(false); setSelectedLote(null); loadLotes(''); };
+  const handleSave = () => { 
+    setShowForm(false); 
+    setSelectedLote(null); 
+    refetch(); 
+  };
   const handleDelete = (id: number) => {
     setLoteToDelete(id);
     setConfirmAction('delete');
@@ -103,24 +65,21 @@ const LoteManagement: React.FC = () => {
   const confirmDelete = async () => {
     if (!loteToDelete) return;
     
-    setIsDeleting(true);
-    try {
-      await loteService.deleteLote(loteToDelete);
-      loadLotes(searchTerm);
-      setShowConfirmModal(false);
-      setLoteToDelete(null);
-      setConfirmAction(null);
-    } catch (err: any) {
-      // Verificar si el error es específico sobre tener dueño
-      const errorMessage = err.response?.data?.detail || err.message || '';
-      if (errorMessage.toLowerCase().includes('dueño') || errorMessage.toLowerCase().includes('owner') || errorMessage.toLowerCase().includes('propietario')) {
-        setError('Error al eliminar un lote porque tiene dueño');
-      } else {
-        setError(err.response?.data?.detail || 'Error al eliminar el lote.');
+    deleteLoteMutation.mutate(loteToDelete, {
+      onSuccess: () => {
+        setShowConfirmModal(false);
+        setLoteToDelete(null);
+        setConfirmAction(null);
+      },
+      onError: (err: any) => {
+        const errorMessage = err.response?.data?.detail || err.message || '';
+        if (errorMessage.toLowerCase().includes('dueño') || errorMessage.toLowerCase().includes('owner') || errorMessage.toLowerCase().includes('propietario')) {
+          setError('Error al eliminar un lote porque tiene dueño');
+        } else {
+          setError(err.response?.data?.detail || 'Error al eliminar el lote.');
+        }
       }
-    } finally {
-      setIsDeleting(false);
-    }
+    });
   };
 
   const handleBulkDelete = () => {
@@ -133,26 +92,28 @@ const LoteManagement: React.FC = () => {
   const confirmBulkDelete = async () => {
     if (selectedLotes.size === 0) return;
     
-    setIsDeleting(true);
-    
     try {
-      const deletePromises = Array.from(selectedLotes).map(id => loteService.deleteLote(id));
-      await Promise.all(deletePromises);
+      // Ejecutar eliminaciones en serie para manejar errores individualmente
+      for (const id of Array.from(selectedLotes)) {
+        await new Promise((resolve, reject) => {
+          deleteLoteMutation.mutate(id, {
+            onSuccess: resolve,
+            onError: reject
+          });
+        });
+      }
+      
       setSelectedLotes(new Set());
       setIsSelectionMode(false);
-      loadLotes(searchTerm);
       setShowConfirmModal(false);
       setConfirmAction(null);
     } catch (err: any) {
-      // Verificar si el error es específico sobre tener dueño
       const errorMessage = err.response?.data?.detail || err.message || '';
       if (errorMessage.toLowerCase().includes('dueño') || errorMessage.toLowerCase().includes('owner') || errorMessage.toLowerCase().includes('propietario')) {
         setError('Error al eliminar lotes porque algunos tienen dueño');
       } else {
         setError(err.response?.data?.detail || 'Error al eliminar los lotes.');
       }
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -476,7 +437,7 @@ const LoteManagement: React.FC = () => {
         type="danger"
         confirmText={confirmAction === 'delete' ? 'Eliminar' : `Eliminar ${selectedLotes.size}`}
         cancelText="Cancelar"
-        isLoading={isDeleting}
+        isLoading={deleteLoteMutation.isPending}
       />
     </div>
   );

@@ -199,14 +199,21 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   };
 
   const handleSelectAll = (checked: boolean) => {
+    // Obtener IDs modificables de la página actual
+    const modifiableIds = currentSchedules
+      .filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status))
+      .map(schedule => schedule.id);
+    
     if (checked) {
-      // Seleccionar cuotas que se pueden modificar (incluye todas)
-      const modifiableIds = currentSchedules
-        .filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status))
-        .map(schedule => schedule.id);
-      setSelectedScheduleIds(new Set(modifiableIds));
+      // AGREGAR los IDs de la página actual al Set existente
+      const newSelection = new Set(selectedScheduleIds);
+      modifiableIds.forEach(id => newSelection.add(id));
+      setSelectedScheduleIds(newSelection);
     } else {
-      setSelectedScheduleIds(new Set());
+      // REMOVER solo los IDs de la página actual del Set
+      const newSelection = new Set(selectedScheduleIds);
+      modifiableIds.forEach(id => newSelection.delete(id));
+      setSelectedScheduleIds(newSelection);
     }
   };
 
@@ -227,11 +234,11 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   // Obtener cuotas seleccionadas
   const selectedSchedules = schedules.filter(schedule => selectedScheduleIds.has(schedule.id));
 
-  // Verificar si todas las cuotas modificables están seleccionadas
+  // Verificar si todas las cuotas modificables de la PÁGINA ACTUAL están seleccionadas
   const modifiableSchedules = currentSchedules.filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status));
-  const isAllSelected = modifiableSchedules.length > 0 && 
-    modifiableSchedules.every(schedule => selectedScheduleIds.has(schedule.id));
-  const isIndeterminate = selectedScheduleIds.size > 0 && !isAllSelected;
+  const currentPageSelectedCount = modifiableSchedules.filter(schedule => selectedScheduleIds.has(schedule.id)).length;
+  const isAllSelected = modifiableSchedules.length > 0 && currentPageSelectedCount === modifiableSchedules.length;
+  const isIndeterminate = currentPageSelectedCount > 0 && currentPageSelectedCount < modifiableSchedules.length;
 
   
   if (isLoading && schedules.length === 0) {

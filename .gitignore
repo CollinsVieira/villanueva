@@ -375,3 +375,4 @@ docs/.doctrees/
 # Migration files (uncomment if you want to ignore them)
 # */migrations/*
 # !*/migrations/__init__.py
+backup.sql

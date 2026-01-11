@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { 
   DollarSign, 
-  Plus, 
   Eye,
   CreditCard,
   FileText,
   CheckCircle,
   AlertCircle
 } from "lucide-react";
-    import { Venta } from "../../services/salesService";
+import { Venta } from "../../services/salesService";
 import paymentService from "../../services/paymentService";
 import { dynamicReportsService } from "../../services/dynamicReportsService";
 import { getProxyImageUrl } from "../../utils/imageUtils";
 import InitialPaymentForm from "./InitialPaymentForm";
+import { useQuery } from "@tanstack/react-query";
 
 interface InitialPaymentManagementProps {
   saleId: number;
@@ -40,29 +40,23 @@ const InitialPaymentManagement: React.FC<InitialPaymentManagementProps> = ({
   sale,
   onPaymentAdded
 }) => {
-  const [initialPayments, setInitialPayments] = useState<InitialPayment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
-  useEffect(() => {
-    loadInitialPayments();
-  }, [saleId]);
+  // Usar React Query para obtener los pagos iniciales
+  const { 
+    data: initialPayments = [], 
+    isLoading: loading,
+    refetch: loadInitialPayments
+  } = useQuery<InitialPayment[]>({
+    queryKey: ['initial-payments', saleId],
+    queryFn: () => paymentService.getInitialPayments(saleId),
+    staleTime: 1000 * 60 * 5, // 5 minutos
+    gcTime: 1000 * 60 * 10, // 10 minutos
+  });
 
-  const loadInitialPayments = async () => {
-    try {
-      setLoading(true);
-      const payments = await paymentService.getInitialPayments(saleId);
-      setInitialPayments(payments);
-    } catch (err: any) {
-      console.error('Error al cargar los pagos iniciales:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePaymentAdded = () => {
+  const handlePaymentAdded = async () => {
     setShowPaymentForm(false);
-    loadInitialPayments();
+    await loadInitialPayments();
     onPaymentAdded();
   };
 
@@ -183,15 +177,7 @@ const InitialPaymentManagement: React.FC<InitialPaymentManagementProps> = ({
             <div className="text-center py-8 text-gray-500">
               <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>No se han registrado pagos iniciales</p>
-              {!isComplete && (
-                <button
-                  onClick={() => setShowPaymentForm(true)}
-                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 mx-auto transition-colors"
-                >
-                  <Plus size={16} />
-                  Registrar Primer Pago
-                </button>
-              )}
+              <p className="font-bold">Ve al módulo de pagos para registrar el pago</p>
             </div>
           ) : (
             <div className="space-y-4">
