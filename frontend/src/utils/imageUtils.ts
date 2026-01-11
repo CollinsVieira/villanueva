@@ -5,13 +5,14 @@
 /**
  * Convierte una URL completa del backend a una URL que funcione con la IP correcta
  * @param imageUrl URL completa devuelta por el backend
- * @returns URL que funciona con la IP 192.168.1.41
+ * @returns 
  */
 export const getProxyImageUrl = (imageUrl: string | null | undefined): string | null => {
   if (!imageUrl) return null;
   
   // URL base correcta
-  const BASE_URL = 'http://192.168.1.41';
+  const BASE_URL = import.meta.env.VITE_IMAGE_IP;
+  //  const BASE_URL = 'http://192.168.100.4';
   
   try {
     // Si la URL ya está construida correctamente, devolverla
