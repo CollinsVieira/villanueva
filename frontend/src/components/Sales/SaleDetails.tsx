@@ -377,16 +377,6 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
             Descargar Boletas de Pago
           </button>
 
-          {sale.status === "active" && !sale.is_initial_payment_complete && (
-            <button
-              onClick={() => setActiveTab("initial")}
-              className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30  gap-2"
-            >
-              <DollarSign className="h-4 w-4" />
-              {(sale.total_initial_payments || 0) > 0 ? 'Completar Pago Inicial' : 'Registrar Pago Inicial'}
-            </button>
-          )}
-
           {sale.status === "active" && (
             <>
               <button
@@ -550,7 +540,11 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                 </p>
               </div>
               <div className="p-6">
-                <PaymentSchedule ventaId={sale.id} showLoteFilter={false} />
+                <PaymentSchedule 
+                  ventaId={sale.id} 
+                  showLoteFilter={false} 
+                  onActionSuccess={loadSaleDetails}
+                />
               </div>
             </div>
           ) : (
