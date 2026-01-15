@@ -598,7 +598,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                             Completar
                           </button>
                         )}
-                        {['partial', 'paid'].includes(schedule.status) && parseFloat(schedule.paid_amount) > 0 && (
+                        {((['partial', 'paid'].includes(schedule.status) && parseFloat(schedule.paid_amount) > 0) || schedule.status === 'forgiven') && (
                           <button
                             onClick={() => handleResetSchedule(schedule)}
                             className="text-red-600 hover:text-red-800 text-sm font-medium rounded-lg bg-red-100 p-2 justify-center hover:cursor-pointer"

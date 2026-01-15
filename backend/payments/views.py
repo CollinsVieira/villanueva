@@ -225,6 +225,44 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
         schedules = self.get_queryset().filter(status='pending')
         serializer = PaymentScheduleSummarySerializer(schedules, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def update_overdue(self, request):
+        """
+        Actualiza el estado de las cuotas pendientes que han vencido a "overdue".
+        Este endpoint ejecuta la misma lógica que el comando de management update_overdue_installments.
+        """
+        try:
+            from django.utils import timezone
+            
+            today = timezone.now().date()
+            
+            # Buscar cuotas pendientes que ya pasaron su fecha de vencimiento
+            pending_overdue = PaymentSchedule.objects.filter(
+                status='pending',
+                due_date__lt=today
+            )
+            
+            count = pending_overdue.count()
+            
+            if count > 0:
+                # Actualizar a 'overdue'
+                pending_overdue.update(status='overdue')
+                message = f'Se actualizaron {count} cuotas a estado "vencido"'
+            else:
+                message = 'No hay cuotas pendientes vencidas para actualizar'
+            
+            return Response({
+                'success': True,
+                'message': message,
+                'updated_count': count
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Error al actualizar cuotas vencidas: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'])
     def register_payment(self, request, pk=None):
@@ -456,6 +494,7 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
         """
         Restablece una cuota del cronograma, eliminando todos los pagos asociados 
         y volviendo la cuota a su estado pendiente/vencido original.
+        También maneja cuotas absueltas (forgiven).
         """
         schedule = self.get_object()
         
@@ -463,16 +502,51 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
             # Obtener todos los pagos asociados a esta cuota
             payments = list(schedule.payments.all())
             
-            if not payments:
+            # Caso 1: Tiene pagos - eliminarlos
+            if payments:
+                for payment in payments:
+                    schedule.reset_payment(payment, recorded_by=request.user)
+                    payment.delete()
+            # Caso 2: No tiene pagos pero está absueltas - resetear estado
+            elif schedule.is_forgiven:
+                from decimal import Decimal
+                from django.utils import timezone
+                
+                schedule.is_forgiven = False
+                schedule.paid_amount = Decimal('0.00')
+                schedule.payment_date = None
+                schedule.payment_method = None
+                schedule.receipt_number = None
+                schedule.receipt_date = None
+                schedule.receipt_image = None
+                schedule.boleta_image = None
+                schedule.recorded_by = request.user
+                
+                # Determinar el nuevo estado basado en la fecha de vencimiento
+                today = timezone.now().date()
+                if schedule.due_date < today:
+                    schedule.status = 'overdue'
+                else:
+                    schedule.status = 'pending'
+                
+                # Agregar nota sobre el restablecimiento
+                reset_note = f"Cuota absueltas restablecida el {timezone.now().strftime('%d/%m/%Y %H:%M')} por {request.user.get_full_name() if request.user else 'Sistema'}"
+                if schedule.notes:
+                    schedule.notes += f"\n{reset_note}"
+                else:
+                    schedule.notes = reset_note
+                
+                schedule.save()
+                
+                # Actualizar el estado del lote para recalcular el saldo
+                if hasattr(schedule.venta, 'lote') and schedule.venta.lote:
+                    schedule.venta.lote.save()
+            # Caso 3: No tiene pagos y no está absueltas
+            else:
                 return Response(
                     {'message': 'No hay pagos que restablecer para esta cuota'},
                     status=status.HTTP_200_OK
                 )
-            
-            # Eliminar todos los pagos asociados
-            for payment in payments:
-                schedule.reset_payment(payment, recorded_by=request.user)
-                payment.delete()
             
             # Retornar el cronograma actualizado
             serializer = self.get_serializer(schedule)

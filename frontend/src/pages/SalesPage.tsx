@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { SalesList, SaleForm, SaleDetails } from '../components/Sales';
 import { Venta } from '../services/salesService';
 
 type ViewMode = 'list' | 'create' | 'edit' | 'details';
 
 const SalesPage: React.FC = () => {
+  const location = useLocation();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedSale, setSelectedSale] = useState<Venta | null>(null);
+  const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
+
+  // Manejar navegación desde otras páginas
+  useEffect(() => {
+    if (location.state) {
+      const { saleId, viewMode: navViewMode } = location.state as { saleId?: number; viewMode?: ViewMode };
+      if (saleId && navViewMode === 'details') {
+        setSelectedSaleId(saleId);
+        setViewMode('details');
+      }
+    }
+  }, [location.state]);
 
   const handleCreateSale = () => {
     setSelectedSale(null);
@@ -42,6 +56,7 @@ const SalesPage: React.FC = () => {
   const handleBackToList = () => {
     setViewMode('list');
     setSelectedSale(null);
+    setSelectedSaleId(null);
   };
 
   const renderContent = () => {
@@ -66,7 +81,7 @@ const SalesPage: React.FC = () => {
       case 'details':
         return (
           <SaleDetails
-            saleId={selectedSale!.id}
+            saleId={selectedSaleId || selectedSale!.id}
             onEdit={handleEditSale}
             onClose={handleBackToList}
             onBack={handleBackToList}

@@ -21,6 +21,7 @@ import LoteManagement from "./components/Lotes/LoteManagement";
 import PaymentManagement from "./components/Payments/PaymentManagement";
 import SalesPage from "./pages/SalesPage";
 import DynamicReports from "./pages/DynamicReports";
+import Vencimientos from "./pages/Vencimientos";
 
 
 // Componente para rutas protegidas
@@ -200,6 +201,17 @@ const MainApp: React.FC = () => {
           }
         />
 
+        {/* --- RUTA PARA VENCIMIENTOS --- */}
+        <Route
+          path="/admin/vencimientos"
+          element={
+            <ProtectedRoute adminOnly>
+              <AppLayout>
+                <Vencimientos />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
         {/* Ruta catch-all para rutas no encontradas */}
         <Route

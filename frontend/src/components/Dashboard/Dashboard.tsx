@@ -15,9 +15,10 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { dashboardSummaryService } from '../../services';
+import { dashboardSummaryService, paymentService } from '../../services';
 import { Customer, Lote, Payment } from '../../types';
 import { LoadingSpinner } from '../UI';
+import DateService from '../../services/dateService';
 
 interface DashboardMetrics {
   totalCustomers: number;
@@ -129,9 +130,28 @@ const Dashboard: React.FC = () => {
   };
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData();
-    setRefreshing(false);
-    toast.success('Dashboard actualizado');
+    try {
+      // Primero actualizar las cuotas vencidas
+      const updateResult = await paymentService.updateOverdueInstallments();
+      
+      if (updateResult.success) {
+        if (updateResult.updated_count > 0) {
+          toast.success(`${updateResult.message}`);
+        }
+      }
+      
+      // Luego cargar los datos actualizados del dashboard
+      await loadDashboardData();
+      
+      if (updateResult.updated_count === 0) {
+        toast.success('Dashboard actualizado');
+      }
+    } catch (error) {
+      console.error('Error al actualizar:', error);
+      toast.error('Error al actualizar el dashboard');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getUrgencyColor = (days: number) => {
@@ -298,7 +318,7 @@ const Dashboard: React.FC = () => {
                       S/ {parseFloat(payment.amount).toFixed(2)}
                     </p>
                     <p className="text-xs text-gray-500">                      
-                      {new Date(payment.payment_date).toLocaleDateString('es-PE')}
+                      {DateService.utcToLocalDateOnly(payment.payment_date.toString())}
                     </p>
                   </div>
                 </div>
@@ -479,7 +499,7 @@ const Dashboard: React.FC = () => {
                               {item.customer_info?.full_name}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
-                              Cuota #{item.installment_number} · Vence: {new Date(item.due_date).toLocaleDateString('es-PE')}
+                              Cuota #{item.installment_number} · Vence: {DateService.utcToLocalDateOnly(item.due_date.toString())}
                             </p>
                           </div>
                         </div>

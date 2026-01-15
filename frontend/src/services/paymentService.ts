@@ -314,6 +314,11 @@ class PaymentService {
     return response.data;
   }
 
+  async updateOverdueInstallments(): Promise<{success: boolean; message: string; updated_count: number}> {
+    const response = await api.post('/payments/schedules/update_overdue/');
+    return response.data;
+  }
+
 }
 
 export default new PaymentService();

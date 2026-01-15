@@ -10,6 +10,7 @@ import {
   FileText,
   ShoppingCart,
   ArrowLeft,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -37,6 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
     { id: "clientes", label: "Clientes", icon: Users, path: "/admin/clientes" },
     { id: "lotes", label: "Lotes", icon: CheckSquare, path: "/admin/lotes" },
+    { id: "vencimientos", label: "Vencimientos", icon: Clock, path: "/admin/vencimientos" },
     { id: "pagos", label: "Pagos", icon: CreditCard, path: "/admin/pagos" },
     { id: "ventas", label: "Ventas", icon: ShoppingCart, path: "/admin/ventas" },
     { id: "reportes", label: "Reportes", icon: FileText, path: "/admin/reportes" },
