@@ -286,21 +286,43 @@ class Venta(models.Model):
         return plan
     
     def regenerate_payment_schedule(self):
-        """Regenera el cronograma de pagos cuando cambia el payment_day"""
+        """Regenera el cronograma de pagos cuando cambia el payment_day o schedule_start_date"""
         from payments.models import PaymentSchedule
+        from datetime import date, timedelta
         
-        # Solo regenerar si no hay pagos realizados
         existing_schedules = self.payment_schedules.all()
         has_payments = existing_schedules.filter(paid_amount__gt=0).exists()
         
         if has_payments:
-            raise ValidationError(_("No se puede regenerar el cronograma porque ya existen pagos realizados"))
-        
-        # Eliminar cronograma existente
-        existing_schedules.delete()
-        
-        # Generar nuevo cronograma con el payment_day actual
-        PaymentSchedule.generate_schedule_for_venta(self)
+            # Si hay pagos registrados, solo actualizar las fechas de vencimiento
+            # sin eliminar las cuotas ni afectar los montos pagados
+            
+            # Determinar la fecha de inicio del cronograma
+            start_date = self.schedule_start_date or self.sale_date.date()
+            payment_day = self.payment_day
+            
+            # Actualizar el payment_day en el plan de pagos si existe
+            if hasattr(self, 'plan_pagos'):
+                self.plan_pagos.payment_day = payment_day
+                self.plan_pagos.save()
+            
+            # Recalcular las fechas de vencimiento para cada cuota
+            for schedule in existing_schedules.order_by('installment_number'):
+                # Usar el método estático de PaymentSchedule para calcular la fecha
+                new_due_date = PaymentSchedule._calculate_due_date(
+                    start_date, 
+                    schedule.installment_number, 
+                    payment_day
+                )
+                schedule.due_date = new_due_date
+                schedule.save()
+        else:
+            # No hay pagos realizados, se puede regenerar completamente
+            # Eliminar cronograma existente
+            existing_schedules.delete()
+            
+            # Generar nuevo cronograma con el payment_day actual
+            PaymentSchedule.generate_schedule_for_venta(self)
         
         return self.payment_schedules.all()
     

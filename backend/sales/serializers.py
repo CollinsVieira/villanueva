@@ -273,15 +273,23 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
                         new_payment_day=instance.payment_day
                     )
                 elif payment_day_changed or schedule_start_date_changed:
-                    # Cambió el payment_day o schedule_start_date, usar el método original
+                    # Cambió el payment_day o schedule_start_date
+                    # Ahora permite actualizar las fechas incluso con pagos registrados
                     instance.regenerate_payment_schedule()
                         
+            except ValidationError as e:
+                # Relanzar errores de validación para que el usuario los vea
+                raise serializers.ValidationError({
+                    'detail': str(e)
+                })
             except Exception as e:
                 # Log del error para debugging
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f"Error updating payment schedule for venta {instance.id}: {str(e)}")
-                # No relanzar la excepción para evitar que falle la actualización
+                raise serializers.ValidationError({
+                    'detail': _('Error al actualizar el cronograma de pagos')
+                })
         
         return instance
 
