@@ -42,10 +42,11 @@ const SalesPage: React.FC = () => {
     setSelectedSale(null);
   };
 
-  const handleEditSuccess = (updatedSale: Venta) => {
-    // Actualizar la venta seleccionada y regresar a los detalles
-    setSelectedSale(updatedSale);
-    setViewMode('details');
+  const handleEditSuccess = () => {
+    // Actualizar y regresar a la lista de ventas
+    setSelectedSale(null);
+    setSelectedSaleId(null);
+    setViewMode('list');
   };
 
   const handleEditCancel = () => {

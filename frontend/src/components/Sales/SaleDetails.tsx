@@ -23,6 +23,7 @@ import { handleDownloadBoletasPagoPDF } from "../../utils/PdfBoletasDePago";
 import ConfirmationModal from "../../utils/ConfirmationModal";
 import { useConfirmation } from "../../hooks/useConfirmation";
 import { getProxyImageUrl } from "../../utils/imageUtils";
+import { dateService } from "../../services";
 interface SaleDetailsProps {
   saleId: number;
   onEdit?: (sale: Venta) => void;
@@ -285,7 +286,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                     <span className="text-gray-600">Fecha de Contrato:</span>
                     <span className="ml-2 font-medium">
                       {sale.contract_date
-                        ? dynamicReportsService.formatDate(sale.contract_date)
+                        ? dateService.utcToLocalDateOnly(sale.contract_date)
                         : "No especificada"}
                     </span>
                   </div>
@@ -507,12 +508,6 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium">Fecha inicio:</span>{" "}
-                        {dynamicReportsService.formatDate(
-                          paymentPlan.start_date
-                        )}
-                      </div>
                       <div>
                         <span className="font-medium">Día de pago:</span>{" "}
                         {paymentPlan.payment_day}

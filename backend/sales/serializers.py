@@ -236,6 +236,7 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         # Guardar valores originales para comparar cambios
         original_payment_day = instance.payment_day
         original_financing_months = instance.financing_months
+        original_schedule_start_date = instance.schedule_start_date
         
         # Actualizar campos normales
         for attr, value in validated_data.items():
@@ -260,9 +261,10 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         # Verificar si cambió el payment_day o financing_months
         payment_day_changed = payment_day is not None and int(payment_day) != int(original_payment_day) if original_payment_day else payment_day is not None
         financing_months_changed = financing_months is not None and int(financing_months) != int(original_financing_months) if original_financing_months else financing_months is not None
+        schedule_start_date_changed = instance.schedule_start_date != original_schedule_start_date
         
-        # Si cambió el payment_day o financing_months, actualizar el cronograma
-        if payment_day_changed or financing_months_changed:
+        # Si cambió el payment_day, financing_months o schedule_start_date, actualizar el cronograma
+        if payment_day_changed or financing_months_changed or schedule_start_date_changed:
             try:
                 if financing_months_changed:
                     # Usar el nuevo método para manejar cambios en financing_months
@@ -270,8 +272,8 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
                         new_financing_months=instance.financing_months,
                         new_payment_day=instance.payment_day
                     )
-                elif payment_day_changed:
-                    # Solo cambió el payment_day, usar el método original
+                elif payment_day_changed or schedule_start_date_changed:
+                    # Cambió el payment_day o schedule_start_date, usar el método original
                     instance.regenerate_payment_schedule()
                         
             except Exception as e:

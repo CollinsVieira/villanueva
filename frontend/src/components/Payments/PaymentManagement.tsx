@@ -393,7 +393,7 @@ const PaymentManagement: React.FC = () => {
                           <div className="flex items-center">
                             <Calendar size={16} className="text-gray-400 mr-2" />
                             <span className="text-gray-900">
-                              {DateService.utcToLocalDateOnly(payment.payment_date.toString())}
+                              {payment.payment_date_display || 'N/A'}
                             </span>
                           </div>
                         </td>
