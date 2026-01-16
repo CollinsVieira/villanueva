@@ -7,7 +7,6 @@ import PaymentForm from './PaymentForm';
 import EditPaymentForm from './EditPaymentForm';
 import PaymentSchedule from './PaymentSchedule';
 import { useDebounce } from '../../hooks/useDebounce';
-import DateService from '../../services/dateService';
 import { dynamicReportsService } from '../../services';
 import { getProxyImageUrl } from '../../utils/imageUtils';
 import { usePayments, useResetPayment } from '../../hooks/usePaymentsQueries';
