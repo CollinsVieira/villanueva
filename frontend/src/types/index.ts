@@ -109,6 +109,7 @@ export interface Payment {
   receipt_date:          Date;
   receipt_date_display:  string;
   receipt_image:         string;
+  boleta_image:          string;
   notes:                 string;
   recorded_by:           number;
   created_at:            Date;

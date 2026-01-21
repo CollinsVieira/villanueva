@@ -69,6 +69,7 @@ class Payment(models.Model):
     receipt_number = models.CharField(_("Número de Operación"), max_length=100, blank=True)
     receipt_date = models.DateField(_("Fecha de Operación"), blank=True, null=True)
     receipt_image = models.ImageField(_("Imagen del Comprobante"), upload_to='payment_receipts/', blank=True, null=True)
+    boleta_image = models.ImageField(_("Boleta de Pago"), upload_to='boleta_pagos/', blank=True, null=True)
     notes = models.TextField(_("Notas Adicionales"), blank=True, null=True)
 
     # Relación con el usuario que registró el pago

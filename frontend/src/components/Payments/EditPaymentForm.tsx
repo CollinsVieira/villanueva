@@ -268,7 +268,7 @@ const EditPaymentForm: React.FC<EditPaymentFormProps> = ({ payment, onClose, onS
             )}
 
             {/* Boleta de pago actual */}
-            {payment.payment_schedule_info?.boleta_image && (
+            {(payment.boleta_image || payment.payment_schedule_info?.boleta_image) && (
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
                 <h4 className="font-semibold text-purple-800 mb-2">Boleta de Pago Actual</h4>
                 <p className="text-sm text-purple-600">
@@ -349,7 +349,7 @@ const EditPaymentForm: React.FC<EditPaymentFormProps> = ({ payment, onClose, onS
                 <div className="w-6 h-6 bg-yellow-100 rounded-lg flex items-center justify-center mr-2">
                   <span className="text-yellow-600 text-xs font-bold">4</span>
                 </div>
-                {payment.payment_schedule_info?.boleta_image ? 'Reemplazar Boleta de Pago' : 'Subir Boleta de Pago'}
+                {(payment.boleta_image || payment.payment_schedule_info?.boleta_image) ? 'Reemplazar Boleta de Pago' : 'Subir Boleta de Pago'}
               </label>
               <div
                 className={`border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all ${

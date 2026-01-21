@@ -33,6 +33,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'receipt_date',
             'receipt_date_display',
             'receipt_image',
+            'boleta_image',
             'notes',
             'recorded_by',
             'created_at',
@@ -178,20 +179,16 @@ class PaymentSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user'):
             validated_data['recorded_by'] = request.user
 
-        # Extraer boleta_image si está presente (este campo no pertenece a Payment)
-        boleta_image = None
-        if request and request.FILES.get('boleta_image'):
-            boleta_image = request.FILES.get('boleta_image')
-
-        # Actualizar los campos del pago
+        # Actualizar los campos del pago (ahora boleta_image está en Payment)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
         instance.save()
         
-        # Si hay una boleta_image y el pago tiene un payment_schedule asociado, actualizarla allí
-        if boleta_image and instance.payment_schedule:
-            instance.payment_schedule.boleta_image = boleta_image
+        # Si el pago tiene un payment_schedule asociado (cuota), también actualizar la boleta allí
+        # para mantener sincronización con el cronograma
+        if instance.boleta_image and instance.payment_schedule:
+            instance.payment_schedule.boleta_image = instance.boleta_image
             instance.payment_schedule.save()
         
         return instance
