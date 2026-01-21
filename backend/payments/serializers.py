@@ -111,7 +111,8 @@ class PaymentSerializer(serializers.ModelSerializer):
                 'paid_amount': str(obj.payment_schedule.paid_amount),
                 'due_date': obj.payment_schedule.due_date.isoformat() if obj.payment_schedule.due_date else None,
                 'status': obj.payment_schedule.status,
-                'is_forgiven': obj.payment_schedule.is_forgiven
+                'is_forgiven': obj.payment_schedule.is_forgiven,
+                'boleta_image': obj.payment_schedule.boleta_image.url if obj.payment_schedule.boleta_image else None
             }
         return None
 
@@ -177,11 +178,22 @@ class PaymentSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user'):
             validated_data['recorded_by'] = request.user
 
+        # Extraer boleta_image si está presente (este campo no pertenece a Payment)
+        boleta_image = None
+        if request and request.FILES.get('boleta_image'):
+            boleta_image = request.FILES.get('boleta_image')
+
         # Actualizar los campos del pago
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
         instance.save()
+        
+        # Si hay una boleta_image y el pago tiene un payment_schedule asociado, actualizarla allí
+        if boleta_image and instance.payment_schedule:
+            instance.payment_schedule.boleta_image = boleta_image
+            instance.payment_schedule.save()
+        
         return instance
 
 class PaymentScheduleSerializer(serializers.ModelSerializer):

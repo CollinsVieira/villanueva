@@ -148,6 +148,7 @@ export interface PaymentScheduleInfo {
   due_date:           Date;
   status:             PaymentScheduleInfoStatus;
   is_forgiven:        boolean;
+  boleta_image?:      string;
 }
 
 export enum PaymentScheduleInfoStatus {
