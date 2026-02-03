@@ -219,6 +219,7 @@ class PaymentSchedule(models.Model):
         ('overdue', _('Vencido')),
         ('partial', _('Pago Parcial')),
         ('forgiven', _('Absuelto')),
+        ('refinanced', _('Refinanciado')),
     ]
     
     PAYMENT_METHOD_CHOICES = [
@@ -317,6 +318,12 @@ class PaymentSchedule(models.Model):
         help_text=_("Marca si esta cuota ha sido perdonada/regalada")
     )
     
+    is_refinanced = models.BooleanField(
+        _("Cuota Refinanciada"),
+        default=False,
+        help_text=_("Marca si esta cuota ha sido refinanciada (monto distribuido a otras cuotas)")
+    )
+    
     notes = models.TextField(
         _("Notas"),
         blank=True,
@@ -391,7 +398,9 @@ class PaymentSchedule(models.Model):
                 self.paid_amount = total_paid
         
         # Actualizar estado automáticamente
-        if self.is_forgiven:
+        if self.is_refinanced:
+            self.status = 'refinanced'
+        elif self.is_forgiven:
             self.status = 'forgiven'
         elif self.paid_amount >= self.scheduled_amount:
             self.status = 'paid'
@@ -741,6 +750,7 @@ class PaymentSchedule(models.Model):
         self.receipt_image = None
         self.boleta_image = None
         self.is_forgiven = False
+        self.is_refinanced = False
         self.recorded_by = recorded_by
         
         # Determinar el nuevo estado basado en la fecha de vencimiento
@@ -782,3 +792,109 @@ class PaymentSchedule(models.Model):
         ).aggregate(
             total=models.Sum('scheduled_amount')
         )['total'] or Decimal('0.00')
+    
+    @classmethod
+    def refinance_installments(cls, schedule_ids, recorded_by=None):
+        """
+        Refinancia múltiples cuotas: establece su monto a 0 y redistribuye
+        el monto total entre las cuotas restantes pendientes, vencidas o parciales.
+        
+        Args:
+            schedule_ids: Lista de IDs de cuotas a refinanciar
+            recorded_by: Usuario que ejecuta la refinanciación
+            
+        Returns:
+            dict con información sobre la refinanciación realizada
+        """
+        from django.db.models import Sum
+        
+        # Obtener las cuotas a refinanciar
+        schedules_to_refinance = cls.objects.filter(id__in=schedule_ids)
+        
+        if not schedules_to_refinance.exists():
+            raise ValueError("No se encontraron cuotas para refinanciar")
+        
+        # Validar que todas sean de la misma venta
+        ventas_count = schedules_to_refinance.values_list('venta_id', flat=True).distinct().count()
+        if ventas_count > 1:
+            raise ValueError("Todas las cuotas deben pertenecer a la misma venta")
+        
+        venta = schedules_to_refinance.first().venta
+        
+        # Validar que las cuotas sean refinanciables (pending, overdue)
+        non_refinanciable = schedules_to_refinance.exclude(
+            status__in=['pending', 'overdue']
+        )
+        if non_refinanciable.exists():
+            raise ValueError("Solo se pueden refinanciar cuotas pendientes o vencidas")
+        
+        # Calcular el monto total a refinanciar
+        total_to_refinance = schedules_to_refinance.aggregate(
+            total=Sum('scheduled_amount')
+        )['total'] or Decimal('0.00')
+        
+        # Obtener cuotas restantes (no seleccionadas y redistributables)
+        remaining_schedules = venta.payment_schedules.filter(
+            status__in=['pending', 'overdue', 'partial']
+        ).exclude(id__in=schedule_ids)
+        
+        remaining_count = remaining_schedules.count()
+        
+        if remaining_count == 0:
+            raise ValueError("No hay cuotas restantes disponibles para redistribuir el monto")
+        
+        # Calcular el monto a añadir a cada cuota restante (redondeado hacia abajo a números enteros)
+        amount_per_remaining = (total_to_refinance / remaining_count).quantize(
+            Decimal('1'), rounding='ROUND_DOWN'
+        )
+        
+        # Calcular el sobrante para la última cuota
+        total_distributed = amount_per_remaining * (remaining_count - 1)
+        last_amount_addition = total_to_refinance - total_distributed
+        
+        # Marcar las cuotas seleccionadas como refinanciadas
+        refinanced_count = 0
+        for schedule in schedules_to_refinance:
+            old_amount = schedule.scheduled_amount
+            schedule.is_refinanced = True
+            schedule.status = 'refinanced'
+            schedule.scheduled_amount = Decimal('0.00')
+            schedule.recorded_by = recorded_by
+            
+            refinance_note = f"Cuota refinanciada. Monto original: S/. {old_amount}. Distribuido entre {remaining_count} cuotas restantes."
+            if schedule.notes:
+                schedule.notes += f"\n{refinance_note}"
+            else:
+                schedule.notes = refinance_note
+            
+            schedule.save()
+            refinanced_count += 1
+        
+        # Redistribuir el monto entre las cuotas restantes
+        remaining_list = list(remaining_schedules.order_by('installment_number'))
+        for i, schedule in enumerate(remaining_list):
+            old_amount = schedule.scheduled_amount
+            
+            if i == len(remaining_list) - 1:  # Última cuota
+                addition = last_amount_addition
+            else:
+                addition = amount_per_remaining
+            
+            new_amount = old_amount + addition
+            schedule.scheduled_amount = new_amount
+            
+            redistribution_note = f"Refinanciación: + S/. {addition:.2f} (de {old_amount:.2f} a {new_amount:.2f})"
+            if schedule.notes:
+                schedule.notes += f"\n{redistribution_note}"
+            else:
+                schedule.notes = redistribution_note
+            
+            schedule.save()
+        
+        return {
+            'refinanced_count': refinanced_count,
+            'total_refinanced': float(total_to_refinance),
+            'remaining_count': remaining_count,
+            'new_amount_per_installment': float(amount_per_remaining),
+            'message': f'Se refinanciaron {refinanced_count} cuotas. Monto total de S/. {total_to_refinance:.2f} distribuido entre {remaining_count} cuotas restantes.'
+        }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, AlertTriangle, CircleDot, Plus, Edit2 } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, AlertTriangle, CircleDot, Plus, Edit2, RefreshCw } from 'lucide-react';
 import { PaymentSchedule as PaymentScheduleType, Lote } from '../../types';
 import paymentService from '../../services/paymentService';
 import loteService from '../../services/loteService';
@@ -41,6 +41,8 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   const [isForgiving, setIsForgiving] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [scheduleToReset, setScheduleToReset] = useState<PaymentScheduleType | null>(null);
+  const [showRefinanceModal, setShowRefinanceModal] = useState(false);
+  const [isRefinancing, setIsRefinancing] = useState(false);
   const itemsPerPage = 10;
 
   // Hook para restablecer cuota
@@ -127,6 +129,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       case 'pending': return 'text-yellow-600 bg-yellow-100';
       case 'overdue': return 'text-red-600 bg-red-100';
       case 'forgiven': return 'text-purple-600 bg-purple-100';
+      case 'refinanced': return 'text-indigo-600 bg-indigo-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -138,6 +141,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       case 'pending': return <Clock size={16} />;
       case 'overdue': return <AlertTriangle size={16} />;
       case 'forgiven': return <CheckCircle size={16} />;
+      case 'refinanced': return <RefreshCw size={16} />;
       default: return <CircleDot size={16} />;
     }
   };
@@ -149,6 +153,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
       case 'pending': return 'Pendiente';
       case 'overdue': return 'Vencido';
       case 'forgiven': return 'Absuelto';
+      case 'refinanced': return 'Refinanciado';
       default: return 'Desconocido';
     }
   };
@@ -231,7 +236,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
   const handleSelectAll = (checked: boolean) => {
     // Obtener IDs modificables de la página actual
     const modifiableIds = currentSchedules
-      .filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status))
+      .filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven', 'refinanced'].includes(schedule.status))
       .map(schedule => schedule.id);
     
     if (checked) {
@@ -262,11 +267,82 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
     onActionSuccess?.();
   };
 
+  // Función para manejar refinanciación
+  const handleRefinance = () => {
+    if (selectedScheduleIds.size === 0) {
+      alert('Por favor seleccione al menos una cuota para refinanciar');
+      return;
+    }
+
+    // Validar que solo se seleccionen cuotas refinanciables (pending, overdue)
+    const selectedSchedulesToRefinance = schedules.filter(schedule => selectedScheduleIds.has(schedule.id));
+    const nonRefinanciable = selectedSchedulesToRefinance.filter(
+      schedule => !['pending', 'overdue'].includes(schedule.status)
+    );
+
+    if (nonRefinanciable.length > 0) {
+      alert('Solo se pueden refinanciar cuotas pendientes o vencidas. Por favor, deseleccione las cuotas pagadas, parciales, absueltas o ya refinanciadas.');
+      return;
+    }
+
+    setShowRefinanceModal(true);
+  };
+
+  const confirmRefinance = async () => {
+    setIsRefinancing(true);
+    try {
+      const scheduleIds = Array.from(selectedScheduleIds);
+      await paymentService.refinanceInstallments(scheduleIds);
+      
+      setShowRefinanceModal(false);
+      setSelectedScheduleIds(new Set());
+      loadSchedules();
+      onActionSuccess?.();
+      
+      const { toast } = await import('react-hot-toast');
+      toast.success('Cuotas refinanciadas exitosamente');
+    } catch (error: any) {
+      console.error('Error al refinanciar cuotas:', error);
+      const { toast } = await import('react-hot-toast');
+      toast.error(error.response?.data?.error || 'Error al refinanciar las cuotas');
+    } finally {
+      setIsRefinancing(false);
+    }
+  };
+
   // Obtener cuotas seleccionadas
   const selectedSchedules = schedules.filter(schedule => selectedScheduleIds.has(schedule.id));
 
+  // Calcular información para el modal de refinanciación
+  const calculateRefinanceInfo = () => {
+    const selectedToRefinance = schedules.filter(schedule => selectedScheduleIds.has(schedule.id));
+    const totalToRefinance = selectedToRefinance.reduce(
+      (sum, schedule) => sum + parseFloat(schedule.scheduled_amount),
+      0
+    );
+
+    // Cuotas restantes son las que no están seleccionadas y no están pagadas/refinanciadas/absueltas
+    const remainingSchedules = schedules.filter(
+      schedule => !selectedScheduleIds.has(schedule.id) && 
+      ['pending', 'overdue', 'partial'].includes(schedule.status)
+    );
+
+    // Calcular el monto base por cuota (redondeado hacia abajo a números enteros)
+    const amountPerRemaining = remainingSchedules.length > 0 
+      ? Math.floor(totalToRefinance / remainingSchedules.length)
+      : 0;
+
+    return {
+      selectedCount: selectedToRefinance.length,
+      totalToRefinance,
+      remainingCount: remainingSchedules.length,
+      amountPerRemaining,
+      remainingSchedules
+    };
+  };
+
   // Verificar si todas las cuotas modificables de la PÁGINA ACTUAL están seleccionadas
-  const modifiableSchedules = currentSchedules.filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status));
+  const modifiableSchedules = currentSchedules.filter(schedule => ['pending', 'overdue', 'partial', 'paid', 'forgiven', 'refinanced'].includes(schedule.status));
   const currentPageSelectedCount = modifiableSchedules.filter(schedule => selectedScheduleIds.has(schedule.id)).length;
   const isAllSelected = modifiableSchedules.length > 0 && currentPageSelectedCount === modifiableSchedules.length;
   const isIndeterminate = currentPageSelectedCount > 0 && currentPageSelectedCount < modifiableSchedules.length;
@@ -396,6 +472,13 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                   {selectedScheduleIds.size} cuota{selectedScheduleIds.size > 1 ? 's' : ''} seleccionada{selectedScheduleIds.size > 1 ? 's' : ''}
                 </span>
                 <button
+                  onClick={handleRefinance}
+                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <RefreshCw size={16} />
+                  <span>Refinanciar</span>
+                </button>
+                <button
                   onClick={handleBulkModify}
                   className="flex items-center space-x-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors"
                 >
@@ -443,7 +526,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {currentSchedules.map((schedule, index) => {
-                  const isModifiable = ['pending', 'overdue', 'partial', 'paid', 'forgiven'].includes(schedule.status);
+                  const isModifiable = ['pending', 'overdue', 'partial', 'paid', 'forgiven', 'refinanced'].includes(schedule.status);
                   const isSelected = selectedScheduleIds.has(schedule.id);
                   
                   return (
@@ -598,7 +681,7 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
                             Completar
                           </button>
                         )}
-                        {((['partial', 'paid'].includes(schedule.status) && parseFloat(schedule.paid_amount) > 0) || schedule.status === 'forgiven') && (
+                        {((['partial', 'paid'].includes(schedule.status) && parseFloat(schedule.paid_amount) > 0) || ['forgiven', 'refinanced'].includes(schedule.status)) && (
                           <button
                             onClick={() => handleResetSchedule(schedule)}
                             className="text-red-600 hover:text-red-800 text-sm font-medium rounded-lg bg-red-100 p-2 justify-center hover:cursor-pointer"
@@ -768,6 +851,152 @@ const PaymentSchedule: React.FC<PaymentScheduleProps> = ({
         cancelText="Cancelar"
         isLoading={resetScheduleMutation.isPending}
       />
+
+      {/* Refinance Confirmation Modal */}
+      {showRefinanceModal && (() => {
+        const refinanceInfo = calculateRefinanceInfo();
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Confirmar Refinanciación</h3>
+                <button
+                  onClick={() => setShowRefinanceModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={isRefinancing}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Información de las cuotas a refinanciar */}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-indigo-900 mb-3">Cuotas a Refinanciar</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">Cantidad de cuotas:</span>
+                      <span className="font-bold text-indigo-900">{refinanceInfo.selectedCount}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">Monto total:</span>
+                      <span className="font-bold text-indigo-900">
+                        S/. {refinanceInfo.totalToRefinance.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Lista de cuotas seleccionadas */}
+                  <div className="mt-4 max-h-40 overflow-y-auto">
+                    <div className="text-xs text-gray-600 mb-2">Cuotas seleccionadas:</div>
+                    <div className="space-y-1">
+                      {selectedSchedules.map(schedule => (
+                        <div key={schedule.id} className="flex justify-between items-center bg-white p-2 rounded text-xs">
+                          <span>Cuota #{schedule.installment_number}</span>
+                          <span className="font-medium">S/. {parseFloat(schedule.scheduled_amount).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información de la redistribución */}
+                {refinanceInfo.remainingCount > 0 ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-green-900 mb-3">Redistribución del Monto</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">Cuotas restantes:</span>
+                        <span className="font-bold text-green-900">{refinanceInfo.remainingCount}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">Monto base por cuota:</span>
+                        <span className="font-bold text-green-900">
+                          + S/. {refinanceInfo.amountPerRemaining.toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        (Los decimales se suman a la última cuota)
+                      </div>
+                    </div>
+
+                    {/* Vista previa de las cuotas que recibirán el monto */}
+                    <div className="mt-4 max-h-40 overflow-y-auto">
+                      <div className="text-xs text-gray-600 mb-2">Nuevos montos:</div>
+                      <div className="space-y-1">
+                        {refinanceInfo.remainingSchedules.map((schedule, index) => {
+                          const currentAmount = parseFloat(schedule.scheduled_amount);
+                          const isLastSchedule = index === refinanceInfo.remainingSchedules.length - 1;
+                          
+                          // Calcular el monto a añadir
+                          let amountToAdd;
+                          if (isLastSchedule) {
+                            // Última cuota: total menos lo distribuido en las demás
+                            const totalDistributed = refinanceInfo.amountPerRemaining * (refinanceInfo.remainingCount - 1);
+                            amountToAdd = refinanceInfo.totalToRefinance - totalDistributed;
+                          } else {
+                            // Cuotas intermedias: monto base sin decimales
+                            amountToAdd = refinanceInfo.amountPerRemaining;
+                          }
+                          
+                          const newAmount = currentAmount + amountToAdd;
+                          
+                          return (
+                            <div key={schedule.id} className="flex justify-between items-center bg-white p-2 rounded text-xs">
+                              <span>Cuota #{schedule.installment_number}</span>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-gray-500">S/. {currentAmount.toFixed(2)}</span>
+                                <span className="text-green-600">→</span>
+                                <span className="font-medium text-green-700">S/. {newAmount.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-900 text-sm">
+                      No hay cuotas restantes disponibles para redistribuir el monto. 
+                      No se puede completar la refinanciación.
+                    </p>
+                  </div>
+                )}
+
+                {/* Advertencia */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-yellow-900 text-sm">
+                    <strong>⚠️ Advertencia:</strong> Esta acción marcará las cuotas seleccionadas como "refinanciadas" 
+                    con monto S/. 0.00 y distribuirá su monto entre las cuotas restantes. Esta acción no se puede deshacer.
+                  </p>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowRefinanceModal(false)}
+                  disabled={isRefinancing}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmRefinance}
+                  disabled={isRefinancing || refinanceInfo.remainingCount === 0}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {isRefinancing && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  <span>{isRefinancing ? 'Refinanciando...' : 'Confirmar Refinanciación'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

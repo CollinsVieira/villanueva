@@ -319,6 +319,19 @@ class PaymentService {
     return response.data;
   }
 
+  async refinanceInstallments(scheduleIds: number[]): Promise<{
+    message: string;
+    refinanced_count: number;
+    total_refinanced: number;
+    remaining_count: number;
+    new_amount_per_installment: number;
+  }> {
+    const response = await api.post('/payments/schedules/refinance_installments/', {
+      schedule_ids: scheduleIds
+    });
+    return response.data;
+  }
+
 }
 
 export default new PaymentService();

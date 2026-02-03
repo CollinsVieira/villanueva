@@ -489,6 +489,42 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=False, methods=['post'])
+    def refinance_installments(self, request):
+        """
+        Refinancia múltiples cuotas: establece su monto a 0 y redistribuye
+        el monto total entre las cuotas restantes pendientes, vencidas o parciales.
+        """
+        schedule_ids = request.data.get('schedule_ids', [])
+        
+        if not schedule_ids:
+            return Response(
+                {'error': 'schedule_ids is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            result = PaymentSchedule.refinance_installments(
+                schedule_ids=schedule_ids,
+                recorded_by=request.user
+            )
+            
+            return Response(result, status=status.HTTP_200_OK)
+            
+        except ValueError as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en refinanciación de cuotas: {str(e)}")
+            return Response(
+                {'error': f'Error interno al refinanciar cuotas: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     @action(detail=True, methods=['post'])
     def reset_installment(self, request, pk=None):
         """
@@ -507,12 +543,16 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                 for payment in payments:
                     schedule.reset_payment(payment, recorded_by=request.user)
                     payment.delete()
-            # Caso 2: No tiene pagos pero está absueltas - resetear estado
-            elif schedule.is_forgiven:
+            # Caso 2: No tiene pagos pero está absueltas o refinanciadas - resetear estado
+            elif schedule.is_forgiven or schedule.is_refinanced:
                 from decimal import Decimal
                 from django.utils import timezone
                 
+                was_refinanced = schedule.is_refinanced
+                old_amount = schedule.scheduled_amount
+                
                 schedule.is_forgiven = False
+                schedule.is_refinanced = False
                 schedule.paid_amount = Decimal('0.00')
                 schedule.payment_date = None
                 schedule.payment_method = None
@@ -522,6 +562,10 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                 schedule.boleta_image = None
                 schedule.recorded_by = request.user
                 
+                # Si era refinanciada, restaurar el monto original
+                if was_refinanced:
+                    schedule.scheduled_amount = schedule.original_amount
+                
                 # Determinar el nuevo estado basado en la fecha de vencimiento
                 today = timezone.now().date()
                 if schedule.due_date < today:
@@ -530,7 +574,11 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                     schedule.status = 'pending'
                 
                 # Agregar nota sobre el restablecimiento
-                reset_note = f"Cuota absueltas restablecida el {timezone.now().strftime('%d/%m/%Y %H:%M')} por {request.user.get_full_name() if request.user else 'Sistema'}"
+                status_text = "refinanciada" if was_refinanced else "absuelta"
+                reset_note = f"Cuota {status_text} restablecida el {timezone.now().strftime('%d/%m/%Y %H:%M')} por {request.user.get_full_name() if request.user else 'Sistema'}"
+                if was_refinanced:
+                    reset_note += f". Monto restaurado de S/. {old_amount} a S/. {schedule.original_amount}"
+                
                 if schedule.notes:
                     schedule.notes += f"\n{reset_note}"
                 else:
@@ -538,10 +586,14 @@ class PaymentScheduleViewSet(viewsets.ModelViewSet):
                 
                 schedule.save()
                 
+                # Si era refinanciada, redistribuir las demás cuotas para mantener el balance
+                if was_refinanced:
+                    schedule._redistribute_remaining_installments()
+                
                 # Actualizar el estado del lote para recalcular el saldo
                 if hasattr(schedule.venta, 'lote') and schedule.venta.lote:
                     schedule.venta.lote.save()
-            # Caso 3: No tiene pagos y no está absueltas
+            # Caso 3: No tiene pagos y no está absueltas ni refinanciadas
             else:
                 return Response(
                     {'message': 'No hay pagos que restablecer para esta cuota'},
