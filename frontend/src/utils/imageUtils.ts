@@ -1,22 +1,16 @@
-/**
- * Utilidad para manejar URLs de imágenes del backend
- */
+import { publicOrigin } from '../config/env';
 
 /**
- * Convierte una URL completa del backend a una URL que funcione con la IP correcta
- * @param imageUrl URL completa devuelta por el backend
- * @returns 
+ * Convierte una URL del backend a una ruta accesible desde el navegador.
+ * Con VITE_IMAGE_IP vacío usa rutas relativas (mismo dominio en producción).
  */
 export const getProxyImageUrl = (imageUrl: string | null | undefined): string | null => {
   if (!imageUrl) return null;
-  
-  // URL base correcta
-  const BASE_URL = import.meta.env.VITE_IMAGE_IP;
-  //  const BASE_URL = 'http://192.168.100.4';
+
+  const BASE_URL = publicOrigin;
   
   try {
-    // Si la URL ya está construida correctamente, devolverla
-    if (imageUrl.startsWith(BASE_URL)) {
+    if (BASE_URL && imageUrl.startsWith(BASE_URL)) {
       return imageUrl;
     }
     

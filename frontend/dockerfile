@@ -16,10 +16,11 @@ RUN pnpm install --frozen-lockfile
 # Copiar código fuente
 COPY . .
 
-# Variables de entorno para Vite (disponibles en build time)
-# Valor por defecto apuntando al proxy de Nginx
-ARG VITE_API_URL=/api
-ENV VITE_API_URL=$VITE_API_URL
+# Variables de entorno para Vite (build time). Vacío = mismo origen vía nginx.
+ARG VITE_API_BASE_URL=
+ARG VITE_IMAGE_IP=
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_IMAGE_IP=$VITE_IMAGE_IP
 
 # Construir la aplicación para producción
 ENV NODE_ENV=production

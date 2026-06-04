@@ -29,6 +29,7 @@ services:
       - PYTHONUNBUFFERED=1
       - DEBUG=0
       - IP_BASE_URL=192.168.100.4
+      - POSTGRES_HOST=db
     depends_on:
       - db
     command: gunicorn villanueva_project.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
@@ -44,7 +45,6 @@ services:
       - ./frontend/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
-      - frontend
 
   # Scheduler para actualizar cuotas vencidas diariamente
   scheduler:
@@ -59,12 +59,14 @@ services:
       - PYTHONUNBUFFERED=1
       - DEBUG=0
       - IP_BASE_URL=192.168.100.4
+      - POSTGRES_HOST=db
     depends_on:
       - db
+    entrypoint: ["/bin/sh", "-c"]
     command: >
-      sh -c "echo 'Scheduler iniciado - Actualizando cuotas cada 24 horas' &&
+      echo 'Scheduler iniciado - Actualizando cuotas cada 24 horas' &&
       while true; do
         python manage.py update_overdue_installments;
         sleep 86400;
-      done"
+      done
     restart: always

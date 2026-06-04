@@ -1,9 +1,9 @@
 import api from './api';
 import axios from 'axios';
 import { User } from '../types';
+import { apiBaseUrl } from '../config/env';
 
-// Configuración base de la API
-const API_BASE_URL =  `${import.meta.env.VITE_API_BASE_URL}/api/v1`;
+const API_BASE_URL = apiBaseUrl;
 
 export interface LoginCredentials {
   email: string;

@@ -1,0 +1,123 @@
+# Producción / Dokploy — usar este archivo como "Compose Path"
+# Variables: configurar en Dokploy → Environment o archivo .env en el servidor
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-villanueva_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-villanueva_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    restart: always
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DEBUG: ${DEBUG:-0}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Define DJANGO_SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-}
+      USE_HTTPS: ${USE_HTTPS:-false}
+      IP_BASE_URL: ${IP_BASE_URL:-}
+      POSTGRES_DB: ${POSTGRES_DB:-villanueva_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      gunicorn villanueva_project.asgi:application
+      -k uvicorn.workers.UvicornWorker
+      -b 0.0.0.0:8000
+      --workers ${GUNICORN_WORKERS:-2}
+      --timeout 120
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_IMAGE_IP: ${VITE_IMAGE_IP:-}
+    restart: always
+    volumes:
+      - frontend_dist:/app/dist
+    healthcheck:
+      test: ["CMD", "test", "-f", "/app/dist/index.html"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 180s
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      # Puerto en el VPS (ej. 8080). Acceso: http://IP_DEL_SERVIDOR:8080
+      # Si Traefik/Dokploy no usa el 80, puedes poner NGINX_PUBLISH=80
+      - "${NGINX_PUBLISH:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_healthy
+
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    restart: always
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DEBUG: ${DEBUG:-0}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-}
+      USE_HTTPS: ${USE_HTTPS:-false}
+      IP_BASE_URL: ${IP_BASE_URL:-}
+      POSTGRES_DB: ${POSTGRES_DB:-villanueva_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    volumes:
+      - media_volume:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      echo 'Scheduler iniciado - Actualizando cuotas cada 24 horas' &&
+      while true; do
+        python manage.py update_overdue_installments;
+        sleep 86400;
+      done
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+  frontend_dist:

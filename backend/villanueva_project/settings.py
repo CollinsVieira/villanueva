@@ -17,17 +17,33 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.lower() in ('1', 'true', 'yes', 'on')
+
+
+def _env_list(name: str, default: str = '') -> list[str]:
+    raw = os.environ.get(name, default)
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-656^oe7&+v9_kb=l=yg(ce8mi&-gj+pgfpq40irnp=xcs&fc$s'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-656^oe7&+v9_kb=l=yg(ce8mi&-gj+pgfpq40irnp=xcs&fc$s',
+)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _env_bool('DEBUG', default=True)
 
-# Permitir acceso desde la red local
-ALLOWED_HOSTS = ['*']
+_allowed_hosts = _env_list('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = _allowed_hosts if _allowed_hosts else ['*']
+
+PUBLIC_SITE_URL = os.environ.get('PUBLIC_SITE_URL', '').rstrip('/')
+IP_BASE_URL = os.environ.get('IP_BASE_URL', '')
 
 
 # Application definition
@@ -96,11 +112,11 @@ WSGI_APPLICATION = 'villanueva_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'villanueva_db',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'villanueva_db',
-        'PORT': 5432,
+        'NAME': os.environ.get('POSTGRES_DB', 'villanueva_db'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     },
     # 'default': {
     #     'ENGINE': 'django.db.backends.sqlite3',
@@ -147,11 +163,8 @@ STATIC_LOCATION= 'static'
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Lee la variable de entorno IP_BASE_URL
-IP_BASE_URL = os.environ.get('IP_BASE_URL')
-
-# Media files (uploads)
-MEDIA_URL = f'http://{IP_BASE_URL}/media/'
+# Media files (uploads) — ruta relativa para nginx/Traefik en producción
+MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Forzar URLs relativas para archivos de media
@@ -197,21 +210,39 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 
-# Si la variable de entorno existe, añade las URLs correspondientes a la lista
-if IP_BASE_URL:
-    CORS_ALLOWED_ORIGINS.extend([
-        f"http://{IP_BASE_URL}",
-        f"http://{IP_BASE_URL}:8000",
-        f"http://{IP_BASE_URL}:80",
-    ])
+def _origin_variants(base: str) -> list[str]:
+    base = base.rstrip('/')
+    origins = {base}
+    if base.startswith('https://'):
+        origins.add(base.replace('https://', 'http://', 1))
+    elif base.startswith('http://'):
+        origins.add(base.replace('http://', 'https://', 1))
+    else:
+        origins.update({f'http://{base}', f'https://{base}', f'http://{base}:80', f'http://{base}:8000'})
+    return list(origins)
 
-# Si la variable de entorno existe, añade las URLs correspondientes a la lista
+
+if PUBLIC_SITE_URL:
+    for origin in _origin_variants(PUBLIC_SITE_URL):
+        CORS_ALLOWED_ORIGINS.append(origin)
+        CSRF_TRUSTED_ORIGINS.append(origin)
+
 if IP_BASE_URL:
-    CSRF_TRUSTED_ORIGINS.extend([
-        f"http://{IP_BASE_URL}",
-        f"http://{IP_BASE_URL}:8000",
-        f"http://{IP_BASE_URL}:80",
-    ])
+    for origin in _origin_variants(f'http://{IP_BASE_URL}' if '://' not in IP_BASE_URL else IP_BASE_URL):
+        CORS_ALLOWED_ORIGINS.append(origin)
+        CSRF_TRUSTED_ORIGINS.append(origin)
+
+USE_HTTPS = _env_bool(
+    'USE_HTTPS',
+    default=PUBLIC_SITE_URL.startswith('https://'),
+)
+
+if not DEBUG:
+    USE_X_FORWARDED_HOST = True
+    if USE_HTTPS:
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
 
 
 

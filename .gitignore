@@ -377,3 +377,7 @@ docs/.doctrees/
 # !*/migrations/__init__.py
 backup.sql
 frontend/.env
+frontend/.env
+
+media_volume/
+static_volume/
