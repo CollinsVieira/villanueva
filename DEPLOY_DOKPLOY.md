@@ -89,6 +89,76 @@ USE_HTTPS=true
 
 Configura backups de `postgres_data` y `media_volume` desde Dokploy.
 
+## Migrar comprobantes y boletas (media) desde local
+
+La URL `/media/payment_receipts/archivo.png` es correcta.
+
+### Carpeta en el servidor vs volumen Docker
+
+En Dokploy tus archivos deben estar en la carpeta del proyecto:
+
+```
+/etc/dokploy/compose/serfersystem-app-re4omi/code/media_volume/
+├── payment_receipts/
+│   └── RICHARD_55.png
+├── boleta_pagos/
+└── contracts/
+```
+
+El compose de producción monta **`./media_volume` → `/app/media`** (igual que en local).
+
+**Importante:** antes el compose usaba un volumen Docker **nombrado** también llamado `media_volume`, que es **otro almacenamiento vacío** en `/var/lib/docker/volumes/...`. Por eso ver la carpeta en el explorador de archivos del servidor y seguir con 404.
+
+En Dokploy → **Environment**, añade (ruta exacta de tu servidor):
+
+```env
+MEDIA_HOST_PATH=/etc/dokploy/compose/serfersystem-app-re4omi/code/media_volume
+```
+
+Tras actualizar el compose, haz **Redeploy**. Los archivos `/media/` los sirve el **backend** (nginx hace proxy).
+
+### Comprobar en el VPS (antes o después del deploy)
+
+```bash
+# ¿El contenedor ve los archivos?
+docker exec serfersystem-app-re4omi-backend-1 ls -la /app/media/payment_receipts/ | head
+
+# ¿La BD coincide con el disco?
+docker exec serfersystem-app-re4omi-backend-1 python manage.py check_media_files
+
+# Probar Django directo (puerto interno; si aquí funciona, nginx también tras redeploy)
+docker exec serfersystem-app-re4omi-backend-1 wget -qO- --spider http://127.0.0.1:8000/media/payment_receipts/RICHARD_55.png && echo OK || echo FALLO
+```
+
+Si `ls` está **vacío** pero en SFTP ves archivos, el montaje no apunta a tu carpeta → define `MEDIA_HOST_PATH` como arriba.
+
+**Error habitual de estructura:** `code/media_volume/media/payment_receipts/` (carpeta `media` de más). Debe ser `code/media_volume/payment_receipts/` directamente.
+
+### Copiar desde tu PC al VPS
+
+1. En el VPS, localiza el contenedor backend: `docker ps` (ej. `serfersystem-app-re4omi-backend-1`).
+2. Sube la carpeta local `media_volume` (la de tu proyecto) al servidor.
+3. Ejecuta:
+
+```bash
+docker cp ./media_volume/. NOMBRE_CONTENEDOR_BACKEND:/app/media/
+docker exec NOMBRE_CONTENEDOR_BACKEND python manage.py check_media_files
+```
+
+O usa el script: `scripts/import-media-to-vps.sh`
+
+4. Comprueba en el navegador la misma URL. No hace falta redeploy si nginx ya monta `media_volume`.
+
+### Carpetas según el tipo de archivo
+
+| Tipo en la app | Carpeta en el volumen |
+|----------------|------------------------|
+| Comprobante de pago | `payment_receipts/` |
+| Boleta de pago | `boleta_pagos/` |
+| Contrato PDF | `contracts/` |
+
+Los PDFs del frontend cargan esas mismas URLs; si el archivo existe, los reportes mostrarán las imágenes.
+
 ## Notas importantes
 
 - **No uses** `container_name` en producción.
@@ -114,5 +184,7 @@ docker compose up -d
 | 502 Bad Gateway | Logs de `nginx` y `backend` |
 | Login / CSRF falla | `PUBLIC_SITE_URL` exacto (`http://IP:puerto`), `ALLOWED_HOSTS` con la IP |
 | Cookies / sesión no guardan | `USE_HTTPS=false` si accedes por `http://` |
-| Imágenes rotas | `VITE_IMAGE_IP` vacío y misma URL base (IP + puerto) |
+| `/media/...` 404 nginx | Archivos no copiados al volumen; ver sección **Migrar comprobantes** y `check_media_files` |
+| Imágenes rotas en UI | Mismo caso; la URL suele ser correcta |
+| PDF sin boletas | Archivos faltantes o redeploy nginx (CORS en `/media/`) |
 | Error al iniciar compose | `POSTGRES_PASSWORD` y `DJANGO_SECRET_KEY` definidos |

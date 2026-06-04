@@ -2,7 +2,8 @@
 from django.conf import settings # <-- Añadir import
 from django.conf.urls.static import static 
 
-from django.urls import path, include
+from django.urls import path, include, re_path
+from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from django.contrib import admin
 
@@ -21,6 +22,15 @@ urlpatterns = [
         path('reports/', include('reports.urls')),
         path('dashboard/', include('dashboard.urls')),
     ])),
+]
+
+# Archivos subidos: nginx hace proxy de /media/ al backend en producción
+urlpatterns += [
+    re_path(
+        r'^media/(?P<path>.*)$',
+        serve,
+        {'document_root': settings.MEDIA_ROOT},
+    ),
 ]
 
 if settings.DEBUG:
