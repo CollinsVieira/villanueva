@@ -1,6 +1,6 @@
 import salesService from "../services/salesService";
 import paymentService from "../services/paymentService";
-import { getProxyImageUrl } from "./imageUtils";
+import { getAbsoluteMediaUrl } from "./imageUtils";
 
 export const handleDownloadHistorialPagosPDF = async (
   ventaId: number,
@@ -291,7 +291,7 @@ export const handleDownloadHistorialPagosPDF = async (
     for (const payment of initialPayments || []) {
       if (payment.receipt_image) {
         // URL corregida para usar con el proxy
-        const imageUrl = getProxyImageUrl(payment.receipt_image);
+        const imageUrl = getAbsoluteMediaUrl(payment.receipt_image);
 
         if (imageUrl) {
           // Obtener las propiedades de la imagen usando jsPDF
@@ -350,7 +350,7 @@ export const handleDownloadHistorialPagosPDF = async (
           const payment = schedule.all_payments[paymentIndex];
           if (payment.receipt_image) {
             // URL corregida para usar con el proxy
-            const imageUrl = getProxyImageUrl(payment.receipt_image);
+            const imageUrl = getAbsoluteMediaUrl(payment.receipt_image);
 
             if (imageUrl) {
               // Obtener las propiedades de la imagen usando jsPDF
@@ -403,7 +403,7 @@ export const handleDownloadHistorialPagosPDF = async (
         }
       } else if (schedule.receipt_image) {
         // Lógica original para cuotas sin pagos múltiples
-        const imageUrl = getProxyImageUrl(schedule.receipt_image);
+        const imageUrl = getAbsoluteMediaUrl(schedule.receipt_image);
 
         if (imageUrl) {
           // Obtener las propiedades de la imagen usando jsPDF

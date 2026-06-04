@@ -1,6 +1,6 @@
 import salesService from "../services/salesService";
 import paymentService from "../services/paymentService";
-import { getProxyImageUrl } from "./imageUtils";
+import { getAbsoluteMediaUrl } from "./imageUtils";
 
 export const handleDownloadBoletasPagoPDF = async (
   ventaId: number,
@@ -215,7 +215,7 @@ export const handleDownloadBoletasPagoPDF = async (
     // Primero mostrar boletas de pagos iniciales
     for (const payment of initialPaymentsWithBoleta) {
       if (payment.boleta_image && typeof payment.boleta_image === 'string') {
-        const imageUrl = getProxyImageUrl(payment.boleta_image);
+        const imageUrl = getAbsoluteMediaUrl(payment.boleta_image);
         if (imageUrl) {
           const title = "PAGO INICIAL";
           const amount = `Monto: S/ ${parseFloat(payment.amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;
@@ -232,7 +232,7 @@ export const handleDownloadBoletasPagoPDF = async (
     // Luego mostrar boletas de cuotas mensuales
     for (const schedule of schedulesWithBoleta) {
       if (schedule.boleta_image && typeof schedule.boleta_image === 'string') {
-        const imageUrl = getProxyImageUrl(schedule.boleta_image);
+        const imageUrl = getAbsoluteMediaUrl(schedule.boleta_image);
         if (imageUrl) {
           const title = `CUOTA N° ${schedule.installment_number}`;
           const amount = `Monto: S/ ${parseFloat(schedule.scheduled_amount).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;

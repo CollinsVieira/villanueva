@@ -1,53 +1,56 @@
 import { publicOrigin } from '../config/env';
 
-/**
- * Convierte una URL del backend a una ruta accesible desde el navegador.
- * Con VITE_IMAGE_IP vacío usa rutas relativas (mismo dominio en producción).
- */
+/** Ruta o URL del comprobante/boleta para el navegador (relativa si mismo origen). */
 export const getProxyImageUrl = (imageUrl: string | null | undefined): string | null => {
   if (!imageUrl) return null;
 
   const BASE_URL = publicOrigin;
-  
+
   try {
     if (BASE_URL && imageUrl.startsWith(BASE_URL)) {
       return imageUrl;
     }
-    
-    // Si la URL es relativa (solo /media/...), construir la URL completa
+
     if (imageUrl.startsWith('/media/') || imageUrl.startsWith('/static/')) {
       return `${BASE_URL}${imageUrl}`;
     }
-    
-    // Si es una URL completa con otro dominio, extraer el path y construir la URL correcta
+
     const url = new URL(imageUrl);
     const path = url.pathname;
-    
-    // Verificar que el path comience con /media/ o /static/
+
     if (path.startsWith('/media/') || path.startsWith('/static/')) {
       return `${BASE_URL}${path}`;
     }
-    
-    // Si no es una URL de media reconocida, devolver la URL original
+
     return imageUrl;
   } catch (error) {
-    // Si hay error al parsear la URL, intentar extraer manualmente
     console.warn('Error parsing image URL:', imageUrl, error);
-    
-    // Buscar patrones comunes de media URLs
+
     const mediaMatch = imageUrl.match(/\/media\/.+$/);
     if (mediaMatch) {
       return `${BASE_URL}${mediaMatch[0]}`;
     }
-    
+
     const staticMatch = imageUrl.match(/\/static\/.+$/);
     if (staticMatch) {
       return `${BASE_URL}${staticMatch[0]}`;
     }
-    
-    // Si no se puede procesar, devolver la URL original
+
     return imageUrl;
   }
+};
+
+/** URL absoluta (necesaria para PDFs con jsPDF / carga de imágenes). */
+export const getAbsoluteMediaUrl = (imageUrl: string | null | undefined): string | null => {
+  const path = getProxyImageUrl(imageUrl);
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+  return path;
 };
 
 /**
@@ -70,7 +73,7 @@ export const isValidImageUrl = (imageUrl: string | null | undefined): boolean =>
  * @param filename Nombre sugerido para la descarga
  */
 export const downloadImage = (imageUrl: string | null | undefined, filename?: string) => {
-  const processedUrl = getProxyImageUrl(imageUrl);
+  const processedUrl = getAbsoluteMediaUrl(imageUrl);
   if (!processedUrl) return;
   
   const link = document.createElement('a');
