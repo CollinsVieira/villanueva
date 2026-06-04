@@ -107,8 +107,10 @@ docker compose up -d
 
 | Síntoma | Qué revisar |
 |---------|-------------|
+| Warning `The "ij" variable is not set` | Algún secreto contiene `$` (ej. `$ij`). Compose lo lee como variable. Cambia el valor o escapa con `$$` en Dokploy. |
+| `frontend is unhealthy` | El compose actual ya no usa servicio `frontend` aparte; el build va dentro de `nginx`. Redeploy con el repo actualizado. |
 | No carga la página | Firewall del VPS, puerto `NGINX_PUBLISH`, IP correcta |
-| 502 Bad Gateway | Logs de `nginx` y `frontend`; `index.html` en el volumen |
+| 502 Bad Gateway | Logs de `nginx` y `backend` |
 | Login / CSRF falla | `PUBLIC_SITE_URL` exacto (`http://IP:puerto`), `ALLOWED_HOSTS` con la IP |
 | Cookies / sesión no guardan | `USE_HTTPS=false` si accedes por `http://` |
 | Imágenes rotas | `VITE_IMAGE_IP` vacío y misma URL base (IP + puerto) |
