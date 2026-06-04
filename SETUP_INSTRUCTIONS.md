@@ -30,13 +30,13 @@ docker-compose build frontend
 ### Acceso Local
 - **Frontend:** http://localhost
 - **Backend API:** http://localhost/api/
-- **Admin Django:** http://localhost/admin/
+- **Admin Django:** http://localhost/django-admin/
 - **Base de datos:** localhost:5432
 
 ### Acceso desde la Red Local
 - **Frontend:** http://[TU_IP_LOCAL]
 - **Backend API:** http://[TU_IP_LOCAL]/api/
-- **Admin Django:** http://[TU_IP_LOCAL]/admin/
+- **Admin Django:** http://[TU_IP_LOCAL]/django-admin/
 - **Base de datos:** [TU_IP_LOCAL]:5432
 
 ## 🔍 Solución de Problemas

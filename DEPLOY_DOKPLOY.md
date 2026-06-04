@@ -110,6 +110,7 @@ docker compose up -d
 | Warning `The "ij" variable is not set` | Algún secreto contiene `$` (ej. `$ij`). Compose lo lee como variable. Cambia el valor o escapa con `$$` en Dokploy. |
 | `frontend is unhealthy` | El compose actual ya no usa servicio `frontend` aparte; el build va dentro de `nginx`. Redeploy con el repo actualizado. |
 | No carga la página | Firewall del VPS, puerto `NGINX_PUBLISH`, IP correcta |
+| F5 en `/admin/...` muestra Django o 404 | Redeploy con nginx actualizado: `/admin/*` es el panel React; Django admin está en `/django-admin/` |
 | 502 Bad Gateway | Logs de `nginx` y `backend` |
 | Login / CSRF falla | `PUBLIC_SITE_URL` exacto (`http://IP:puerto`), `ALLOWED_HOSTS` con la IP |
 | Cookies / sesión no guardan | `USE_HTTPS=false` si accedes por `http://` |
