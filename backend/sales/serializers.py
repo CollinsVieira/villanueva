@@ -23,7 +23,7 @@ class VentaSerializer(serializers.ModelSerializer):
         model = Venta
         fields = [
             'id', 'lote', 'customer', 'status', 'sale_price', 'initial_payment',
-            'sale_date', 'contract_date', 'schedule_start_date', 'contract_pdf', 'cancellation_date', 'completion_date',
+            'sale_date', 'contract_date', 'schedule_start_date', 'contract_pdf', 'adenda_pdf', 'escritura_pdf', 'cancellation_date', 'completion_date',
             'notes', 'cancellation_reason', 'created_at', 'updated_at',
             # Campos calculados
             'remaining_balance', 'status_display', 'payment_day', 'financing_months',
@@ -82,6 +82,18 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         help_text=_("Archivo PDF del contrato (opcional)")
     )
     
+    adenda_pdf = serializers.FileField(
+        required=False,
+        allow_null=True,
+        help_text=_("Archivo PDF de la adenda (opcional)")
+    )
+    
+    escritura_pdf = serializers.FileField(
+        required=False,
+        allow_null=True,
+        help_text=_("Archivo PDF de la escritura (opcional)")
+    )
+    
     schedule_start_date = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -93,7 +105,7 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         model = Venta
         fields = [
             'lote', 'customer', 'sale_price', 'initial_payment', 
-            'contract_date', 'schedule_start_date', 'contract_pdf', 'notes', 'payment_day', 'financing_months'
+            'contract_date', 'schedule_start_date', 'contract_pdf', 'adenda_pdf', 'escritura_pdf', 'notes', 'payment_day', 'financing_months'
         ]
     
     def validate_lote(self, value):
@@ -110,6 +122,30 @@ class VentaCreateSerializer(serializers.ModelSerializer):
     
     def validate_contract_pdf(self, value):
         """Validar que el archivo sea un PDF"""
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError(_("El archivo debe ser un PDF"))
+            
+            # Validar tamaño del archivo (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(_("El archivo PDF no puede ser mayor a 10MB"))
+        
+        return value
+    
+    def validate_adenda_pdf(self, value):
+        """Validar que el archivo de adenda sea un PDF"""
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError(_("El archivo debe ser un PDF"))
+            
+            # Validar tamaño del archivo (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(_("El archivo PDF no puede ser mayor a 10MB"))
+        
+        return value
+
+    def validate_escritura_pdf(self, value):
+        """Validar que el archivo de escritura sea un PDF"""
         if value:
             if not value.name.lower().endswith('.pdf'):
                 raise serializers.ValidationError(_("El archivo debe ser un PDF"))
@@ -181,6 +217,18 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         help_text=_("Archivo PDF del contrato (opcional)")
     )
     
+    adenda_pdf = serializers.FileField(
+        required=False,
+        allow_null=True,
+        help_text=_("Archivo PDF de la adenda (opcional)")
+    )
+    
+    escritura_pdf = serializers.FileField(
+        required=False,
+        allow_null=True,
+        help_text=_("Archivo PDF de la escritura (opcional)")
+    )
+    
     schedule_start_date = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -192,11 +240,35 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         model = Venta
         fields = [
             'customer', 'sale_price', 'initial_payment', 'contract_date', 'schedule_start_date', 
-            'contract_pdf', 'notes', 'payment_day', 'financing_months'
+            'contract_pdf', 'adenda_pdf', 'escritura_pdf', 'notes', 'payment_day', 'financing_months'
         ]
     
     def validate_contract_pdf(self, value):
         """Validar archivo PDF"""
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError(_("El archivo debe ser un PDF"))
+            
+            # Validar tamaño del archivo (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(_("El archivo PDF no puede ser mayor a 10MB"))
+        
+        return value
+
+    def validate_adenda_pdf(self, value):
+        """Validar archivo PDF de adenda"""
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError(_("El archivo debe ser un PDF"))
+            
+            # Validar tamaño del archivo (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(_("El archivo PDF no puede ser mayor a 10MB"))
+        
+        return value
+
+    def validate_escritura_pdf(self, value):
+        """Validar archivo PDF de escritura"""
         if value:
             if not value.name.lower().endswith('.pdf'):
                 raise serializers.ValidationError(_("El archivo debe ser un PDF"))
@@ -310,7 +382,7 @@ class VentaSummarySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'lote_display', 'customer_display', 'customer_info', 'sale_price', 
             'initial_payment', 'remaining_balance', 'status', 'status_display',
-            'sale_date', 'contract_date', 'contract_pdf', 'payment_day', 'financing_months',
+            'sale_date', 'contract_date', 'contract_pdf', 'adenda_pdf', 'escritura_pdf', 'payment_day', 'financing_months',
             'cancellation_reason', 'notes'
         ]
     

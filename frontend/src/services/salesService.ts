@@ -11,6 +11,8 @@ export interface Venta {
   contract_date?: string;
   schedule_start_date?: string;
   contract_pdf?: string;
+  adenda_pdf?: string;
+  escritura_pdf?: string;
   status: 'active' | 'cancelled' | 'completed' | 'suspended';
   notes?: string;
   payment_day?: number;
@@ -52,6 +54,8 @@ export interface VentaCreate {
   contract_date?: string;
   schedule_start_date?: string;
   contract_pdf?: File;
+  adenda_pdf?: File;
+  escritura_pdf?: File;
   notes?: string;
   payment_day: number;
   financing_months: number;
@@ -195,6 +199,12 @@ class SalesService {
     if (data.contract_pdf) {
       formData.append('contract_pdf', data.contract_pdf);
     }
+    if (data.adenda_pdf) {
+      formData.append('adenda_pdf', data.adenda_pdf);
+    }
+    if (data.escritura_pdf) {
+      formData.append('escritura_pdf', data.escritura_pdf);
+    }
     
     const response = await api.post('/sales/ventas/', formData, {
       headers: {
@@ -205,14 +215,16 @@ class SalesService {
   }
 
   async updateVenta(id: number, data: Partial<VentaCreate>): Promise<Venta> {
-    // Si hay un archivo PDF, usar FormData
-    if (data.contract_pdf) {
+    // Si hay archivos File, usar FormData
+    const hasFiles = Object.values(data).some(v => v instanceof File);
+    
+    if (hasFiles) {
       const formData = new FormData();
       
       // Agregar solo los campos que están presentes
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          if (key === 'contract_pdf' && value instanceof File) {
+          if (value instanceof File) {
             formData.append(key, value);
           } else if (typeof value === 'string' || typeof value === 'number') {
             formData.append(key, value.toString());
@@ -231,7 +243,7 @@ class SalesService {
       // Preparar los datos asegurando que los números se envíen como números
       const jsonData: any = {};
       Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && key !== 'contract_pdf') {
+        if (value !== undefined && value !== null && !(value instanceof File)) {
           if (key === 'payment_day' || key === 'financing_months' || key === 'customer') {
             jsonData[key] = typeof value === 'number' ? value : parseInt(value.toString());
           } else if (key === 'sale_price' || key === 'initial_payment') {

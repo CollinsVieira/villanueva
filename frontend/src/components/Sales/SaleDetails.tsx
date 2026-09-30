@@ -13,9 +13,11 @@ import {
   Calendar,
   FileDown,
   ArrowLeft,
+  Files,
 } from "lucide-react";
 import InitialPaymentForm from "./InitialPaymentForm";
 import InitialPaymentManagement from "./InitialPaymentManagement";
+import ContractDocumentsManagement from "./ContractDocumentsManagement";
 import PaymentSchedule from "../Payments/PaymentSchedule";
 import { handleDownloadCronogramaPDF } from "../../utils/PdfCronogramaPagos";
 import { handleDownloadHistorialPagosPDF } from "../../utils/PdfResumenPagos";
@@ -37,7 +39,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
   onBack,
 }) => {
   const [showInitialPaymentForm, setShowInitialPaymentForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<"plan" | "schedule" | "initial">("plan");
+  const [activeTab, setActiveTab] = useState<"plan" | "schedule" | "initial" | "documents">("plan");
   const [pdfError, setPdfError] = useState<string | null>(null);
 
   const { isOpen, options, confirm, onConfirm, onCancel } = useConfirmation();
@@ -306,14 +308,26 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                   </div>
                 </div>
 
-                {sale.contract_pdf && (
-                  <div className="mt-4">
-                    <span className="text-gray-600">Contrato PDF:</span>
-                    <span className="ml-2 font-medium text-green-600">
-                      Disponible
+                <div className="mt-4 grid grid-cols-3 gap-2 text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <div>
+                    <span className="text-gray-500 block text-xs">Contrato PDF:</span>
+                    <span className={`font-medium ${sale.contract_pdf ? "text-green-600" : "text-gray-400"}`}>
+                      {sale.contract_pdf ? "✓ Disponible" : "No adjuntado"}
                     </span>
                   </div>
-                )}
+                  <div>
+                    <span className="text-gray-500 block text-xs">Adenda PDF:</span>
+                    <span className={`font-medium ${sale.adenda_pdf ? "text-green-600" : "text-gray-400"}`}>
+                      {sale.adenda_pdf ? "✓ Disponible" : "No adjuntado"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-xs">Escritura PDF:</span>
+                    <span className={`font-medium ${sale.escritura_pdf ? "text-green-600" : "text-gray-400"}`}>
+                      {sale.escritura_pdf ? "✓ Disponible" : "No adjuntado"}
+                    </span>
+                  </div>
+                </div>
 
                 {sale.notes && (
                   <div className="mt-4">
@@ -445,6 +459,17 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
               <CheckCircle size={16} />
               Pago Inicial
             </button>
+            <button
+              onClick={() => setActiveTab("documents")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === "documents"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <Files size={16} />
+              Documentación
+            </button>
           </nav>
         </div>
 
@@ -542,7 +567,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                 />
               </div>
             </div>
-          ) : (
+          ) : activeTab === "initial" ? (
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -563,6 +588,11 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                 />
               </div>
             </div>
+          ) : (
+            <ContractDocumentsManagement 
+              sale={sale} 
+              onDocumentUpdated={() => loadSaleDetails()} 
+            />
           )}
         </div>
       </div>

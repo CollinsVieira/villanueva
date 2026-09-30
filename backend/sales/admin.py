@@ -21,7 +21,10 @@ class VentaAdmin(admin.ModelAdmin):
             'fields': ('lote', 'customer', 'status', 'sale_price', 'initial_payment')
         }),
         ('Fechas', {
-            'fields': ('sale_date', 'contract_date', 'cancellation_date', 'completion_date')
+            'fields': ('sale_date', 'contract_date', 'schedule_start_date', 'cancellation_date', 'completion_date')
+        }),
+        ('Documentación', {
+            'fields': ('contract_pdf', 'adenda_pdf', 'escritura_pdf')
         }),
         ('Información Adicional', {
             'fields': ('notes', 'cancellation_reason'),

@@ -25,6 +25,8 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     contract_date: '',
     schedule_start_date: '',
     contract_pdf: undefined,
+    adenda_pdf: undefined,
+    escritura_pdf: undefined,
     notes: '',
     payment_day: 15,
     financing_months: 12
@@ -34,6 +36,8 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [existingPdf, setExistingPdf] = useState<string | null>(null);
+  const [existingAdendaPdf, setExistingAdendaPdf] = useState<string | null>(null);
+  const [existingEscrituraPdf, setExistingEscrituraPdf] = useState<string | null>(null);
 
   // Usar React Query mutations
   const createSaleMutation = useCreateSale();
@@ -60,11 +64,15 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
         contract_date: sale.contract_date || '',
         schedule_start_date: scheduleStartDate,
         contract_pdf: undefined,
+        adenda_pdf: undefined,
+        escritura_pdf: undefined,
         notes: sale.notes || '',
         payment_day: sale.payment_day || 15,
         financing_months: sale.financing_months || 12
       });
       setExistingPdf(sale.contract_pdf || null);
+      setExistingAdendaPdf(sale.adenda_pdf || null);
+      setExistingEscrituraPdf(sale.escritura_pdf || null);
     } else {
       // Si estamos creando, cargar todos los lotes disponibles
       loadLotes();
@@ -357,6 +365,126 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
             {formData.contract_pdf && (
               <p className="text-xs text-green-600 mt-1">
                 Nuevo archivo: {formData.contract_pdf.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Solo archivos PDF. Tamaño máximo: 10MB
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="adenda_pdf" className="block text-sm text-black mb-1 font-bold">
+              Adenda en PDF (Opcional)
+            </label>
+            
+            {sale && existingAdendaPdf ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <FileText className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-700">Adenda cargada</span>
+                  <div className="flex gap-1 ml-auto">
+                    <button
+                      type="button"
+                      onClick={() => window.open(getProxyImageUrl(existingAdendaPdf) || existingAdendaPdf, '_blank')}
+                      className="p-1 text-blue-600 hover:text-blue-800"
+                      title="Ver PDF"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = getProxyImageUrl(existingAdendaPdf) || existingAdendaPdf || '';
+                        link.download = `adenda_venta_${sale.id}.pdf`;
+                        link.click();
+                      }}
+                      className="p-1 text-gray-600 hover:text-gray-800"
+                      title="Descargar PDF"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Para cambiar el PDF de la adenda, selecciona un nuevo archivo
+                </p>
+              </div>
+            ) : null}
+            
+            <input
+              id="adenda_pdf"
+              type="file"
+              accept=".pdf"
+              onChange={(e: any) => {
+                const file = e.target.files?.[0];
+                setFormData(prev => ({ ...prev, adenda_pdf: file }));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {formData.adenda_pdf && (
+              <p className="text-xs text-green-600 mt-1">
+                Nuevo archivo: {formData.adenda_pdf.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Solo archivos PDF. Tamaño máximo: 10MB
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="escritura_pdf" className="block text-sm text-black mb-1 font-bold">
+              Escritura en PDF (Opcional)
+            </label>
+            
+            {sale && existingEscrituraPdf ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <FileText className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-700">Escritura cargada</span>
+                  <div className="flex gap-1 ml-auto">
+                    <button
+                      type="button"
+                      onClick={() => window.open(getProxyImageUrl(existingEscrituraPdf) || existingEscrituraPdf, '_blank')}
+                      className="p-1 text-blue-600 hover:text-blue-800"
+                      title="Ver PDF"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = getProxyImageUrl(existingEscrituraPdf) || existingEscrituraPdf || '';
+                        link.download = `escritura_venta_${sale.id}.pdf`;
+                        link.click();
+                      }}
+                      className="p-1 text-gray-600 hover:text-gray-800"
+                      title="Descargar PDF"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Para cambiar el PDF de la escritura, selecciona un nuevo archivo
+                </p>
+              </div>
+            ) : null}
+            
+            <input
+              id="escritura_pdf"
+              type="file"
+              accept=".pdf"
+              onChange={(e: any) => {
+                const file = e.target.files?.[0];
+                setFormData(prev => ({ ...prev, escritura_pdf: file }));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {formData.escritura_pdf && (
+              <p className="text-xs text-green-600 mt-1">
+                Nuevo archivo: {formData.escritura_pdf.name}
               </p>
             )}
             <p className="text-xs text-gray-500 mt-1">

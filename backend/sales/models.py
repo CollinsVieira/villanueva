@@ -100,6 +100,22 @@ class Venta(models.Model):
         help_text=_("Archivo PDF del contrato firmado")
     )
     
+    adenda_pdf = models.FileField(
+        upload_to='contracts/adendas/',
+        null=True,
+        blank=True,
+        verbose_name=_("PDF de la Adenda"),
+        help_text=_("Archivo PDF de la adenda del contrato (opcional)")
+    )
+    
+    escritura_pdf = models.FileField(
+        upload_to='contracts/escrituras/',
+        null=True,
+        blank=True,
+        verbose_name=_("PDF de la Escritura"),
+        help_text=_("Archivo PDF de la escritura pública (opcional)")
+    )
+    
     cancellation_date = models.DateTimeField(
         null=True,
         blank=True,
