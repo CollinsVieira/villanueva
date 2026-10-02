@@ -109,7 +109,10 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         ]
     
     def validate_lote(self, value):
-        """Validar que el lote esté disponible para venta"""
+        """Validar que el lote esté activo y disponible para venta"""
+        if getattr(value, 'is_deleted', False):
+            raise serializers.ValidationError(_("El lote seleccionado ha sido retirado del inventario y no está disponible para venta."))
+
         if value.status != 'disponible':
             raise serializers.ValidationError(_("El lote no está disponible para venta"))
         

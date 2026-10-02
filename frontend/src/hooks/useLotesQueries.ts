@@ -11,6 +11,7 @@ export const lotesKeys = {
   details: () => [...lotesKeys.all, 'detail'] as const,
   detail: (id: number) => [...lotesKeys.details(), id] as const,
   unlimited: (filters: Record<string, any>) => [...lotesKeys.all, 'unlimited', filters] as const,
+  deleted: (filters: Record<string, any>) => [...lotesKeys.all, 'deleted', filters] as const,
 };
 
 // Hook para obtener lotes con paginación
@@ -53,6 +54,20 @@ export const useLotesUnlimited = (params?: {
   return useQuery<Lote[]>({
     queryKey: lotesKeys.unlimited(params || {}),
     queryFn: () => loteService.getAllLotesUnlimited(params),
+    staleTime: 1000 * 60 * 5, // 5 minutos
+    gcTime: 1000 * 60 * 10, // 10 minutos
+  });
+};
+
+// Hook para obtener lotes eliminados lógicamente
+export const useDeletedLotes = (params?: { 
+  status?: string; 
+  search?: string; 
+  block?: string;
+}) => {
+  return useQuery<Lote[]>({
+    queryKey: lotesKeys.deleted(params || {}),
+    queryFn: () => loteService.getDeletedLotes(params),
     staleTime: 1000 * 60 * 5, // 5 minutos
     gcTime: 1000 * 60 * 10, // 10 minutos
   });
@@ -144,20 +159,43 @@ export const useUpdateLoteWithFile = () => {
   });
 };
 
-// Hook para eliminar un lote
+// Hook para eliminar (retirar lógicamente) un lote
 export const useDeleteLote = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => loteService.deleteLote(id),
-    onSuccess: (_, deletedId) => {
-      queryClient.invalidateQueries({ queryKey: lotesKeys.lists() });
+    mutationFn: (params: number | { id: number; reason?: string }) => {
+      const id = typeof params === 'number' ? params : params.id;
+      const reason = typeof params === 'object' ? params.reason : undefined;
+      return loteService.deleteLote(id, reason);
+    },
+    onSuccess: (_, params) => {
+      const id = typeof params === 'number' ? params : params.id;
       queryClient.invalidateQueries({ queryKey: lotesKeys.all });
-      queryClient.removeQueries({ queryKey: lotesKeys.detail(deletedId) });
-      toastService.success('Lote eliminado exitosamente');
+      queryClient.invalidateQueries({ queryKey: lotesKeys.lists() });
+      queryClient.removeQueries({ queryKey: lotesKeys.detail(id) });
+      toastService.success('Lote retirado del inventario exitosamente');
     },
     onError: (error: any) => {
-      toastService.error(error.response?.data?.detail || 'Error al eliminar el lote');
+      toastService.error(error.response?.data?.detail || 'Error al retirar el lote');
+    },
+  });
+};
+
+// Hook para restaurar un lote eliminado
+export const useRestoreLote = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => loteService.restoreLote(id),
+    onSuccess: (response, id) => {
+      queryClient.invalidateQueries({ queryKey: lotesKeys.all });
+      queryClient.invalidateQueries({ queryKey: lotesKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: lotesKeys.detail(id) });
+      toastService.success(response.message || 'Lote restaurado exitosamente al inventario activo');
+    },
+    onError: (error: any) => {
+      toastService.error(error.response?.data?.detail || 'Error al restaurar el lote');
     },
   });
 };

@@ -41,6 +41,11 @@ export interface Lote {
   display_name: string;
   is_available: boolean;
   is_sold: boolean;
+  is_deleted?: boolean;
+  deleted_at?: string;
+  deleted_by?: number;
+  deleted_by_name?: string;
+  deletion_reason?: string;
   current_owner?: Customer;
   customer_info?: { // Added to match usage
     id: number;

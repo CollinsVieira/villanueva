@@ -16,7 +16,7 @@ class LoteHistorySerializer(serializers.ModelSerializer):
 
 class LoteSerializer(serializers.ModelSerializer):
     """
-    Serializador para el modelo Lote con nueva arquitectura simplificada.
+    Serializador para el modelo Lote con soporte para eliminación lógica.
     """
     history = LoteHistorySerializer(many=True, read_only=True)
     display_name = serializers.CharField(read_only=True)
@@ -24,6 +24,7 @@ class LoteSerializer(serializers.ModelSerializer):
     is_sold = serializers.BooleanField(read_only=True)
     current_owner = serializers.SerializerMethodField()
     active_sale = serializers.SerializerMethodField()
+    deleted_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Lote
@@ -37,6 +38,11 @@ class LoteSerializer(serializers.ModelSerializer):
             'display_name',
             'is_available',
             'is_sold',
+            'is_deleted',
+            'deleted_at',
+            'deleted_by',
+            'deleted_by_name',
+            'deletion_reason',
             'current_owner',
             'history',
             'created_at',
@@ -51,6 +57,10 @@ class LoteSerializer(serializers.ModelSerializer):
             'display_name',
             'is_available',
             'is_sold',
+            'is_deleted',
+            'deleted_at',
+            'deleted_by',
+            'deleted_by_name',
             'current_owner',
             'active_sale',
         ]
@@ -76,15 +86,17 @@ class LoteSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        """Validar que no exista un lote con la misma manzana y número."""
-        block = data.get('block')
-        lot_number = data.get('lot_number')
+        """Validar que no exista un lote activo con la misma manzana y número."""
+        block = data.get('block', self.instance.block if self.instance else None)
+        lot_number = data.get('lot_number', self.instance.lot_number if self.instance else None)
         
-        # Solo validar en creación (cuando no hay instancia)
-        if not self.instance and block and lot_number:
-            if Lote.objects.filter(block=block, lot_number=lot_number).exists():
+        if block and lot_number:
+            existing = Lote.objects.filter(block=block, lot_number=lot_number, is_deleted=False)
+            if self.instance:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
                 raise serializers.ValidationError({
-                    'detail': f"Ya existe un registro con la Manzana '{block}' y Lote '{lot_number}'"
+                    'detail': f"Ya existe un lote activo con la Manzana '{block}' y Lote '{lot_number}'"
                 })
         
         return data
@@ -98,6 +110,12 @@ class LoteSerializer(serializers.ModelSerializer):
                 'last_name': obj.current_owner.last_name,
                 'full_name': obj.current_owner.full_name
             }
+        return None
+
+    def get_deleted_by_name(self, obj):
+        """Obtiene el nombre del usuario que eliminó el lote."""
+        if obj.deleted_by:
+            return obj.deleted_by.get_full_name() or obj.deleted_by.username
         return None
 
     def get_active_sale(self, obj):
@@ -116,6 +134,16 @@ class LoteSerializer(serializers.ModelSerializer):
             return None
         except:
             return None
+
+
+class SoftDeleteLoteSerializer(serializers.Serializer):
+    """Serializer para recibir el motivo de eliminación lógica."""
+    reason = serializers.CharField(
+        max_length=500,
+        required=False,
+        allow_blank=True,
+        help_text=_("Motivo o justificación para retirar el lote del inventario")
+    )
 
 
 class BulkLoteCreateSerializer(serializers.Serializer):

@@ -98,10 +98,45 @@ class LoteService {
     return response.data;
   }
 
-  async deleteLote(id: number): Promise<void> {
-    await api.delete(`/lotes/${id}/`);
+  async deleteLote(id: number, reason?: string): Promise<any> {
+    const response = await api.delete(`/lotes/${id}/`, { data: { reason } });
+    return response.data;
   }
 
+  async getDeletedLotes(params?: { search?: string; block?: string; status?: string }): Promise<Lote[]> {
+    const allLotes: Lote[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const requestParams = { 
+        ...params, 
+        page,
+        page_size: 5000
+      };
+      
+      const response = await api.get('/lotes/deleted/', { params: requestParams });
+      const data = response.data || {};
+      
+      if (data.results && Array.isArray(data.results)) {
+        allLotes.push(...data.results);
+        hasMore = !!data.next;
+      } else {
+        const lotes = Array.isArray(data) ? data : [];
+        allLotes.push(...lotes);
+        hasMore = false;
+      }
+      
+      page++;
+    }
+
+    return allLotes;
+  }
+
+  async restoreLote(id: number): Promise<{ status: string; message: string; lote: Lote }> {
+    const response = await api.post(`/lotes/${id}/restore/`);
+    return response.data;
+  }
 
   async getLoteById(id: number): Promise<Lote> {
     const response = await api.get(`/lotes/${id}/`);

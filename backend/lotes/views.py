@@ -4,22 +4,23 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.core.exceptions import ValidationError
 
 from users.permissions import IsWorkerOrAdmin
 from .models import Lote, LoteHistory
-from .serializers import LoteSerializer, BulkLoteCreateSerializer
+from .serializers import LoteSerializer, BulkLoteCreateSerializer, SoftDeleteLoteSerializer
 
 
 class LoteViewSet(viewsets.ModelViewSet):
     """
-    API endpoint que permite la gestión de lotes con nueva arquitectura simplificada.
+    API endpoint que permite la gestión de lotes con soporte para eliminación lógica (soft delete).
     - Accesible por 'Trabajadores' y 'Administradores'.
     - Búsqueda por manzana y número de lote.
     - Filtro por estado del lote.
     - Ordenación por precio, área y fecha de creación.
     - Las ventas se gestionan a través del módulo Sales.
+    - La eliminación de lotes preserva todo el historial de clientes, ventas, pagos y reportes.
     """
-    queryset = Lote.objects.all().select_related('created_by')
     serializer_class = LoteSerializer
     permission_classes = [permissions.IsAuthenticated, IsWorkerOrAdmin]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -27,8 +28,17 @@ class LoteViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'block']
     search_fields = ['block', 'lot_number']
-    ordering_fields = ['price', 'area', 'created_at', 'block', 'lot_number']
+    ordering_fields = ['price', 'area', 'created_at', 'block', 'lot_number', 'deleted_at']
     ordering = ['block', 'lot_number']
+
+    def get_queryset(self):
+        """
+        - Para consultas de listado general (/lotes/): solo lotes activos.
+        - Para detalles individuales (/lotes/{id}/, /sales_history/, etc.): incluye eliminados para ver historial.
+        """
+        if self.action in ['retrieve', 'sales_history', 'payment_history', 'payment_schedules', 'restore']:
+            return Lote.all_objects.all().select_related('created_by', 'deleted_by')
+        return Lote.objects.all().select_related('created_by')
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -60,6 +70,72 @@ class LoteViewSet(viewsets.ModelViewSet):
                     action=f"Cambio de {name}",
                     details=f"El {name} cambió de '{old_value}' a '{new_value}'."
                 )
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Eliminación lógica (Soft Delete) del lote.
+        Preserva todas las relaciones históricas (ventas, pagos, clientes, etc.).
+        """
+        instance = self.get_object()
+        
+        # Extraer motivo si se proporcionó en el body o query_params
+        reason = ""
+        if isinstance(request.data, dict):
+            reason = request.data.get('reason', '')
+        if not reason and request.query_params.get('reason'):
+            reason = request.query_params.get('reason', '')
+        
+        instance.soft_delete(user=request.user, reason=reason)
+        
+        return Response({
+            'status': 'success',
+            'message': f'El lote {instance.display_name} fue retirado del inventario activo exitosamente.',
+            'id': instance.id,
+            'is_deleted': True
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='deleted')
+    def deleted_lotes(self, request):
+        """
+        Devuelve el listado de lotes eliminados lógicamente (papelera / histórico).
+        """
+        queryset = Lote.all_objects.filter(is_deleted=True).select_related('created_by', 'deleted_by')
+        
+        # Aplicar filtros, búsqueda y ordenamiento
+        queryset = self.filter_queryset(queryset)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        """
+        Restaura un lote eliminado al inventario activo.
+        """
+        instance = self.get_object()
+        
+        if not instance.is_deleted:
+            return Response({
+                'detail': 'El lote ya se encuentra activo.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            instance.restore(user=request.user)
+            serializer = self.get_serializer(instance)
+            return Response({
+                'status': 'success',
+                'message': f'El lote {instance.display_name} fue restaurado exitosamente al inventario activo.',
+                'lote': serializer.data
+            }, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response({
+                'detail': str(e.message if hasattr(e, 'message') else e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['get'])
     def sales_history(self, request, pk=None):
@@ -224,28 +300,6 @@ class LoteViewSet(viewsets.ModelViewSet):
     def bulk_create(self, request):
         """
         Endpoint para crear múltiples lotes en una sola petición.
-        
-        POST /api/v1/lotes/bulk-create/
-        
-        Body:
-        {
-            "lotes": [
-                {
-                    "block": "A",
-                    "lot_number": "1",
-                    "area": "200.50",
-                    "price": "50000.00",
-                    "status": "disponible"
-                },
-                {
-                    "block": "A",
-                    "lot_number": "2",
-                    "area": "180.75",
-                    "price": "45000.00",
-                    "status": "disponible"
-                }
-            ]
-        }
         """
         serializer = BulkLoteCreateSerializer(data=request.data, context=self.get_serializer_context())
         

@@ -58,7 +58,7 @@ class ReportManager(models.Manager):
         """
         Retorna resumen de ventas en un período específico.
         """
-        queryset = Lote.objects.filter(status='vendido')
+        queryset = Lote.all_objects.filter(status='vendido')
         
         if start_date:
             queryset = queryset.filter(created_at__gte=start_date)

@@ -255,8 +255,8 @@ class Venta(models.Model):
     def create_sale(cls, lote, customer, sale_price, payment_day, financing_months, initial_payment=None, contract_date=None, contract_pdf=None, **kwargs):
         """Crea una nueva venta y configura el plan de pagos"""
         
-        # Verificar que el lote esté disponible
-        if lote.status != 'disponible':
+        # Verificar que el lote esté disponible y no eliminado
+        if getattr(lote, 'is_deleted', False) or lote.status != 'disponible':
             raise ValidationError(_("El lote no está disponible para venta"))
         
         # Crear la venta

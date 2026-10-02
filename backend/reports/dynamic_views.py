@@ -495,7 +495,8 @@ def sales_summary_live(request):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         
-        queryset = Lote.objects.filter(status='vendido')
+        # Usar all_objects para incluir ventas históricas de lotes que hayan sido retirados
+        queryset = Lote.all_objects.filter(status='vendido')
         
         if start_date:
             queryset = queryset.filter(created_at__gte=start_date)
@@ -561,8 +562,8 @@ def financial_overview_live(request):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         
-        # Obtener datos de ventas
-        sales_queryset = Lote.objects.filter(status='vendido')
+        # Obtener datos de ventas (incluyendo lotes históricos retirados)
+        sales_queryset = Lote.all_objects.filter(status='vendido')
         if start_date:
             sales_queryset = sales_queryset.filter(created_at__gte=start_date)
         if end_date:
