@@ -4,16 +4,14 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.core.exceptions import ValidationError
-from .models import Venta
-from .serializers import VentaSerializer, VentaSummarySerializer
-from users.permissions import IsWorkerOrAdmin
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
-
+from users.permissions import IsWorkerOrAdmin
 from .models import Venta
 from .serializers import (
     VentaSerializer, VentaCreateSerializer, VentaUpdateSerializer, VentaSummarySerializer,
-    VentaCancelSerializer, VentaCompleteSerializer, InitialPaymentSerializer
+    VentaCancelSerializer, VentaCompleteSerializer, InitialPaymentSerializer, VentaSelectorSerializer
 )
 
 
@@ -58,12 +56,48 @@ class VentaViewSet(viewsets.ModelViewSet):
         if self.request.query_params.get('active_only'):
             queryset = queryset.filter(status='active')
         
+        status_param = self.request.query_params.get('status')
+        if status_param and ',' in status_param:
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            queryset = queryset.filter(status__in=statuses)
+
         # Filtro por lote específico
         lote_id = self.request.query_params.get('lote')
         if lote_id:
             queryset = queryset.filter(lote_id=lote_id)
         
         return queryset
+
+    @action(detail=False, methods=['get'], url_path='selector')
+    def selector(self, request):
+        """
+        Endpoint optimizado de alto rendimiento para dropdown de ventas en pagos (lote + cliente).
+        Devuelve ventas con sus datos esenciales de lote, cliente y saldo inicial.
+        """
+        status_param = request.query_params.get('status', 'active,separado')
+        search_param = request.query_params.get('search')
+
+        queryset = Venta.objects.all().select_related('lote', 'customer')
+
+        if status_param:
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            if statuses:
+                queryset = queryset.filter(status__in=statuses)
+
+        if search_param:
+            search_terms = search_param.strip().split()
+            for term in search_terms:
+                queryset = queryset.filter(
+                    Q(lote__block__icontains=term) |
+                    Q(lote__lot_number__icontains=term) |
+                    Q(customer__first_name__icontains=term) |
+                    Q(customer__last_name__icontains=term) |
+                    Q(customer__document_number__icontains=term)
+                )
+
+        queryset = queryset.order_by('lote__block', 'lote__lot_number')
+        serializer = VentaSelectorSerializer(queryset, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def cancel_sale(self, request, pk=None):

@@ -47,6 +47,25 @@ export interface Venta {
   };
 }
 
+export interface VentaSelectorItem {
+  id: number;
+  status: 'active' | 'separado' | 'cancelled' | 'completed' | 'suspended';
+  status_display: string;
+  sale_price: string;
+  initial_payment?: string;
+  lote_id: number;
+  lote_block: string;
+  lote_number: string;
+  lote_status: string;
+  lote_display: string;
+  customer_id: number;
+  customer_name: string;
+  customer_doc: string;
+  total_initial_paid: number;
+  initial_balance: number;
+  is_initial_complete: boolean;
+}
+
 export interface VentaCreate {
   lote: number;
   customer: number;
@@ -174,6 +193,11 @@ class SalesService {
   async getVenta(id: number): Promise<Venta> {
     const response = await api.get(`/sales/ventas/${id}/`);
     return response.data;
+  }
+
+  async getVentasSelector(params?: { status?: string; search?: string }): Promise<VentaSelectorItem[]> {
+    const response = await api.get('/sales/ventas/selector/', { params });
+    return response.data || [];
   }
 
   async createVenta(data: VentaCreate): Promise<Venta> {

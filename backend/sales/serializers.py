@@ -459,3 +459,44 @@ class InitialPaymentSerializer(serializers.Serializer):
     payment_date = serializers.DateTimeField(required=False)
     receipt_image = serializers.ImageField(required=False)
     notes = serializers.CharField(max_length=500, required=False)
+
+
+class VentaSelectorSerializer(serializers.ModelSerializer):
+    """Serializer ultra-ligero para selector de ventas en formularios de pago"""
+    lote_id = serializers.IntegerField(source='lote.id', read_only=True)
+    lote_block = serializers.CharField(source='lote.block', read_only=True)
+    lote_number = serializers.CharField(source='lote.lot_number', read_only=True)
+    lote_status = serializers.CharField(source='lote.status', read_only=True)
+    lote_display = serializers.SerializerMethodField()
+    customer_id = serializers.IntegerField(source='customer.id', read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_doc = serializers.CharField(source='customer.document_number', read_only=True)
+    total_initial_paid = serializers.SerializerMethodField()
+    initial_balance = serializers.SerializerMethodField()
+    is_initial_complete = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Venta
+        fields = [
+            'id', 'status', 'status_display', 'sale_price', 'initial_payment',
+            'lote_id', 'lote_block', 'lote_number', 'lote_status', 'lote_display',
+            'customer_id', 'customer_name', 'customer_doc',
+            'total_initial_paid', 'initial_balance', 'is_initial_complete'
+        ]
+
+    def get_lote_display(self, obj):
+        return f"Mz. {obj.lote.block} - Lt. {obj.lote.lot_number}"
+
+    def get_customer_name(self, obj):
+        return f"{obj.customer.first_name} {obj.customer.last_name}".strip()
+
+    def get_total_initial_paid(self, obj):
+        return float(obj.get_total_initial_payments())
+
+    def get_initial_balance(self, obj):
+        return float(obj.get_initial_payment_balance())
+
+    def get_is_initial_complete(self, obj):
+        return obj.is_initial_payment_complete()
+
