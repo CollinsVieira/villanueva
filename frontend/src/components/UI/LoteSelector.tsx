@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ChevronDown, X, MapPin, Check, Sparkles } from 'lucide-react';
+import { Search, ChevronDown, X, MapPin, Check } from 'lucide-react';
 import loteService, { LoteSelectorItem } from '../../services/loteService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import LoadingSpinner from './LoadingSpinner';

@@ -160,11 +160,6 @@ class LoteService {
     return response.data;
   }
 
-  async getLoteById(id: number): Promise<Lote> {
-    const response = await api.get(`/lotes/${id}/`);
-    return response.data;
-  }
-
 }
 
 export default new LoteService();

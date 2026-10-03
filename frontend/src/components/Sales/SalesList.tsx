@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import { 
   Search, Plus, Users, ChevronLeft, ChevronRight, LayoutGrid, List,
-  MapPin, User, Calendar, CreditCard, Clock, FileText, CheckCircle2,
-  XCircle, AlertCircle, Eye, ArrowRight, DollarSign, ShieldAlert, Archive,
-  Tag, Percent, Check
+  MapPin, User, Calendar, CreditCard, FileText, CheckCircle2,
+  XCircle, AlertCircle, Eye, ArrowRight, ShieldAlert, Archive,
+  Check
 } from 'lucide-react';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import { useSales } from '../../hooks/useSalesQueries';

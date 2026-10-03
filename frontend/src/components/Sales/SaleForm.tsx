@@ -90,7 +90,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     setFormData(prev => ({
       ...prev,
       lote: loteId || 0,
-      sale_price: loteItem ? loteItem.price || '' : ''
+      sale_price: loteItem ? String(loteItem.price || '') : ''
     }));
   };
 
@@ -218,10 +218,10 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                {selectedLote && formData.sale_price !== selectedLote.price && (
+                {selectedLote && formData.sale_price !== String(selectedLote.price) && (
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, sale_price: selectedLote.price }))}
+                    onClick={() => setFormData(prev => ({ ...prev, sale_price: String(selectedLote.price || '') }))}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-600 hover:text-blue-800 font-medium"
                     title="Restaurar precio original del lote"
                   >
@@ -231,7 +231,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
               </div>
               {selectedLote && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Precio del lote: {dynamicReportsService.formatCurrency(parseFloat(selectedLote.price))}
+                  Precio del lote: {dynamicReportsService.formatCurrency(parseFloat(String(selectedLote.price)))}
                 </p>
               )}
             </div>
