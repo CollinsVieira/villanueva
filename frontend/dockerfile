@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # Instalar dependencias
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 RUN pnpm install --frozen-lockfile
 
 # Copiar código fuente
