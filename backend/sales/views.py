@@ -67,12 +67,12 @@ class VentaViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def cancel_sale(self, request, pk=None):
-        """Cancelar una venta activa"""
+        """Cancelar una venta activa o separada"""
         venta = self.get_object()
         
-        if venta.status != 'active':
+        if venta.status not in ['active', 'separado']:
             return Response(
-                {'error': _('Solo se pueden cancelar ventas activas')},
+                {'error': _('Solo se pueden cancelar ventas activas o separadas')},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -97,12 +97,12 @@ class VentaViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def complete_sale(self, request, pk=None):
-        """Completar una venta activa"""
+        """Completar una venta activa o separada"""
         venta = self.get_object()
         
-        if venta.status != 'active':
+        if venta.status not in ['active', 'separado']:
             return Response(
-                {'error': _('Solo se pueden completar ventas activas')},
+                {'error': _('Solo se pueden completar ventas activas o separadas')},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

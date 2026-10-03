@@ -13,7 +13,7 @@ export interface Venta {
   contract_pdf?: string;
   adenda_pdf?: string;
   escritura_pdf?: string;
-  status: 'active' | 'cancelled' | 'completed' | 'suspended';
+  status: 'active' | 'separado' | 'cancelled' | 'completed' | 'suspended';
   notes?: string;
   payment_day?: number;
   financing_months?: number;
@@ -59,6 +59,7 @@ export interface VentaCreate {
   notes?: string;
   payment_day: number;
   financing_months: number;
+  status?: 'active' | 'separado' | 'cancelled' | 'completed' | 'suspended';
 }
 
 export interface VentaInitialPayment {

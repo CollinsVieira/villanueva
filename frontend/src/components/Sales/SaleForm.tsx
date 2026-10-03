@@ -94,6 +94,27 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     }));
   };
 
+  const handleCreateSale = (initialStatus: 'active' | 'separado' = 'active') => {
+    if (formData.lote <= 0 || formData.customer <= 0 || !formData.sale_price || !formData.payment_day) {
+      setError('Por favor complete todos los campos requeridos');
+      return;
+    }
+
+    setError(null);
+    
+    createSaleMutation.mutate(
+      { ...formData, status: initialStatus },
+      {
+        onSuccess: (savedSale) => {
+          onSave?.(savedSale);
+        },
+        onError: (err: any) => {
+          setError(err.response?.data?.detail || `Error al ${initialStatus === 'separado' ? 'separar el lote' : 'crear la venta'}`);
+        }
+      }
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -120,14 +141,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       );
     } else {
       // Create new sale
-      createSaleMutation.mutate(formData, {
-        onSuccess: (savedSale) => {
-          onSave?.(savedSale);
-        },
-        onError: (err: any) => {
-          setError(err.response?.data?.detail || 'Error al crear la venta');
-        }
-      });
+      handleCreateSale('active');
     }
   };
 
@@ -283,7 +297,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
 
           <div>
             <label htmlFor="contract_pdf" className="block text-sm text-black mb-1 font-bold">
-              Contrato en PDF
+              Contrato en PDF (Opcional)
             </label>
             
             {sale && existingPdf ? (
@@ -524,20 +538,30 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-3 pt-4">
             {onCancel && (
               <button 
                 type="button" 
                 onClick={onCancel}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
               >
                 Cancelar
+              </button>
+            )}
+            {!sale && (
+              <button 
+                type="button" 
+                onClick={() => handleCreateSale('separado')}
+                disabled={loading}
+                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg disabled:opacity-50 transition-colors shadow-xs"
+              >
+                {loading ? 'Procesando...' : 'Separar lote'}
               </button>
             )}
             <button 
               type="submit" 
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-xs"
             >
               {loading ? 'Guardando...' : (sale ? 'Actualizar' : 'Crear Venta')}
             </button>

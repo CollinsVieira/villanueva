@@ -95,6 +95,11 @@ const SalesList: React.FC<SalesListProps> = ({
         className: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
         icon: <CheckCircle2 size={13} className="mr-1 text-emerald-600" />
       },
+      separado: { 
+        label: 'Separado', 
+        className: 'bg-yellow-50 text-yellow-800 border border-yellow-200 font-semibold',
+        icon: <CheckCircle2 size={13} className="mr-1 text-yellow-600" />
+      },
       completed: { 
         label: 'Completada / Liquidada', 
         className: 'bg-blue-50 text-blue-700 border border-blue-200',
@@ -268,6 +273,7 @@ const SalesList: React.FC<SalesListProps> = ({
             >
               <option value="all">Todos los estados</option>
               <option value="active">Activas / En curso</option>
+              <option value="separado">Separados</option>
               <option value="completed">Completadas / Liquidadas</option>
             </select>
           )}

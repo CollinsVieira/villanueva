@@ -163,20 +163,20 @@ class Lote(models.Model):
 
     @property
     def has_active_sale(self):
-        """Verifica si el lote tiene una venta activa."""
+        """Verifica si el lote tiene una venta activa o separada."""
         from sales.models import Venta
-        return Venta.objects.filter(lote=self, status='active').exists()
+        return Venta.objects.filter(lote=self, status__in=['active', 'separado']).exists()
 
     @property
     def active_sale(self):
-        """Obtiene la venta activa del lote."""
+        """Obtiene la venta activa o separada del lote."""
         from sales.models import Venta
-        return Venta.objects.filter(lote=self, status='active').first()
+        return Venta.objects.filter(lote=self, status__in=['active', 'separado']).first()
 
     @property
     def current_owner(self):
         """Obtiene el propietario actual del lote.
-        - Si hay venta activa: devuelve su cliente
+        - Si hay venta activa o separada: devuelve su cliente
         - Si no hay venta activa pero hay ventas completadas: devuelve el cliente de la última completada
         - En otro caso: None
         """
@@ -228,7 +228,7 @@ class Lote(models.Model):
 
     def update_status_from_sales(self):
         """
-        Actualiza el estado del lote basado en las ventas activas.
+        Actualiza el estado del lote basado en las ventas activas o separadas.
         Este método debe ser llamado desde el modelo Venta cuando cambie el estado de una venta.
         """
         active_sale = self.active_sale
@@ -236,12 +236,14 @@ class Lote(models.Model):
         if active_sale:
             if active_sale.status == 'active':
                 self.status = 'vendido'
+            elif active_sale.status == 'separado':
+                self.status = 'reservado'
             elif active_sale.status == 'completed':
                 self.status = 'liquidado'
             elif active_sale.status == 'cancelled':
                 self.status = 'disponible'
         else:
-            # Si no hay venta activa, verificar si hay ventas completadas
+            # Si no hay venta activa ni separada, verificar si hay ventas completadas
             completed_sales = self.get_sales_history().filter(status='completed')
             if completed_sales.exists():
                 self.status = 'liquidado'

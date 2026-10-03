@@ -91,25 +91,28 @@ class Payment(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Sobrescribe el método save para actualizar el estado del lote después de registrar un pago.
+        Sobrescribe el método save para actualizar el estado de la venta y del lote después de registrar un pago.
         """
         super().save(*args, **kwargs)
-        # Actualizar el estado del lote a través de la venta
-        if self.venta and hasattr(self.venta, 'lote') and self.venta.lote:
-            self.venta.lote.save()
+        if self.venta:
+            # Si el pago es de tipo inicial y la venta estaba en estado 'separado', verificar si ya se completó el pago inicial
+            if self.payment_type == 'initial' and self.venta.status == 'separado':
+                if self.venta.is_initial_payment_complete():
+                    self.venta.status = 'active'
+                    self.venta.save(update_fields=['status', 'updated_at'])
+            
+            # Actualizar el estado del lote a través de la venta
+            if hasattr(self.venta, 'lote') and self.venta.lote:
+                self.venta.lote.update_status_from_sales()
 
     def delete(self, *args, **kwargs):
         """
         Sobrescribe el método delete para actualizar el estado del lote después de eliminar un pago.
         """
-        venta_lote = None
-        if self.venta and hasattr(self.venta, 'lote') and self.venta.lote:
-            venta_lote = self.venta.lote
-        
+        venta = self.venta
         super().delete(*args, **kwargs)
-        # Actualizar el estado del lote después de eliminar el pago
-        if venta_lote:
-            venta_lote.save()
+        if venta and hasattr(venta, 'lote') and venta.lote:
+            venta.lote.update_status_from_sales()
 
     def __str__(self):
         lote_display = "Sin lote"

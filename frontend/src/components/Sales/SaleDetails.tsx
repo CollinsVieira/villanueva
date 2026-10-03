@@ -102,8 +102,10 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
   const getStatusLabel = (status: string) => {
     const statusLabels: { [key: string]: string } = {
       active: "Activa",
+      separado: "Separado",
       completed: "Completada",
       cancelled: "Cancelada",
+      suspended: "Suspendida"
     };
     return statusLabels[status] || status;
   };
@@ -165,6 +167,8 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                 className={`px-3 py-1 rounded-full text-sm font-medium ${
                   sale.status === "active"
                     ? "bg-green-100 text-green-800"
+                    : sale.status === "separado"
+                    ? "bg-yellow-100 text-yellow-800 border border-yellow-200 font-semibold"
                     : sale.status === "completed"
                     ? "bg-blue-100 text-blue-800"
                     : sale.status === "cancelled"
@@ -392,7 +396,7 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
             Descargar Boletas de Pago
           </button>
 
-          {sale.status === "active" && (
+          {(sale.status === "active" || sale.status === "separado") && (
             <>
               <button
                 onClick={handleCompleteSale}

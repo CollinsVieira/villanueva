@@ -13,6 +13,7 @@ class Venta(models.Model):
     
     STATUS_CHOICES = [
         ('active', _('Activa')),
+        ('separado', _('Separado')),
         ('cancelled', _('Cancelada')),
         ('completed', _('Completada')),
         ('suspended', _('Suspendida')),
@@ -175,15 +176,15 @@ class Venta(models.Model):
         if self.initial_payment > self.sale_price:
             raise ValidationError(_("El pago inicial no puede ser mayor al precio de venta"))
         
-        # Validar que solo haya una venta activa por lote
-        if self.status == 'active':
+        # Validar que solo haya una venta activa o separada por lote
+        if self.status in ['active', 'separado']:
             existing_active = Venta.objects.filter(
                 lote=self.lote,
-                status='active'
+                status__in=['active', 'separado']
             ).exclude(pk=self.pk)
             
             if existing_active.exists():
-                raise ValidationError(_("Ya existe una venta activa para este lote"))
+                raise ValidationError(_("Ya existe una venta o separación activa para este lote"))
     
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -209,8 +210,8 @@ class Venta(models.Model):
     
     @property
     def is_active(self):
-        """Verifica si la venta está activa"""
-        return self.status == 'active'
+        """Verifica si la venta está activa o separada"""
+        return self.status in ['active', 'separado']
     
     @property
     def payment_plan(self):
@@ -221,8 +222,8 @@ class Venta(models.Model):
         """Cancela la venta y libera el lote"""
         from django.utils import timezone
         
-        if self.status != 'active':
-            raise ValidationError(_("Solo se pueden cancelar ventas activas"))
+        if self.status not in ['active', 'separado']:
+            raise ValidationError(_("Solo se pueden cancelar ventas activas o separadas"))
         
         self.status = 'cancelled'
         self.cancellation_date = timezone.now()
@@ -237,8 +238,8 @@ class Venta(models.Model):
         """Marca la venta como completada"""
         from django.utils import timezone
         
-        if self.status != 'active':
-            raise ValidationError(_("Solo se pueden completar ventas activas"))
+        if self.status not in ['active', 'separado']:
+            raise ValidationError(_("Solo se pueden completar ventas activas o separadas"))
         
         # Verificar que todos los pagos estén completos
         if self.payment_plan:
@@ -252,7 +253,7 @@ class Venta(models.Model):
         return True
     
     @classmethod
-    def create_sale(cls, lote, customer, sale_price, payment_day, financing_months, initial_payment=None, contract_date=None, contract_pdf=None, **kwargs):
+    def create_sale(cls, lote, customer, sale_price, payment_day, financing_months, initial_payment=None, contract_date=None, contract_pdf=None, status='active', **kwargs):
         """Crea una nueva venta y configura el plan de pagos"""
         
         # Verificar que el lote esté disponible y no eliminado
@@ -269,6 +270,7 @@ class Venta(models.Model):
             contract_pdf=contract_pdf,
             payment_day=payment_day,
             financing_months=financing_months,
+            status=status or 'active',
             **kwargs
         )
         
@@ -475,8 +477,12 @@ class Venta(models.Model):
             recorded_by=recorded_by
         )
 
-        # El cronograma no necesita regenerarse porque ya está calculado correctamente
-        # considerando el pago inicial como deuda a descontar
+        # Si la venta estaba en estado 'separado' y con este pago se completa la inicial,
+        # la venta pasa automáticamente a 'active' y el lote a 'vendido'.
+        if self.status == 'separado' and self.is_initial_payment_complete():
+            self.status = 'active'
+            self.save(update_fields=['status', 'updated_at'])
+            self.lote.update_status_from_sales()
 
         return payment
     
@@ -498,8 +504,5 @@ class Venta(models.Model):
     
     @classmethod
     def get_active_sale_for_lote(cls, lote):
-        """Obtiene la venta activa para un lote específico"""
-        try:
-            return cls.objects.get(lote=lote, status='active')
-        except cls.DoesNotExist:
-            return None
+        """Obtiene la venta activa o separada para un lote específico"""
+        return cls.objects.filter(lote=lote, status__in=['active', 'separado']).first()

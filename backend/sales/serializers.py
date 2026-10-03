@@ -101,11 +101,19 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         help_text=_("Fecha de inicio del cronograma en formato YYYY-MM (opcional)")
     )
     
+    status = serializers.ChoiceField(
+        choices=Venta.STATUS_CHOICES,
+        default='active',
+        required=False,
+        help_text=_("Estado inicial de la venta ('active' o 'separado')")
+    )
+
     class Meta:
         model = Venta
         fields = [
             'lote', 'customer', 'sale_price', 'initial_payment', 
-            'contract_date', 'schedule_start_date', 'contract_pdf', 'adenda_pdf', 'escritura_pdf', 'notes', 'payment_day', 'financing_months'
+            'contract_date', 'schedule_start_date', 'contract_pdf', 'adenda_pdf', 'escritura_pdf', 'notes', 'payment_day', 'financing_months',
+            'status'
         ]
     
     def validate_lote(self, value):
