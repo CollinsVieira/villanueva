@@ -214,6 +214,22 @@ const SaleDetails: React.FC<SaleDetailsProps> = ({
                       {sale.lote_info?.area} m²
                     </span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Estado del Lote:</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      sale.lote_info?.status === 'disponible' ? 'bg-green-100 text-green-800' :
+                      sale.lote_info?.status === 'reservado' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                      sale.lote_info?.status === 'vendido' ? 'bg-blue-100 text-blue-800' :
+                      sale.lote_info?.status === 'liquidado' ? 'bg-purple-100 text-purple-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {sale.lote_info?.status === 'disponible' ? 'Disponible' :
+                       sale.lote_info?.status === 'reservado' ? 'Reservado' :
+                       sale.lote_info?.status === 'vendido' ? 'Vendido' :
+                       sale.lote_info?.status === 'liquidado' ? 'Liquidado' :
+                       sale.lote_info?.status || 'No especificado'}
+                    </span>
+                  </div>
                 </div>
               </div>
 

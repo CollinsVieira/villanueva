@@ -134,9 +134,9 @@ class VentaViewSet(viewsets.ModelViewSet):
         """Registrar el pago inicial para una venta"""
         venta = self.get_object()
         
-        if venta.status != 'active':
+        if venta.status not in ['active', 'separado']:
             return Response(
-                {'error': _('Solo se pueden registrar pagos para ventas activas')},
+                {'error': _('Solo se pueden registrar pagos para ventas activas o separadas')},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

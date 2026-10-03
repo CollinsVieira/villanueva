@@ -35,6 +35,7 @@ export interface Venta {
     display: string;
     area: string;
     price_per_m2: string;
+    status?: string;
   };
   customer_info?: {
     id: number;
@@ -75,7 +76,7 @@ export interface VentaInitialPayment {
 export interface PaymentPlan {
   id: number;
   venta: number;
-  venta_info: {
+  venta_info?: {
     id: number;
     status: string;
     sale_price: string;
@@ -185,6 +186,9 @@ class SalesService {
     formData.append('payment_day', data.payment_day.toString());
     formData.append('financing_months', data.financing_months.toString());
     
+    if (data.status) {
+      formData.append('status', data.status);
+    }
     if (data.initial_payment) {
       formData.append('initial_payment', data.initial_payment);
     }
