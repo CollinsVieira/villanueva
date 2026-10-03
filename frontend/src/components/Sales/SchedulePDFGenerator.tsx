@@ -3,6 +3,7 @@ import { Calendar } from 'lucide-react';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import customerService from '../../services/customerService';
 import { Lote } from '../../types';
+import { LoteSelectorItem } from '../../services/loteService';
 
 interface SchedulePDFGeneratorProps {
   salePrice: string;
@@ -10,7 +11,7 @@ interface SchedulePDFGeneratorProps {
   paymentDay: number;
   financingMonths: number;
   scheduleStartDate: string;
-  selectedLote: Lote | null;
+  selectedLote: Lote | LoteSelectorItem | null;
   customerId: number;
   disabled?: boolean;
   onError?: (error: string) => void;

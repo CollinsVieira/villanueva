@@ -2,6 +2,16 @@
 import api from './api';
 import { Lote } from '../types';
 
+export interface LoteSelectorItem {
+  id: number;
+  block: string;
+  lot_number: string;
+  display_name: string;
+  area: string | number;
+  price: string | number;
+  status: string;
+}
+
 // Helper para manejar respuestas paginadas
 const handlePaginatedResponse = (data: any): any[] => {
   // Si la respuesta tiene estructura paginada, devolver solo los resultados
@@ -17,6 +27,18 @@ class LoteService {
   async getLotes(params?: { status?: string; search?: string; block?: string; page_size?: number }): Promise<Lote[]> {
     const response = await api.get('/lotes/', { params });
     return handlePaginatedResponse(response.data);
+  }
+
+  // Endpoint ultraligero y rápido para dropdowns y selectores de lotes
+  async getLotesSelector(params?: { status?: string; search?: string }): Promise<LoteSelectorItem[]> {
+    const response = await api.get('/lotes/selector/', { params });
+    return Array.isArray(response.data) ? response.data : (response.data.results || []);
+  }
+
+  // Método para obtener un lote individual por ID
+  async getLoteById(id: number): Promise<Lote> {
+    const response = await api.get(`/lotes/${id}/`);
+    return response.data;
   }
 
   // Método para obtener TODOS los lotes sin limitación de paginación

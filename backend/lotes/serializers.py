@@ -264,3 +264,15 @@ class BulkLoteCreateSerializer(serializers.Serializer):
             'created_count': len(created_lotes),
             'lotes': LoteSerializer(created_lotes, many=True, context=self.context).data
         }
+
+
+class LoteSelectorSerializer(serializers.ModelSerializer):
+    """
+    Serializer ultraligero y de alto rendimiento exclusivo para dropdowns y selectores.
+    No ejecuta queries adicionales, ni serializa historial ni relaciones pesadas.
+    """
+    display_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Lote
+        fields = ['id', 'block', 'lot_number', 'display_name', 'area', 'price', 'status']

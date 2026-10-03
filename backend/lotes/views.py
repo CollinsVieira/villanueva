@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,7 +9,7 @@ from django.core.exceptions import ValidationError
 
 from users.permissions import IsWorkerOrAdmin
 from .models import Lote, LoteHistory
-from .serializers import LoteSerializer, BulkLoteCreateSerializer, SoftDeleteLoteSerializer
+from .serializers import LoteSerializer, BulkLoteCreateSerializer, SoftDeleteLoteSerializer, LoteSelectorSerializer
 
 
 class LoteViewSet(viewsets.ModelViewSet):
@@ -308,3 +309,34 @@ class LoteViewSet(viewsets.ModelViewSet):
             return Response(result, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'], url_path='selector')
+    def selector(self, request):
+        """
+        Endpoint optimizado de alto rendimiento para dropdowns y selectores de lotes.
+        Solo devuelve los campos mínimos necesarios (id, block, lot_number, display_name, area, price, status)
+        sin ejecutar queries N+1, ni serializar historial o relaciones pesadas.
+        """
+        status_param = request.query_params.get('status')
+        search_param = request.query_params.get('search')
+        
+        # Consultar únicamente los lotes activos
+        queryset = self.get_queryset()
+        
+        if status_param:
+            # Soporta múltiples estados separados por coma (ej: 'disponible,separado')
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            if statuses:
+                queryset = queryset.filter(status__in=statuses)
+        
+        if search_param:
+            search_terms = search_param.strip().split()
+            for term in search_terms:
+                queryset = queryset.filter(
+                    Q(block__icontains=term) | Q(lot_number__icontains=term)
+                )
+        
+        # Ordenación predeterminada por manzana y lote
+        queryset = queryset.order_by('block', 'lot_number')
+        serializer = LoteSelectorSerializer(queryset, many=True)
+        return Response(serializer.data)

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { VentaCreate, Venta } from '../../services/salesService';
-import loteService from '../../services/loteService';
+import loteService, { LoteSelectorItem } from '../../services/loteService';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import { Lote } from '../../types';
 import { Eye, Download, FileText } from 'lucide-react';
 import CustomerSelector from '../UI/CustomerSelector';
+import LoteSelector from '../UI/LoteSelector';
 import SchedulePDFGenerator from './SchedulePDFGenerator';
 import { getProxyImageUrl } from '../../utils/imageUtils';
 import { useCreateSale, useUpdateSale } from '../../hooks/useSalesQueries';
@@ -32,8 +33,7 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     financing_months: 12
   });
   
-  const [lotes, setLotes] = useState<Lote[]>([]);
-  const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
+  const [selectedLote, setSelectedLote] = useState<Lote | LoteSelectorItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [existingPdf, setExistingPdf] = useState<string | null>(null);
   const [existingAdendaPdf, setExistingAdendaPdf] = useState<string | null>(null);
@@ -73,9 +73,6 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
       setExistingPdf(sale.contract_pdf || null);
       setExistingAdendaPdf(sale.adenda_pdf || null);
       setExistingEscrituraPdf(sale.escritura_pdf || null);
-    } else {
-      // Si estamos creando, cargar todos los lotes disponibles
-      loadLotes();
     }
   }, [sale]);
 
@@ -83,38 +80,17 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
     try {
       const lote = await loteService.getLoteById(loteId);
       setSelectedLote(lote);
-      setLotes([lote]);
     } catch (err) {
       console.error('Error loading lote:', err);
     }
   };
 
-  const loadLotes = async () => {
-    try {
-      let page = 1;
-      const all: Lote[] = [] as any;
-      while (true) {
-        const { next, results } = await loteService.getLotesPage({ page, page_size: 100 });
-        all.push(...results);
-        if (!next) break;
-        page += 1;
-      }
-      // Solo mostrar lotes disponibles para nuevas ventas
-      const filteredLotes = all.filter((lote: any) => lote.status === 'disponible');
-      setLotes(filteredLotes as any);
-    } catch (err) {
-      console.error('Error loading lotes:', err);
-    }
-  };
-
-
-  const handleLoteChange = (loteId: string) => {
-    const lote = lotes.find(l => l.id === parseInt(loteId));
-    setSelectedLote(lote || null);
+  const handleLoteSelect = (loteId: number | null, loteItem: LoteSelectorItem | null) => {
+    setSelectedLote(loteItem || null);
     setFormData(prev => ({
       ...prev,
-      lote: parseInt(loteId),
-      sale_price: lote ? lote.price || '' : ''
+      lote: loteId || 0,
+      sale_price: loteItem ? loteItem.price || '' : ''
     }));
   };
 
@@ -186,20 +162,13 @@ const SaleForm: React.FC<SaleFormProps> = ({ sale, onSave, onCancel }) => {
                   </div>
                 </div>
               ) : (
-                <select
-                  id="lote"
-                  value={formData.lote > 0 ? formData.lote.toString() : ''}
-                  onChange={(e: any) => handleLoteChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                <LoteSelector
+                  value={formData.lote > 0 ? formData.lote : null}
+                  onChange={handleLoteSelect}
+                  placeholder="Buscar por Mz. o Lote..."
+                  statusFilter="disponible"
                   required
-                >
-                  <option value="">Seleccionar lote</option>
-                  {lotes.map((lote) => (
-                    <option key={lote.id} value={lote.id.toString()}>
-                      Mz. {lote.block}, Lote {lote.lot_number} - {dynamicReportsService.formatCurrency((lote as any).price || 0)}
-                    </option>
-                  ))}
-                </select>
+                />
               )}
             </div>
 
