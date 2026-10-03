@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { 
   CreditCard, 
   X, 
   Upload, 
-  Building2, 
-  User, 
-  Calendar, 
   DollarSign, 
   FileText, 
   CheckCircle2, 
   AlertTriangle, 
-  Info,
   Layers,
   Sparkles
 } from "lucide-react";
@@ -30,7 +26,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave, initialVenta
   const [paymentSchedules, setPaymentSchedules] = useState<any[]>([]);
   const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
-  const [installmentNumber, setInstallmentNumber] = useState<number>(1);
   
   // Tipo de pago: 'installment' (cuota) o 'initial' (pago inicial)
   const [paymentType, setPaymentType] = useState<"installment" | "initial">("installment");
@@ -90,7 +85,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave, initialVenta
 
       if (targetSchedule) {
         setSelectedScheduleId(targetSchedule.id);
-        setInstallmentNumber(targetSchedule.installment_number);
         setPaymentAmount(
           targetSchedule.status === "partial"
             ? (targetSchedule.remaining_amount?.toString() || "0")
@@ -138,7 +132,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave, initialVenta
     setSelectedScheduleId(scheduleId);
     const selected = paymentSchedules.find((s) => s.id === scheduleId);
     if (selected) {
-      setInstallmentNumber(selected.installment_number);
       setPaymentAmount(
         selected.status === "partial"
           ? (selected.remaining_amount?.toString() || "0")
@@ -166,7 +159,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onClose, onSave, initialVenta
         if (available.length > 0) {
           const first = available[0];
           setSelectedScheduleId(first.id);
-          setInstallmentNumber(first.installment_number);
           setPaymentAmount(first.scheduled_amount?.toString() || "0");
         }
       }
