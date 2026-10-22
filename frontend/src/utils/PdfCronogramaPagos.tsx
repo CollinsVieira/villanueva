@@ -1,4 +1,5 @@
 import paymentService from "../services/paymentService";
+import { DateService } from "../services/dateService";
 
 export const handleDownloadCronogramaPDF = async (
   ventaId: number,
@@ -194,8 +195,22 @@ export const handleDownloadCronogramaPDF = async (
       "Monto Pagado",
       "Pendiente",
       "Fecha Pago",
+      "Fecha Real Pago",
       "Estado",
     ];
+
+    const formatDate = (dateStr?: string | null) => {
+      if (!dateStr) return "-";
+      try {
+        return DateService.utcToLocalDateOnly(dateStr);
+      } catch {
+        try {
+          return new Date(dateStr).toLocaleDateString("es-ES");
+        } catch {
+          return "-";
+        }
+      }
+    };
 
     const tableData = schedules.map((schedule, index) => {
       try {
@@ -208,8 +223,27 @@ export const handleDownloadCronogramaPDF = async (
         const remainingAmount = `S/ ${parseFloat(schedule.remaining_amount || '0').toLocaleString("es-PE", {
           minimumFractionDigits: 2,
         })}`;
-         const dueDate = schedule.due_date ? new Date(schedule.due_date).toLocaleDateString("es-ES") : "-";
-         const paymentDate = schedule.payment_date ? new Date(schedule.payment_date).toLocaleDateString("es-ES") : "-";
+        const dueDate = formatDate(schedule.due_date);
+        const paymentDate = formatDate(schedule.payment_date);
+
+        // Obtener fecha real del pago (de la operación/comprobante bancario o registro real del pago)
+        let realPaymentDate = "-";
+        if (schedule.all_payments && schedule.all_payments.length > 0) {
+          const latestPayment = schedule.all_payments[0];
+          if (latestPayment.receipt_date) {
+            realPaymentDate = formatDate(latestPayment.receipt_date);
+          } else if (latestPayment.payment_date) {
+            realPaymentDate = formatDate(latestPayment.payment_date);
+          } else if (latestPayment.created_at) {
+            realPaymentDate = formatDate(latestPayment.created_at);
+          }
+        } else if ((schedule as any).receipt_date) {
+          realPaymentDate = formatDate((schedule as any).receipt_date);
+        } else if (schedule.status === "paid" || (schedule.paid_amount && parseFloat(schedule.paid_amount) > 0)) {
+          if (schedule.payment_date) {
+            realPaymentDate = formatDate(schedule.payment_date);
+          }
+        }
         
         let statusText = "";
         switch (schedule.status) {
@@ -239,19 +273,21 @@ export const handleDownloadCronogramaPDF = async (
           paidAmount,
           remainingAmount,
           paymentDate,
+          realPaymentDate,
           statusText,
-         ];
-       } catch (rowError) {
-         return [
-           (index + 1).toString(),
-           "-",
-           "S/ 0.00",
-           "S/ 0.00",
-           "S/ 0.00",
-           "-",
-           "ERROR",
-         ];
-       }
+        ];
+      } catch (rowError) {
+        return [
+          (index + 1).toString(),
+          "-",
+          "S/ 0.00",
+          "S/ 0.00",
+          "S/ 0.00",
+          "-",
+          "-",
+          "ERROR",
+        ];
+      }
     });
 
     // Configuración de la tabla
@@ -264,7 +300,7 @@ export const handleDownloadCronogramaPDF = async (
         fillColor: primaryColor,
         textColor: [255, 255, 255],
         fontStyle: "bold",
-        fontSize: 8,
+        fontSize: 7.5,
         halign: "center",
       },
       bodyStyles: {
@@ -275,18 +311,19 @@ export const handleDownloadCronogramaPDF = async (
         fillColor: [250, 250, 250],
       },
       columnStyles: {
-        0: { halign: "center", cellWidth: 20 }, // Cuota
-        1: { halign: "center", cellWidth: 30 }, // Vencimiento
-        2: { halign: "right", cellWidth: 30 }, // Monto Prog.
-        3: { halign: "right", cellWidth: 30 }, // Monto Pagado
-        4: { halign: "right", cellWidth: 30 }, // Pendiente
-        5: { halign: "center", cellWidth: 30 }, // Fecha Pago
-        6: { halign: "center", cellWidth: 30 }, // Estado
+        0: { halign: "center", cellWidth: 14 }, // Cuota
+        1: { halign: "center", cellWidth: 25 }, // Vencimiento
+        2: { halign: "right", cellWidth: 26 }, // Monto Prog.
+        3: { halign: "right", cellWidth: 26 }, // Monto Pagado
+        4: { halign: "right", cellWidth: 25 }, // Pendiente
+        5: { halign: "center", cellWidth: 27 }, // Fecha Pago
+        6: { halign: "center", cellWidth: 28 }, // Fecha Real Pago
+        7: { halign: "center", cellWidth: 29 }, // Estado
       },
       didParseCell: function (data: any) {
         try {
-          // Colorear filas según el estado
-          if (data.section === "body" && data.column.index === 6) {
+          // Colorear filas según el estado (columna índice 7)
+          if (data.section === "body" && data.column.index === 7) {
             const status = data.cell.text[0];
             if (status === "PAGADO") {
               data.cell.styles.fillColor = greenColor;
@@ -306,9 +343,9 @@ export const handleDownloadCronogramaPDF = async (
               data.cell.styles.textColor = [255, 255, 255];
             }
           }
-         } catch (cellError) {
-           // Error silencioso al colorear celda
-         }
+        } catch (cellError) {
+          // Error silencioso al colorear celda
+        }
       },
       margin: { top: 10, right: 5, bottom: 10, left: 5 },
       tableWidth: "auto",

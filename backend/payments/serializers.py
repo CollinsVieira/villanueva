@@ -374,6 +374,7 @@ class PaymentScheduleSummarySerializer(serializers.ModelSerializer):
             'status',
             'paid_amount',
             'payment_date',
+            'receipt_date',
             'is_forgiven',
             'lote_display',
             'customer_display',

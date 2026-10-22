@@ -444,6 +444,7 @@ export interface HistoryEvent {
     due_date: string;
     status: 'pending' | 'paid' | 'overdue' | 'partial' | 'forgiven';
     payment_date?: string;
+    receipt_date?: string;
     is_forgiven: boolean;
     // Información contextual del serializer
     lote_display?: string;
