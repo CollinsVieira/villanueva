@@ -1,4 +1,6 @@
 import React from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Calendar } from 'lucide-react';
 import { dynamicReportsService } from '../../services/dynamicReportsService';
 import customerService from '../../services/customerService';
@@ -36,8 +38,6 @@ const SchedulePDFGenerator: React.FC<SchedulePDFGeneratorProps> = ({
     }
 
     try {
-      const { jsPDF } = await import("jspdf");
-      const { autoTable } = await import("jspdf-autotable");
       const doc = new jsPDF();
 
       // Configuración de colores

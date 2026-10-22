@@ -1,3 +1,5 @@
+import jsPDF from "jspdf";
+import { toast } from "react-hot-toast";
 import salesService from "../services/salesService";
 import paymentService from "../services/paymentService";
 import { getProxyImageUrl } from "./imageUtils";
@@ -12,7 +14,6 @@ export const handleDownloadBoletasPagoPDF = async (
     setError(null);
 
     // Mostrar toast de carga
-    const { toast } = await import("react-hot-toast");
     toast.loading("Generando PDF de boletas de pago...", { id: toastId });
 
     // Obtener datos de la venta y sus pagos
@@ -50,7 +51,6 @@ export const handleDownloadBoletasPagoPDF = async (
       return;
     }
 
-    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
 
     // Configuración de colores
@@ -255,7 +255,6 @@ export const handleDownloadBoletasPagoPDF = async (
     
     toast.success(`PDF de boletas de pago generado exitosamente. ${totalBoletasCount} boletas incluidas (${initialPaymentsWithBoleta.length} pagos iniciales + ${schedulesWithBoleta.length} cuotas).`, { id: toastId });
   } catch (err: any) {
-    const { toast } = await import("react-hot-toast");
     toast.error("Error al generar el PDF de boletas de pago", { id: toastId });
     setError(err.response?.data?.detail || "Error al generar el PDF de boletas de pago.");
   }

@@ -1,3 +1,6 @@
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { toast } from "react-hot-toast";
 import salesService from "../services/salesService";
 import paymentService from "../services/paymentService";
 import { getProxyImageUrl } from "./imageUtils";
@@ -12,7 +15,6 @@ export const handleDownloadHistorialPagosPDF = async (
     setError(null);
 
     // Mostrar toast de carga
-    const { toast } = await import("react-hot-toast");
     toast.loading("Generando PDF del historial de pagos...", { id: toastId });
 
     // Obtener datos de la venta y sus pagos
@@ -26,8 +28,6 @@ export const handleDownloadHistorialPagosPDF = async (
       return;
     }
 
-    const { jsPDF } = await import("jspdf");
-    const { autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
 
     // Configuración de colores
@@ -458,7 +458,6 @@ export const handleDownloadHistorialPagosPDF = async (
     );
     toast.success("PDF del historial de pagos generado exitosamente", { id: toastId });
   } catch (err: any) {
-    const { toast } = await import("react-hot-toast");
     toast.error("Error al generar el PDF del historial", { id: toastId });
     setError(err.response?.data?.detail || "Error al generar el PDF del historial.");
   }
